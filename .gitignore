@@ -1,0 +1,10 @@
+# The workbooks hold store prices, stock and staff numbers. They never go in
+# this public repository — only the encrypted data/catalogue.enc.json does.
+*.xlsx
+*.xls
+*.csv
+backend/
+
+_site/
+node_modules/
+.DS_Store

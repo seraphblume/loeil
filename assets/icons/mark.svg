@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- L'Œil — the mark: outer eye, eyeball, iris, from the Icon Composer layers. -->
+  <defs>
+    <linearGradient id="silver" x1="0.313" y1="0.036" x2="0.687" y2="0.964">
+      <stop offset="0%" stop-color="#EDEFF3"/><stop offset="34%" stop-color="#C6CCD5"/>
+      <stop offset="60%" stop-color="#878F9D"/><stop offset="100%" stop-color="#E4E8EE"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0.687" y1="0.036" x2="0.313" y2="0.964">
+      <stop offset="0%" stop-color="#E4E8EE"/><stop offset="38%" stop-color="#878F9D"/>
+      <stop offset="66%" stop-color="#C6CCD5"/><stop offset="100%" stop-color="#EDEFF3"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0%" stop-color="#26248A"/><stop offset="55%" stop-color="#151358"/><stop offset="100%" stop-color="#0D0C33"/>
+    </radialGradient>
+  </defs>
+  <path d="M 86 256 A 199.6 199.6 0 0 1 426 256 A 199.6 199.6 0 0 1 86 256 Z" fill="none" stroke="url(#silver)" stroke-width="18" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="82" fill="#0B0D13"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="url(#ring)" stroke-width="14"/>
+  <circle cx="256" cy="256" r="58" fill="url(#iris)"/>
+  <circle cx="256" cy="256" r="25" fill="#07061C"/>
+  <circle cx="256" cy="238" r="9.5" fill="#F7F7FA" opacity="0.92"/>
+</svg>

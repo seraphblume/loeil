@@ -1,0 +1,12 @@
+{
+  "name": "loeil-tools",
+  "private": true,
+  "type": "module",
+  "description": "Publish the L'Œil catalogue from a computer instead of the app.",
+  "scripts": {
+    "publish-data": "node publish.mjs"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
+  }
+}
