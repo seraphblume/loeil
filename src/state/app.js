@@ -28,6 +28,7 @@ let state = {
   draftRx: null,
   toast: null,
   update: false,
+  working: null,
 };
 
 const listeners = new Set();
@@ -140,7 +141,8 @@ export async function adopt(bundle, { passcode } = {}) {
 export async function lockDevice() {
   await db.del('bundle');
   await db.del('passcode');
-  setState({ catalogue: new Catalogue(null), passcode: null, sync: { status: 'idle', note: null, checkedAt: null } });
+  await db.del('working');
+  setState({ catalogue: new Catalogue(null), passcode: null, working: null, sync: { status: 'idle', note: null, checkedAt: null } });
 }
 
 // ---------------------------------------------------------------------------

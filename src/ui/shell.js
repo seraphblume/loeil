@@ -15,6 +15,11 @@ import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
 import { MeScreen, PromotionsScreen } from './me.js';
 import { PublishScreen } from './publish.js';
+import { DataHome } from './data/home.js';
+import { LensPricesScreen, AddCoatingScreen } from './data/lenses.js';
+import { AdjustScreen } from './data/adjust.js';
+import { VocabScreen, FramesAdminScreen, BrandsScreen, StockAdminScreen, ExtrasScreen, StaffAdminScreen } from './data/records.js';
+import { PromosScreen, PromoScreen } from './data/promos.js';
 
 const TAB_ITEMS = [
   { id: 'find', label: 'Find', icon: 'search' },
@@ -54,6 +59,19 @@ function screenFor(route) {
   if (tab === 'orders') return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} />`;
   if (tab === 'me') {
     if (a === 'publish') return html`<${PublishScreen} />`;
+    if (a === 'data') {
+      if (b === 'lenses') return html`<${LensPricesScreen} family=${route.parts[3] ?? 'SV'} />`;
+      if (b === 'coating') return html`<${AddCoatingScreen} />`;
+      if (b === 'adjust') return html`<${AdjustScreen} />`;
+      if (b === 'vocab') return html`<${VocabScreen} query=${route.query} />`;
+      if (b === 'frames') return html`<${FramesAdminScreen} query=${route.query} />`;
+      if (b === 'brands') return html`<${BrandsScreen} />`;
+      if (b === 'stock') return html`<${StockAdminScreen} />`;
+      if (b === 'extras') return html`<${ExtrasScreen} />`;
+      if (b === 'staff') return html`<${StaffAdminScreen} />`;
+      if (b === 'promos') return route.parts[3] ? html`<${PromoScreen} id=${route.parts[3]} />` : html`<${PromosScreen} />`;
+      return html`<${DataHome} />`;
+    }
     if (a === 'promotions') return html`<${PromotionsScreen} />`;
     return html`<${MeScreen} />`;
   }

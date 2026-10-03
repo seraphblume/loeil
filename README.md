@@ -22,54 +22,62 @@ using the phone, and it is ready.
 | What | Where | Who can read it |
 |---|---|---|
 | Prices, lenses, frames, stock, promotions, staff | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
+| Unpublished edits | The admin’s phone (the working copy) | The admin |
 | Client records and orders | That phone only (IndexedDB) | Nobody else — no sync, no account |
 | GitHub token for publishing | The admin’s phone only | The admin |
 
-The workbooks themselves are **never committed**. `.gitignore` refuses `*.xlsx`.
-The repository and the site hold only code and the encrypted file.
+**L’Œil owns its data.** No spreadsheet and no Google service is needed to run it
+or to change it. The published file is the source of truth, and every publish is
+a commit, so the full history is in this repository’s log. The repository and the
+site hold only code and the encrypted file; `.gitignore` refuses `*.xlsx`.
 
 Back up client records from **Me → Export backup**. Backups from the earlier
 iPhone and Android apps restore here too (**Me → Restore from a backup**).
 
-## Changing prices, coatings, frames or promotions
+## Changing the catalogue
 
-1. Edit the workbooks:
-   - **`LOEIL_Backend.xlsx`** — lenses and prices, stock, extras, staff,
-     promotions, and the **vocabulary** tab.
-   - **`Catalogue.xlsx`** — the frame catalogue, one tab per brand. It is the
-     source of truth for every frame’s price, brand, category, material and size.
-     The Backend’s `inventory` tab only adds how many are on the shelf.
-2. On the admin phone: **Me → Publish data**, pick both files.
-3. The app runs the publish gate (duplicate rows, missing prices, malformed
-   barcodes, broken promo links…). Any error stops the publish.
-4. It encrypts and commits `data/catalogue.enc.json`. Pages redeploys in about a
-   minute; every phone updates on its next launch.
+On the admin phone: **Me → Catalogue data**. Every edit goes into a *working
+copy* saved on that phone; nobody sees it until **Review and publish**.
 
-From a computer instead: `cd tools && npm install && node publish.mjs LOEIL_Backend.xlsx Catalogue.xlsx`,
-then commit `data/catalogue.enc.json`.
+| To… | Go to |
+|---|---|
+| Change a lens price, mark a lens unavailable, add a combination | Single vision / Multifocal / Contact lens prices |
+| Raise or lower many prices at once (by $, %, or set; round to the peso or to a price ending in 9) | Adjust prices — lenses by coating, material, filter or design; frames by brand, category, material |
+| Bring in a new coating across many lenses | Add a coating to many lenses — pick the lenses, base the prices on an existing coating plus an amount |
+| Rename a code, set the upgrade order or promo family | Coatings, materials and names |
+| Add, reprice or remove a frame | Frames (category, material and eye size are read from the product code) |
+| Set brand tiers | Brand tiers |
+| Update stock | Stock → **Import the stock report (PDF)**: print the POS *Reporte Existencias* to PDF and pick it |
+| Rotate promotions | Promotions → **New campaign dates**, or edit one; lens lines are built from pickers |
+| Add or switch off a seller | Staff |
 
-### The vocabulary tab — nothing about the catalogue is in the code
+**Review and publish** lists every change against what the phones have, runs the
+publish gate (duplicate rows, missing prices, malformed barcodes, broken promo
+links…), encrypts, and commits `data/catalogue.enc.json`. Pages redeploys in about
+a minute; every phone updates on its next launch. If another device published
+after your working copy was started, it stops and asks before overwriting.
+
+**Files are optional.** *Import a stock report or workbook* brings a lot in at
+once; *Export as workbooks* gives an offline copy in the same layout, which can be
+edited on a computer and imported back. From a computer without the app:
+`cd tools && npm install && node publish.mjs LOEIL_Backend.xlsx Catalogue.xlsx`.
+
+### Coatings, materials and names — nothing about the catalogue is in the code
 
 Each lens row names its attributes by code (`4300 — Polylite`, `CZS (Crizal Sapphire)`).
-The `vocabulary` tab says, per code, what the app should do with it:
+The names list says, per code, what the app does with it:
 
-| Column | Does |
+| Field | Does |
 |---|---|
-| `kind` + `code` | The key: `treatment` + `CZS`. Never edit a code. |
-| `english` | What the app shows. Blank → the POS wording. |
-| `blurb` | One line to say to the customer. |
-| `rank` | Option order. For coatings it is the **upgrade ladder**: a lens offers every coating ranked above its own, with the price difference. |
-| `promo_group` | The family the promo table speaks in: materials → `POLY`/`CR39`/`HI`, filters → `BLANCO`/`FOTO`/`TRANS`/`POLAR`, coatings → `CRIZAL` (matches `*CRIZAL` lines). |
-| `same_as` | Old and new codes for one product (`CZS` ↔ `CZN`). |
-| `high_rx` | `YES` on materials suggested when the sphere is beyond ±10. |
+| kind + code | The key: `treatment` + `CZS`. Never change a code lenses use. |
+| English name | What the app shows. Blank → the POS wording. |
+| Blurb | One line to say to the customer. |
+| Rank | Option order. For coatings it is the **upgrade ladder**: a lens offers every coating ranked above its own, with the price difference. |
+| Promo group | The family the promo table speaks in: materials → `POLY`/`CR39`/`HI`, filters → `BLANCO`/`FOTO`/`TRANS`/`POLAR`, coatings → `CRIZAL` (matches `*CRIZAL` lines). |
+| Same as | Old and new codes for one product (`CZS` ↔ `CZN`). |
+| High Rx | Materials suggested when the sphere is beyond ±10. |
 
-**Adding a coating:** add its price rows to `lenses_single` / `lenses_multifocal`,
-add one `vocabulary` row (kind `treatment`, code, English name, rank, promo group),
-publish. It appears in the finder, on the upgrade ladder and in promo matching —
-no app update. A code with no vocabulary row still sells; it just shows the POS
-wording, and the gate lists it.
-
-**Changing a price:** edit the cell, publish.
+A code with no entry still sells; it shows the POS wording and the gate lists it.
 
 ## The passcode
 
@@ -102,14 +110,17 @@ just for new prices.
 index.html, sw.js, manifest.webmanifest
 src/config.js         every app rule in one place (validity, recall, bounds…)
 src/core/             pure logic, shared with tools/publish.mjs
-  ingest.js           workbooks → bundle + the publish gate
+  validate.js         the publish gate
+  edits.js diff.js    every catalogue edit, and what changed
+  stockreport.js      the POS stock report PDF → stock
+  ingest.js export.js workbooks in and out (optional)
   crypto.js           the encrypted envelope
   catalogue.js        runtime catalogue, frames, stock, vocabulary
   lens.js             cascades, POS code, upgrades, search
   promotions.js       promo matching (families come from the vocabulary)
   orders.js crm.js rxticket.js backup.js
-src/state/            storage, sync, app state, updates
-src/ui/               screens
+src/state/            storage, sync, the working copy, updates
+src/ui/               screens; src/ui/data/ is the catalogue editor
 tools/                publish from a computer; deploy stamping
 ```
 

@@ -12,7 +12,7 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const OUT = join(ROOT, '_site');
 const SHIP = ['index.html', 'manifest.webmanifest', 'sw.js', '.nojekyll', 'src', 'assets', 'data'];
 // Loaded only when needed and cached on first use, so they stay out of the install.
-const LAZY = ['src/vendor/xlsx.mini.min.js', 'src/vendor/barcode-detector.js', 'src/vendor/zxing_reader.wasm'];
+const LAZY = ['src/vendor/xlsx.mini.min.js', 'src/vendor/barcode-detector.js', 'src/vendor/zxing_reader.wasm', 'src/vendor/pdfjs/pdf.min.mjs', 'src/vendor/pdfjs/pdf.worker.min.mjs'];
 
 const walk = (dir) => readdirSync(dir).flatMap((n) => {
   const p = join(dir, n);

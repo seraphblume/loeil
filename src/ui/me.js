@@ -128,6 +128,7 @@ export function MeScreen() {
             <${KV} k="Lenses" v=${catalogue.lensCount} />
             <${KV} k="Frames" v=${catalogue.frames.length.toLocaleString('en')} />
             <${KV} k="Stock items" v=${catalogue.inventory.length} />
+            ${catalogue.bundle?.stockReport?.generated && html`<${KV} k="Stock as of" v=${catalogue.bundle.stockReport.generated} />`}
             <${KV} k="Status" v=${syncLine} />
           <//>
           ${sync.note && html`<p class="para">${sync.note}</p>`}
@@ -156,7 +157,8 @@ export function MeScreen() {
         <//></div>`}
 
         ${isAdmin && html`<${Section} title="Admin">
-          <${Row} to="#/me/publish" icon="cloud" title="Publish data" detail="Send new workbooks to every phone" chev />
+          <${Row} to="#/me/data" icon="edit" title="Catalogue data" detail=${s.working ? 'Unpublished changes on this phone' : 'Prices, coatings, frames, stock, promotions, staff'} chev />
+          <${Row} to="#/me/publish" icon="cloud" title="Review and publish" detail="Send the changes to every phone" chev />
         <//>`}
 
         <div class="pad gap-s">

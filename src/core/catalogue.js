@@ -5,10 +5,10 @@
 // the POS's Spanish label (`4300 — Polylite`, `BLC (Blanco)`). The English the
 // interface shows comes from the Backend's `vocabulary` tab, keyed by kind and
 // code. A code with no entry still displays — in the POS's own words — and still
-// sells. Adding a lens or a treatment is a spreadsheet edit, never a release.
+// sells. Adding a lens or a treatment is a data edit and a publish, never a release.
 
 import { parseCodeLabel, fold, brandKey } from './util.js';
-import { stockKind } from './ingest.js';
+import { stockKind } from './stock.js';
 
 /** One attribute value: the POS code, the POS wording, ours, and its metadata. */
 export class LensCode {
@@ -64,7 +64,7 @@ export class Catalogue {
     this.inventory = (bundle?.inventory ?? []).map((i) => ({ ...i, kind: stockKind(i) }));
     this.inventoryBySku = new Map(this.inventory.map((i) => [i.sku, i]));
 
-    // frames: the catalogue workbook is the source of truth; stock joins on barcode
+    // frames: the frame catalogue is the source of truth; stock joins on barcode
     this.frames = (bundle?.frames ?? []).map((f) => {
       const stockItem = this.inventoryBySku.get(f.sku);
       return {

@@ -1,4 +1,4 @@
-// Frames — the catalogue workbook is the source of truth: identity, price,
+// Frames — the frame catalogue is the source of truth: identity, price,
 // brand, category, material and size. The inventory tab only adds how many are
 // on the shelf. A frame in stock but missing from the catalogue still sells,
 // with its price typed off the tag.
@@ -161,7 +161,7 @@ export function StockScreen({ sku }) {
           <${Eyebrow}>Price from the tag<//>
           <label class="field"><span class="unit">$</span>
             <input inputmode="numeric" placeholder="Read it off the tag" value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
-          <p class="note">This frame is in stock but not in the catalogue, so its price is not known. Add it to Catalogue.xlsx and it will be next time.</p>
+          <p class="note">This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.</p>
         </section>` : html`<p class="para">Priced at the register. It goes on the ticket as a code and a quantity.</p>`}
         <${Anchor} icon="plus" disabled=${isFrame && !price} onClick=${add}>Add to order<//>
       </div>
