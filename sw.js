@@ -43,18 +43,12 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.endsWith('/data/catalogue.enc.json')) return;
 
   if (req.mode === 'navigate') {
-    // Fresh page when the network answers quickly; the cached shell otherwise,
-    // so a weak signal never holds the app hostage.
+    // The page from this release's own copy, so the page and every module it
+    // loads are always the same version, and a weak signal never holds the app
+    // hostage. A newer release installs beside it and takes over on next launch.
     event.respondWith((async () => {
-      const cache = await caches.open(SHELL);
-      const cached = await cache.match('./');
-      const network = fetch(req).then((fresh) => {
-        if (fresh.ok) cache.put('./', fresh.clone());
-        return fresh;
-      });
-      if (!cached) return network.catch(() => Response.error());
-      const timeout = new Promise((resolve) => setTimeout(() => resolve(cached), 2500));
-      return Promise.race([network.catch(() => cached), timeout]);
+      const cached = await (await caches.open(SHELL)).match('./');
+      return cached || fetch(req);
     })());
     return;
   }
