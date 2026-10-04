@@ -23,7 +23,7 @@ export const SPECS = [
   { title: 'Frames', get: (b) => b.frames, key: (f) => f.sku, label: (f) => f.description || f.sku, fields: ['price', 'description', 'brand', 'category', 'frameType', 'material', 'size', 'product'] },
   { title: 'Brand tiers', get: (b) => b.frameBrands, key: (x) => brandKey(x.brand), label: (x) => x.brand, fields: ['tier'] },
   { title: 'Stock', get: (b) => b.inventory, key: (i) => i.sku, label: (i) => i.description || i.sku, fields: ['stock', 'description', 'classification', 'expires'] },
-  { title: 'Extras', get: (b) => b.extras, key: (e) => e.id, label: (e) => e.description || e.id, fields: ['description'] },
+  { title: 'Extras', get: (b) => b.extras, key: (e) => e.id, label: (e) => e.description || e.id, fields: ['description', 'percent'] },
   { title: 'Staff', get: (b) => b.staff, key: (s) => s.employeeNumber, label: (s) => s.name || s.employeeNumber, fields: ['name', 'shortName', 'role', 'active'] },
   { title: 'Promotions', get: (b) => b.promotions, key: (p) => p.id, label: (p) => `${p.id} ${p.name}`, fields: ['name', 'kind', 'description', 'category', 'conditions', 'validFrom', 'validTo', 'notes'] },
   { title: 'Promo lines', get: (b) => b.promoLensMap, key: (l) => `${l.promoId}|${l.package}|${l.matchKey}`, label: (l) => `${l.promoId} ${l.matchKey}`, fields: ['lensDescription'] },

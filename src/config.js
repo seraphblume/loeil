@@ -46,6 +46,9 @@ export const RECALL_MONTHS = 12;
 /** …and shows on the recall list this many days ahead. */
 export const RECALL_WINDOW_DAYS = 30;
 
+/** Discounts a seller can put on a priced line of an order, in percent. */
+export const LINE_DISCOUNTS = [40, 50];
+
 /** Contribution grid on the Me tab. */
 export const GRID_WEEKS = 26;
 

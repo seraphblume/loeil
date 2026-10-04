@@ -141,6 +141,7 @@ export function validateBundle(b, report = new Report()) {
     if (!e.id) report.error('Extras', `${e.description || 'An extra'} has no code.`);
     if (extraIds.has(e.id)) report.error('Extras', `Code ${e.id} is listed twice.`);
     extraIds.add(e.id);
+    if (e.percent != null && !(Number(e.percent) > 0 && Number(e.percent) <= 100)) report.error('Extras', `${e.description || e.id}: the percentage must be more than 0 and at most 100.`);
   }
 
   // --- staff

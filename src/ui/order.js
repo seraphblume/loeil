@@ -13,8 +13,10 @@ import { go } from './router.js';
 import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
-  lineCode, lineText, lineQuantity, lineTotal, orderTotal, unpriced, extraLine, lensesOf, STATUSES, ticketText,
+  lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
+  isPair, isShare, isGlasses, discountable,
 } from '../core/orders.js';
+import { LINE_DISCOUNTS } from '../config.js';
 import { FAMILIES } from '../core/lens.js';
 import { stockLabel } from '../core/catalogue.js';
 import { eligibility } from '../core/promotions.js';
@@ -38,21 +40,32 @@ export function CodesBlock({ order }) {
 }
 
 export function LinesPanel({ order, editable }) {
+  const [discounting, setDiscounting] = useState(null);
+  const p = priceOrder(order);
   return html`<section class="gap-s">
     <${Eyebrow}>Lines<//>
     <${Panel} tight>
-      ${order.lines.map((l) => html`<div class="kv lined" style="align-items:flex-start">
+      ${p.rows.map((r) => {
+        const l = r.line;
+        const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
+        return html`<div class="kv lined" style="align-items:flex-start">
         <span style="min-width:0;flex:1">
           <div style="font-size:14px;color:var(--platinum);overflow-wrap:anywhere">${lineText(l)}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <span class="mono tiny muted">${lineCode(l)}</span>
             ${l.kind === 'frame' && l.priceSource === 'tag' && html`<span class="tiny muted">price typed from tag</span>`}
+            ${isPair(l) && html`<span class="tiny muted">${l.quantity === 2 ? 'the pair' : `${l.eye} only`}</span>`}
+            ${isShare(l) && html`<span class="tiny muted">${l.percent}% of ${money(r.base)}</span>`}
             ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
+            ${discountable(l) && (editable
+              ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setDiscounting(r)}>${r.discount ? `−${r.discount}%` : 'Discount'}</button>`
+              : r.discount > 0 && html`<span class="chip on">−${r.discount}%</span>`)}
           </div>
         </span>
         <span style="text-align:right;flex:none">
-          <div class="num" style=${{ fontSize: lineTotal(l) == null ? '12px' : '14px', color: lineTotal(l) == null ? 'var(--silver)' : 'var(--platinum)' }}>${lineTotal(l) == null ? 'At register' : money(lineTotal(l))}</div>
-          ${editable && l.kind !== 'frame'
+          ${r.discount > 0 && html`<div class="tiny muted num" style="text-decoration:line-through">${money(r.list)}</div>`}
+          <div class="num" style=${{ fontSize: r.net == null ? '12px' : '14px', color: r.net == null ? 'var(--silver)' : 'var(--platinum)' }}>${r.net == null ? 'At register' : money(r.net)}</div>
+          ${steps
             ? html`<div style="display:flex;gap:2px;justify-content:flex-end;align-items:center">
                 <button class="icon-btn" aria-label="One fewer" onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
                 <span class="tiny muted num">×${lineQuantity(l)}</span>
@@ -61,15 +74,38 @@ export function LinesPanel({ order, editable }) {
             : html`<div class="tiny muted">×${lineQuantity(l)}</div>`}
         </span>
         ${editable && html`<button class="icon-btn" aria-label="Remove line" onClick=${() => removeLine(l.id)}><${Icon} name="minus" /></button>`}
-      </div>`)}
+      </div>`;
+      })}
     <//>
+    ${discounting && html`<${DiscountSheet} row=${discounting} onClose=${() => setDiscounting(null)} />`}
   </section>`;
 }
 
+/** No discount, or one of the set percentages, each with what the line comes to. */
+function DiscountSheet({ row, onClose }) {
+  const pick = (pct) => { updateLine(row.line.id, { discount: pct }); onClose(); };
+  const at = (pct) => money(row.list - Math.round((row.list * pct) / 100));
+  return html`<${Sheet} title="Discount" onClose=${onClose}>
+    <div class="stack tight">
+      <p class="para pad">${lineText(row.line)}</p>
+      <${List}>
+        ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? `${pct}% off` : 'No discount'}
+          end=${html`${at(pct)}${row.discount === pct ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
+      <//>
+      ${isGlasses(row.line) && html`<p class="note pad">${isPair(row.line) ? 'On the pair. ' : ''}Plus Protection is worked out after the discount.</p>`}
+    </div>
+  <//>`;
+}
+
 export function TotalBlock({ order }) {
-  const rest = unpriced(order);
+  const p = priceOrder(order);
+  const rest = p.unpriced;
   return html`<div class="gap-m">
-    <${Figure} value=${money(orderTotal(order))} caption="Total" size=${40} />
+    <${Figure} value=${money(p.total)} caption="Total" size=${40} />
+    ${p.off > 0 && html`<${Panel}>
+      <${KV} k="Before discounts" v=${money(p.list)} />
+      <${KV} k="Discounts" v=${'−' + money(p.off)} />
+    <//>`}
     ${rest.length > 0 && html`<div class="gap-s">
       <${Eyebrow}>Priced at the register<//>
       ${rest.map((l) => html`<div style="display:flex;gap:8px;font-size:12px"><span class="mono muted">${lineCode(l)}</span><span class="silver" style="flex:1">${lineText(l)}</span><span class="muted num">×${lineQuantity(l)}</span></div>`)}
@@ -165,9 +201,10 @@ function AddExtraSheet({ onClose }) {
     <div class="stack tight">
       <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description or barcode" /></div>
       <${Section} title="Add-ons">
-        ${catalogue.extras.filter((e) => !t || fold(e.description).includes(t)).map((e) => html`<${Row} title=${e.description} detail=${e.id} mono onClick=${() => add(extraLine(e.id, e.description, 1, null))} />`)}
+        ${catalogue.extras.filter((e) => !t || fold(e.description).includes(t)).map((e) => html`<${Row} title=${e.description} detail=${e.id} mono
+          end=${e.percent ? `${e.percent}% of the glasses` : null} onClick=${() => add(extraLine(e.id, e.description, 1, null, e.percent))} />`)}
       <//>
-      <p class="note pad">None of these carry a price. They reach the ticket as a code and a quantity, and the register prices them.</p>
+      <p class="note pad">${catalogue.extras.some((e) => e.percent) ? 'An add-on with a percentage is priced from the frame and spectacle lenses on the order, after their discounts. The rest' : 'These'} carry no price: they reach the ticket as a code and a quantity, and the register prices them.</p>
       <${Section} title="Cases, solutions and accessories">
         ${stock.slice(0, 80).map((i) => html`<${Row} title=${i.description} detail=${i.sku} mono end=${html`<span style=${{ color: i.stock === 0 ? 'var(--platinum)' : 'var(--pewter)' }}>${i.stock === 0 ? 'none' : i.stock}</span>`}
           onClick=${() => add(extraLine(i.sku, i.description, 1, i.stock))} />`)}

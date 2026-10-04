@@ -2,16 +2,26 @@
 // `es-MX` renders `$4,670`; an English locale would render `MX$4,670`, which
 // is not what the register or the customer sees.
 
+// Whole pesos print without decimals; an amount with centavos prints them, as
+// the register does ($643.90), so a discount or a percentage never rounds away.
+
 const whole = new Intl.NumberFormat('es-MX', {
   style: 'currency',
   currency: 'MXN',
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
+const exact = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function money(cents) {
   if (cents === null || cents === undefined || Number.isNaN(cents)) return '—';
-  return whole.format(cents / 100);
+  const c = Math.round(cents);
+  return (c % 100 === 0 ? whole : exact).format(c / 100);
 }
 
 /** `+$450` for a difference. */

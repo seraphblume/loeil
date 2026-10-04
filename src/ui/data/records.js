@@ -257,13 +257,22 @@ export function ExtrasScreen() {
     <${Bar} backTo="#/me/data" title="Extras" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ e: { id: '', description: '' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Add-ons offered on every order. They carry no price — the register prices them.</p>
-        <${List}>${bundle.extras.map((e) => html`<${Row} title=${e.description} detail=${e.id} mono onClick=${() => setOpen({ e, id: e.id })} />`)}<//>
+        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order, after discounts. The rest carry no price — the register prices them.</p>
+        <${List}>${bundle.extras.map((e) => html`<${Row} title=${e.description} detail=${e.id} mono end=${e.percent ? `${e.percent}%` : null} onClick=${() => setOpen({ e, id: e.id })} />`)}<//>
       </div>
     <//>
     ${open && html`<${FormSheet} title=${open.id ? 'Extra' : 'New extra'} initial=${open.e} onClose=${() => setOpen(null)}
-      fields=${[{ key: 'id', label: 'Code', required: true, inputmode: 'numeric' }, { key: 'description', label: 'Description', required: true }]}
-      onSave=${(x) => { if (x.id !== open.id && bundle.extras.some((e) => e.id === x.id)) return `${x.id} is already listed.`; edit((b) => upsertExtra(b, x, open.id)); saved(); }}
+      fields=${[
+        { key: 'id', label: 'Code', required: true, inputmode: 'numeric' },
+        { key: 'description', label: 'Description', required: true },
+        { key: 'percent', label: 'Percent', type: 'number', placeholder: 'No price', hint: 'Leave blank for an add-on the register prices. A number prices it as that share of the frame and spectacle lenses on the order, after discounts — 10 for Plus Protection.' },
+      ]}
+      onSave=${(x) => {
+        if (x.id !== open.id && bundle.extras.some((e) => e.id === x.id)) return `${x.id} is already listed.`;
+        if (x.percent != null && !(x.percent > 0 && x.percent <= 100)) return 'The percentage must be more than 0 and at most 100.';
+        const { percent, ...rest } = x;
+        edit((b) => upsertExtra(b, percent ? { ...rest, percent } : rest, open.id)); saved();
+      }}
       onDelete=${open.id ? () => { edit((b) => deleteExtra(b, open.id)); saved('Removed'); } : null} />`}`;
 }
 

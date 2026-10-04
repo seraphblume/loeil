@@ -1,10 +1,16 @@
 // An order is a LIST OF LINES, not a configured product.
 //
-// Contact lens orders routinely differ between eyes — a different power, often
-// a different product — so they are one line per eye with a box count.
-// Spectacle lenses are one configuration, quantity 2, both eyes.
+// Spectacle lenses are one line for the pair, priced per pair as the catalogue
+// prices them. The register still takes the lens code once per eye, so the
+// line's quantity is 2 — that is a register count, not a multiplier.
+// Contact lenses routinely differ between eyes — a different power, often a
+// different product — so they are one line per eye (OD or OS), priced per box.
 //
-// Cases, solutions and accessories carry no price here. They reach the ticket
+// A priced line can carry a discount (see LINE_DISCOUNTS). An add-on with a
+// percentage, like Plus Protection, is priced from the glasses it covers —
+// the frame and the spectacle lenses, after their discounts.
+//
+// Other add-ons, cases and solutions carry no price here. They reach the ticket
 // as code, description and quantity, and the register prices them. An invented
 // price is worse than no price, and a blank currency column reads as free.
 
@@ -30,7 +36,11 @@ export function newOrder() {
   };
 }
 
+/** Contact lenses: one eye, a box count. */
 export const lensLine = (lens, eye, power, quantity) => ({ id: uid(), kind: 'lens', lens, eye, power: power ?? '', quantity });
+
+/** Spectacle lenses: the pair. */
+export const pairLine = (lens) => ({ id: uid(), kind: 'lens', lens, eye: 'OU', power: '', quantity: 2 });
 
 export const frameLine = (frame, priceCents, priceSource) => ({
   id: uid(), kind: 'frame', sku: frame.sku, product: frame.product ?? frame.vendorSku ?? '',
@@ -38,7 +48,17 @@ export const frameLine = (frame, priceCents, priceSource) => ({
   stock: frame.stock ?? null,
 });
 
-export const extraLine = (code, description, quantity = 1, stock = null) => ({ id: uid(), kind: 'extra', code, description, quantity, stock });
+/** `percent` set: priced as that share of the glasses on the order (Plus Protection). */
+export const extraLine = (code, description, quantity = 1, stock = null, percent = null) => ({
+  id: uid(), kind: 'extra', code, description, quantity, stock, ...(percent ? { percent } : {}),
+});
+
+export const isPair = (line) => line.kind === 'lens' && line.lens.family !== 'CL';
+export const isShare = (line) => line.kind === 'extra' && Number(line.percent) > 0;
+/** Lines a percentage add-on covers. */
+export const isGlasses = (line) => line.kind === 'frame' || isPair(line);
+/** Lines a seller can discount. */
+export const discountable = (line) => line.kind === 'frame' || line.kind === 'lens';
 
 /** The code the register wants typed: the POS lens code, or the true SKU. */
 export function lineCode(line) {
@@ -49,30 +69,57 @@ export function lineCode(line) {
 
 export function lineText(line) {
   if (line.kind === 'lens') {
-    return [line.eye === 'OU' ? null : line.eye, line.power || null, line.lens.displayName].filter(Boolean).join(' · ');
+    return [isPair(line) || line.eye === 'OU' ? null : line.eye, line.power || null, line.lens.displayName].filter(Boolean).join(' · ');
   }
   return line.description;
 }
 
 export const lineQuantity = (line) => (line.kind === 'frame' ? 1 : line.quantity);
 
-/** null means "the register prices this", which is not the same as zero. */
-export function unitCents(line) {
-  if (line.kind === 'lens') return line.lens.priceCents;
+/** Before any discount. null means "the register prices this", which is not zero. */
+function listCents(line) {
+  if (line.kind === 'lens') {
+    // Per pair for spectacles: a pair is two lenses. An older one-eye line is half.
+    return isPair(line) ? Math.round((line.lens.priceCents * line.quantity) / 2) : line.lens.priceCents * line.quantity;
+  }
   if (line.kind === 'frame') return line.priceCents;
   return null;
 }
 
-export function lineTotal(line) {
-  const u = unitCents(line);
-  return u == null ? null : u * lineQuantity(line);
+const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] ?? 0), 0);
+
+/**
+ * Every line with its list price, discount and net, and the order's totals.
+ * The one place an order is priced, so the screen, the ticket and the
+ * dashboard can never disagree.
+ */
+export function priceOrder(order) {
+  const rows = order.lines.map((line) => {
+    const list = listCents(line);
+    const discount = list != null && discountable(line) ? Number(line.discount) || 0 : 0;
+    const off = Math.round((list ?? 0) * discount / 100);
+    return { line, list, discount, off, net: list == null ? null : list - off };
+  });
+  const covered = rows.filter((r) => r.net != null && isGlasses(r.line)).reduce((s, r) => s + r.net, 0);
+  for (const r of rows) {
+    if (!isShare(r.line)) continue;
+    r.base = covered;
+    r.list = Math.round((covered * Number(r.line.percent)) / 100) * r.line.quantity;
+    r.net = r.list;
+  }
+  const priced = rows.filter((r) => r.net != null);
+  return {
+    rows,
+    byId: new Map(rows.map((r) => [r.line.id, r])),
+    list: sum(priced, 'list'),
+    off: sum(priced, 'off'),
+    total: sum(priced, 'net'),
+    unpriced: rows.filter((r) => r.net == null).map((r) => r.line),
+  };
 }
 
-export const priced = (o) => o.lines.filter((l) => unitCents(l) != null);
-export const unpriced = (o) => o.lines.filter((l) => unitCents(l) == null);
-
-/** Only priced lines. Unpriced ones are listed under the total, never folded in. */
-export const orderTotal = (o) => priced(o).reduce((s, l) => s + lineTotal(l), 0);
+export const orderTotal = (o) => priceOrder(o).total;
+export const unpriced = (o) => priceOrder(o).unpriced;
 
 export function orderTitle(o) {
   const lens = o.lines.find((l) => l.kind === 'lens');
@@ -95,21 +142,28 @@ const longDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long
 
 /** The ticket, as plain text. It goes to WhatsApp, so nothing but text. */
 export function ticketText(order, clientName) {
+  const p = priceOrder(order);
   const out = [];
   if (clientName) out.push(clientName);
   out.push('');
-  for (const line of priced(order)) {
+  for (const r of p.rows.filter((x) => x.net != null)) {
+    const { line } = r;
     out.push(`${lineCode(line)}  ×${lineQuantity(line)}`);
     out.push(`  ${lineText(line)}`);
-    out.push(`  ${money(lineTotal(line))}`);
+    if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)}: ${money(r.net)}`);
+    else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%: ${money(r.net)}`);
+    else out.push(`  ${money(r.net)}`);
   }
   out.push('');
-  out.push(`Total: ${money(orderTotal(order))}`);
-  const rest = unpriced(order);
-  if (rest.length) {
+  if (p.off) {
+    out.push(`Before discounts: ${money(p.list)}`);
+    out.push(`Discounts: −${money(p.off)}`);
+  }
+  out.push(`Total: ${money(p.total)}`);
+  if (p.unpriced.length) {
     out.push('');
     out.push('Priced at the register:');
-    for (const line of rest) out.push(`  ${lineCode(line)}  ×${lineQuantity(line)}  ${lineText(line)}`);
+    for (const line of p.unpriced) out.push(`  ${lineCode(line)}  ×${lineQuantity(line)}  ${lineText(line)}`);
   }
   out.push('');
   if (order.sellerEmployeeNumber) out.push([order.sellerEmployeeNumber, order.sellerName].filter(Boolean).join(' · '));

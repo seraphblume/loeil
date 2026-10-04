@@ -50,6 +50,7 @@ copy* saved on that phone; nobody sees it until **Review and publish**.
 | Update stock | Stock → **Import the stock report (PDF)**: print the POS *Reporte Existencias* to PDF and pick it |
 | Rotate promotions | Promotions → **New campaign dates**, or edit one; lens lines are built from pickers |
 | Add or switch off a seller | Staff |
+| Price an add-on as a share of the glasses (Plus Protection: 10) | Extras → Percent |
 
 **Review and publish** lists every change against what the phones have, runs the
 publish gate (duplicate rows, missing prices, malformed barcodes, broken promo
@@ -78,6 +79,15 @@ The names list says, per code, what the app does with it:
 | High Rx | Materials suggested when the sphere is beyond ±10. |
 
 A code with no entry still sells; it shows the POS wording and the gate lists it.
+
+## Orders
+
+Spectacle lenses go on an order as the pair, at the catalogue's pair price; the
+register still takes the lens code ×2, one per eye. Contact lenses go on one eye
+at a time (OD or OS), priced per box. Any frame or lens line can take a 40% or 50%
+discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
+priced from the frame and spectacle lenses on the order after their discounts —
+Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
 
 ## The passcode
 

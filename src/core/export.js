@@ -37,7 +37,7 @@ export function bundleToWorkbooks(b, XLSX) {
   add(backend, 'frame_brands', [['Brand', 'Tier'], ...b.frameBrands.map((x) => [x.brand, x.tier])], [24, 22]);
   add(backend, 'inventory', [['SKU', 'Material (True SKU)', 'Descripción', 'Clasificación', 'Existencia', 'Lote', 'Caducidad'],
     ...b.inventory.map((i) => [i.vendorSku, i.sku, i.description, i.classification, i.stock, '', i.expires])], [18, 18, 46, 14, 10, 8, 12]);
-  add(backend, 'extras', [['ID', 'Description'], ...b.extras.map((e) => [e.id, e.description])], [16, 24]);
+  add(backend, 'extras', [['ID', 'Description', 'Percent'], ...b.extras.map((e) => [e.id, e.description, e.percent ?? ''])], [16, 24, 9]);
   add(backend, 'promotions', [['promo_id', 'kind', 'name', 'description', 'category', 'conditions', 'valid_from', 'valid_to', 'notes'],
     ...b.promotions.map((p) => [p.id, p.kind, p.name, p.description, p.category, p.conditions, p.validFrom, p.validTo, p.notes])], [10, 13, 26, 30, 16, 50, 12, 12, 40]);
   add(backend, 'promo_lens_map', [['promo_id', 'package', 'match_key', 'lens_description', 'resolved'],

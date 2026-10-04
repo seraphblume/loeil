@@ -173,7 +173,12 @@ export function readBackend(sheets, report = new Report()) {
   }
 
   const ex = tab('extras', ['id', 'description']);
-  if (ex) out.extras = ex.rows.filter((r) => cellText(r.id).trim()).map((r) => ({ id: cellText(r.id).trim(), description: cellText(r.description).trim() }));
+  if (ex) {
+    out.extras = ex.rows.filter((r) => cellText(r.id).trim()).map((r) => {
+      const percent = Number(cellText(r.percent).replace('%', '').trim());
+      return { id: cellText(r.id).trim(), description: cellText(r.description).trim(), ...(percent > 0 ? { percent } : {}) };
+    });
+  }
 
   const st = tab('staff', ['employee_number', 'name', 'role', 'active']);
   if (st) {

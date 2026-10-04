@@ -21,7 +21,7 @@ import { eligibility } from '../core/promotions.js';
 import { money, moneyDelta } from '../core/money.js';
 import { fold, signed } from '../core/util.js';
 import { guidance, rxIsBlank } from '../core/crm.js';
-import { lensLine } from '../core/orders.js';
+import { lensLine, pairLine } from '../core/orders.js';
 import { addLine, toast } from '../state/app.js';
 
 function chosenFrom(family, query) {
@@ -112,6 +112,12 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
   const lens = resolve(catalogue, row);
   const code = lens.posCode || lens.attributes.map((a) => a.code).join('  ');
   const ups = upgrades(catalogue, row.id);
+  // Spectacle lenses go on as the pair; only contacts need an eye and a box count.
+  const addPair = async () => {
+    await addLine(pairLine(lens));
+    toast('Lens added to the order');
+    go('#/find/order');
+  };
 
   return html`
     <${Bar} backTo=${backTo} title="Lens" trail=${html`<button class="bar-btn" onClick=${() => setEditing(true)}>Edit</button>`} />
@@ -147,7 +153,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
 
         <${PromotionsSection} lens=${lens} />
 
-        <${Anchor} icon="plus" disabled=${!lens.available} onClick=${() => setAdding(true)}>Add to order<//>
+        <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>Add to order<//>
       </div>
     <//>
     ${editing && html`<${ConfigureSheet} row=${row} onClose=${() => setEditing(false)} />`}
@@ -181,16 +187,15 @@ function ConfigureSheet({ row, onClose }) {
 }
 
 /**
- * Eye, power and quantity for one lens line. Spectacles: both eyes, quantity
- * two. Contacts: one eye at a time, counted in boxes, because the two eyes
- * routinely take different powers and often different products.
+ * Eye, power and box count for one contact lens line — one eye at a time,
+ * because the two eyes routinely take different powers and often different
+ * products. Spectacle lenses never come here: they go on as the pair.
  */
 export function LineEditorSheet({ lens, onClose, onAdded }) {
   const rx = useApp((s) => s.draftRx);
-  const contacts = lens.family === 'CL';
-  const [eye, setEye] = useState(contacts ? 'OD' : 'OU');
+  const [eye, setEye] = useState('OD');
   const [power, setPower] = useState('');
-  const [qty, setQty] = useState(contacts ? 1 : 2);
+  const [qty, setQty] = useState(1);
   const suggested = useMemo(() => {
     if (!rx || rxIsBlank(rx)) return null;
     const sphere = Number(eye === 'OS' ? rx.os.sphere : rx.od.sphere);
@@ -199,17 +204,17 @@ export function LineEditorSheet({ lens, onClose, onAdded }) {
 
   const add = async () => {
     await addLine(lensLine(lens, eye, power.trim(), qty));
-    toast(contacts ? `${eye} line added` : 'Lens added to the order');
+    toast(`${eye} line added`);
     onAdded?.();
   };
 
   return html`<${Sheet} title="Add line" onClose=${onClose}>
     <div class="pad stack tight">
       <${ScreenTitle} eyebrow="Line" title=${lens.displayName} />
-      ${contacts && html`<p class="para">Contact lenses go on one line per eye. Add the right eye, then the left — they can be different products and usually are different powers.</p>`}
+      <p class="para">Contact lenses go on one line per eye. Add the right eye, then the left — they can be different products and usually are different powers.</p>
       <div class="gap-s"><${Eyebrow}>Eye<//>
         <${Seg} label="Eye" value=${eye} onChange=${setEye}
-          options=${(contacts ? ['OD', 'OS'] : ['OU', 'OD', 'OS']).map((v) => ({ value: v, label: v }))} />
+          options=${['OD', 'OS'].map((v) => ({ value: v, label: v }))} />
       </div>
       <div class="gap-s"><${Eyebrow}>Power<//>
         <label class="field">
@@ -217,12 +222,12 @@ export function LineEditorSheet({ lens, onClose, onAdded }) {
           ${suggested && !power && html`<button type="button" class="textbtn small" onClick=${() => setPower(suggested)}>Use ${suggested}</button>`}
         </label>
       </div>
-      <div class="gap-s"><${Eyebrow}>${contacts ? 'Boxes' : 'Quantity'}<//>
-        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label="Quantity" />
-        ${contacts && html`<p class="note">The catalogue price is per box. An annual supply is many boxes; a trial is one.</p>`}
+      <div class="gap-s"><${Eyebrow}>Boxes<//>
+        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label="Boxes" />
+        <p class="note">The catalogue price is per box. An annual supply is many boxes; a trial is one.</p>
       </div>
       <${Panel}>
-        <${KV} k="Unit" v=${money(lens.priceCents)} />
+        <${KV} k="Per box" v=${money(lens.priceCents)} />
         <${KV} k="Line total" v=${money(lens.priceCents * qty)} em />
       <//>
       <${Anchor} onClick=${add}>Add line<//>
