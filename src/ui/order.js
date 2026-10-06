@@ -6,7 +6,7 @@ import { html, useState } from './html.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import {
   Bar, Screen, Eyebrow, Panel, Figure, Anchor, Secondary, Row, List, Section, Sheet, Empty, Seg,
-  SearchField, Confirm, useCopy, KV, Flag,
+  SearchField, Confirm, useCopy, KV, Flag, Dock,
 } from './kit.js';
 import { Icon } from './icons.js';
 import { go } from './router.js';
@@ -49,45 +49,46 @@ export function LinesPanel({ order, editable }) {
   const [open, setOpen] = useState(null);
   const p = priceOrder(order);
   return html`<section class="gap-s">
-    <${Eyebrow}>Lines<//>
+    <${Eyebrow}>${p.rows.length === 1 ? '1 line' : `${p.rows.length} lines`}<//>
     <${Panel} tight>
       ${p.rows.map((r) => {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
-        const setChip = l.kind === 'frame' && (l.set || l.setAvailable);
-        return html`<div class="kv lined" style="align-items:flex-start">
-        <span style="min-width:0;flex:1">
-          <div style="font-size:14px;color:var(--platinum);overflow-wrap:anywhere">${lineText(l)}</div>
-          ${l.setLens?.id && html`<div class="tiny silver" style="margin-top:2px">${l.setLens.setName} · ${l.setLens.name}</div>`}
-          ${l.set && html`<div class="tiny silver" style="margin-top:2px">${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}</div>`}
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:2px">
-            <span class="mono tiny muted">${lineCode(l)}</span>
-            ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">price typed from tag</span>`}
-            ${isPair(l) && !l.setLens && html`<span class="tiny muted">${l.quantity === 2 ? 'the pair' : `${l.eye} only`}</span>`}
-            ${isShare(l) && html`<span class="tiny muted">${l.percent}% of ${money(r.base)}</span>`}
-            ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
-            ${setChip && (editable
-              ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? l.set.id : 'Outside the set'}</button>`
-              : l.set && html`<span class="chip on">${l.set.id}</span>`)}
-            ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row in the set' : 'Change row'}</button>`}
-            ${discountable(l) && !r.pending && (editable
-              ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${r.discount ? `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}` : 'Discount'}</button>`
-              : r.discount > 0 && html`<span class="chip on">−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}</span>`)}
+        const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
+        const via = l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
+          : l.set ? `${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}`
+            : isShare(l) ? `${l.percent}% of ${money(r.base)}`
+              : isPair(l) ? (l.quantity === 2 ? 'The pair' : `${l.eye} only`) : null;
+        return html`<div class="ol" key=${l.id}>
+          <div class="what">
+            <div class="name">${lineText(l)}</div>
+            ${via && html`<div class="via">${via}</div>`}
+            <div class="meta">
+              <span class="mono">${lineCode(l)}</span>
+              ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">from the tag</span>`}
+              ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
+              ${inSet && (editable
+                ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
+                : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
+              ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row' : 'Row'}</button>`}
+              ${discountable(l) && !r.pending && (editable
+                ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${r.discount ? `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}` : 'Discount'}</button>`
+                : r.discount > 0 && html`<span class="chip on">−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}</span>`)}
+            </div>
           </div>
-        </span>
-        <span style="text-align:right;flex:none">
-          ${r.discount > 0 && html`<div class="tiny muted num" style="text-decoration:line-through">${money(r.list)}</div>`}
-          <div class="num" style=${{ fontSize: r.net == null ? '12px' : '14px', color: r.net == null ? 'var(--silver)' : 'var(--platinum)' }}>${r.pending ? 'Row?' : r.net == null ? 'At register' : money(r.net)}</div>
-          ${steps
-            ? html`<div style="display:flex;gap:2px;justify-content:flex-end;align-items:center">
-                <button class="icon-btn" aria-label="One fewer" onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
-                <span class="tiny muted num">×${lineQuantity(l)}</span>
-                <button class="icon-btn" aria-label="One more" onClick=${() => updateLine(l.id, { quantity: l.quantity + 1 })}>+</button>
-              </div>`
-            : html`<div class="tiny muted">×${lineQuantity(l)}</div>`}
-        </span>
-        ${editable && html`<button class="icon-btn" aria-label="Remove line" onClick=${() => removeLine(l.id)}><${Icon} name="minus" /></button>`}
-      </div>`;
+          <div class="money">
+            ${r.discount > 0 && html`<div class="was">${money(r.list)}</div>`}
+            <div class=${'now' + (r.net == null ? ' soft' : '')} key=${r.net}>${r.pending ? 'Row?' : r.net == null ? 'At register' : money(r.net)}</div>
+            ${steps
+              ? html`<div class="steps">
+                  <button class="icon-btn" aria-label="One fewer" onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
+                  <span class="tiny muted num">×${lineQuantity(l)}</span>
+                  <button class="icon-btn" aria-label="One more" onClick=${() => updateLine(l.id, { quantity: l.quantity + 1 })}>+</button>
+                </div>`
+              : html`<div class="qty">×${lineQuantity(l)}</div>`}
+          </div>
+          ${editable ? html`<button class="icon-btn rm" aria-label="Remove line" onClick=${() => { removeLine(l.id); toast('Line removed'); }}><${Icon} name="x" size=${15} /></button>` : html`<span></span>`}
+        </div>`;
       })}
     <//>
     ${open?.kind === 'discount' && html`<${DiscountSheet} row=${open.r} onClose=${() => setOpen(null)} />`}
@@ -164,12 +165,13 @@ function SetRowSheet({ line, onClose }) {
   <//>`;
 }
 
-export function TotalBlock({ order }) {
+export function TotalBlock({ order, figure = true }) {
   const p = priceOrder(order);
   const rest = p.unpriced;
+  if (!figure && !p.pending.length && !p.off && !rest.length) return null;
   return html`<div class="gap-m">
     ${p.pending.length > 0 && html`<${Flag}>${p.pending.length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
-    <${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />
+    ${figure && html`<${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />`}
     ${p.off > 0 && html`<${Panel}>
       <${KV} k="Before discounts" v=${money(p.list)} />
       <${KV} k="Discounts" v=${'−' + money(p.off)} />
@@ -206,37 +208,39 @@ export function OrderScreen() {
   const draft = useResolvedDraft();
   const client = useApp((s) => clientById(s.draft.clientId, s));
   const [sheet, setSheet] = useState(null);
+  const p = priceOrder(draft);
+  const has = draft.lines.length > 0;
 
   return html`
-    <${Bar} backTo="#/find" title="Order" trail=${draft.lines.length ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
-    <${Screen}>
+    <${Bar} backTo="#/find" title="Order" trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
+    <${Screen} class=${has ? 'has-dock' : ''}>
       <div class="stack">
         <${List}>
           <${Row} icon="person" title=${client ? client.name : 'No client yet'} detail=${client ? 'This order is for them' : 'Choose who this order is for'} chev onClick=${() => setSheet('client')} />
         <//>
 
-        ${draft.lines.length === 0
-          ? html`<div class="pad"><${Empty} title="Nothing on this order yet">Scan a frame, walk a lens, or add a case. Lines collect here and the codes stay at the top where the register needs them.<//></div>`
-          : html`<div class="pad stack">
-              <${CodesBlock} order=${draft} />
+        ${has
+          ? html`<div class="pad stack">
               <${LinesPanel} order=${draft} editable />
-              <${TotalBlock} order=${draft} />
+              <${TotalBlock} order=${draft} figure=${false} />
               <${OrderPromotions} order=${draft} />
-            </div>`}
+            </div>`
+          : html`<div class="pad"><${Empty} title="Nothing on this order yet">Scan a frame, walk a lens, or add a case. When it is ready, Checkout prints the receipt with every code the register needs.<//></div>`}
 
         <${Section} title="Add">
-          <${Row} icon="lens" title="Lens" onClick=${() => setSheet('lens')} />
-          <${Row} icon="barcode" title="Scan a frame or stock item" onClick=${() => go('#/find/scan')} />
-          <${Row} icon="glasses" title="Browse frames" onClick=${() => go('#/find/frames')} />
-          <${Row} icon="box" title="Case, solution or extra" onClick=${() => setSheet('extra')} />
+          <${Row} icon="lens" title="Lens" chev onClick=${() => setSheet('lens')} />
+          <${Row} icon="barcode" title="Scan a frame or stock item" chev onClick=${() => go('#/find/scan')} />
+          <${Row} icon="glasses" title="Browse frames" chev onClick=${() => go('#/find/frames')} />
+          <${Row} icon="box" title="Case, solution or extra" chev onClick=${() => setSheet('extra')} />
         <//>
 
-        ${draft.lines.length > 0 && html`<div class="pad gap-m">
-          <${Secondary} icon="share" onClick=${() => shareText(ticketText(draft, client?.name), 'Order')}>Share ticket<//>
-          <${Anchor} icon="check" onClick=${() => setSheet('save')}>Save to client<//>
-        </div>`}
+        ${has && html`<div class="pad"><${Secondary} icon="check" onClick=${() => setSheet('save')}>Save to client<//></div>`}
       </div>
     <//>
+    ${has && html`<${Dock}>
+      <div class="dock-total"><span class="v" key=${p.total}>${money(p.total)}</span><span class="k">${p.pending.length ? 'So far' : 'Total'}</span></div>
+      <${Anchor} icon="receipt" onClick=${() => go('#/find/checkout')}>Checkout<//>
+    <//>`}
     ${sheet === 'clear' && html`<${Confirm} title="Clear this order?" message="Every line on the order in progress will be removed. Saved orders are not affected." action="Clear order"
       onConfirm=${() => { clearDraft(); toast('Order cleared'); }} onClose=${() => setSheet(null)} />`}
     ${sheet === 'client' && html`<${ClientPickerSheet} title="Who is this for?" onClose=${() => setSheet(null)} onPick=${(c) => { setDraftClient(c.id); setSheet(null); }} />`}

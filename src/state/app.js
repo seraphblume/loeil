@@ -44,7 +44,7 @@ let toastTimer = null;
 export function toast(message) {
   clearTimeout(toastTimer);
   setState({ toast: message });
-  toastTimer = setTimeout(() => setState({ toast: null }), 2600);
+  toastTimer = setTimeout(() => setState({ toast: null }), 2100);
 }
 
 // ---------------------------------------------------------------------------
@@ -247,7 +247,9 @@ export const resolvedDraft = (s = state) => resolveOrder(s.draft, s.catalogue);
 
 export async function saveDraftTo(clientId, status = 'draft') {
   // A saved order keeps the set prices it was sold at, whatever the next campaign does.
-  const saved = await upsertOrder({ ...resolvedDraft(), clientId, status });
+  // …and the prescription it was made for, which the register copy prints.
+  const rx = state.draftRx ?? clientById(clientId)?.prescription ?? null;
+  const saved = await upsertOrder({ ...resolvedDraft(), clientId, status, rx });
   await clearDraft();
   return saved;
 }

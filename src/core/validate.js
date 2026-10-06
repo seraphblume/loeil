@@ -68,6 +68,9 @@ export function validateBundle(b, report = new Report()) {
     vocabIndex.add(k);
     if (v.rank !== null && v.rank !== undefined && !Number.isFinite(Number(v.rank))) report.error('vocabulary', `${where}: rank must be a number.`);
   }
+  for (const v of b.vocabulary) {
+    if (v.printAs && !vocabIndex.has(v.kind + '|' + v.printAs)) report.warn('vocabulary', `${v.kind} ${v.code} prints as ${v.printAs}, which has no ${v.kind} entry.`);
+  }
   if (!b.vocabulary.length) report.warn('vocabulary', 'No vocabulary. English names, upgrade order and promo families fall back to the POS wording, and promotions cannot match.');
 
   // --- lenses

@@ -19,7 +19,7 @@ const lensSpec = (list) => ({
 
 export const SPECS = [
   lensSpec('single'), lensSpec('multifocal'), lensSpec('contact'),
-  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx'] },
+  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx', 'printAs'] },
   { title: 'Frames', get: (b) => b.frames, key: (f) => f.sku, label: (f) => f.description || f.sku, fields: ['price', 'description', 'brand', 'category', 'frameType', 'material', 'size', 'product'] },
   { title: 'Brand tiers', get: (b) => b.frameBrands, key: (x) => brandKey(x.brand), label: (x) => x.brand, fields: ['tier'] },
   { title: 'Stock', get: (b) => b.inventory, key: (i) => i.sku, label: (i) => i.description || i.sku, fields: ['stock', 'description', 'classification', 'expires'] },

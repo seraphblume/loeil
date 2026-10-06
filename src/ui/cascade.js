@@ -10,7 +10,7 @@ import { html, useState, useRef, useMemo } from './html.js';
 import { useApp } from './hooks.js';
 import {
   Bar, Screen, ScreenTitle, Row, List, Eyebrow, Panel, Figure, Flag, Anchor, Sheet, Seg, Stepper, KV,
-  SearchField, Empty, useCopy,
+  SearchField, Empty, useCopy, Dock,
 } from './kit.js';
 import { Icon } from './icons.js';
 import { go, href } from './router.js';
@@ -69,8 +69,15 @@ export function CascadeScreen({ family, query }) {
     <${Bar} backTo="#/find" title=${fam.label} />
     <${Screen}>
       <div class=${'stack ' + dir} key=${step.key}>
-        <div class="pad"><${ScreenTitle} eyebrow=${`Step ${position} of ${steps.length}`} title=${step.title}
-          detail=${remaining === 1 ? '1 option left' : `${remaining} options left`} /></div>
+        <div class="pad gap-s">
+          <${ScreenTitle} eyebrow=${`Step ${position} of ${steps.length}`} title=${step.title}
+            detail=${remaining === 1 ? '1 option left' : `${remaining} options left`} />
+          <div class="step-bar" aria-hidden="true"><i style=${{ width: `${((position - 1) / steps.length) * 100}%` }}></i></div>
+          ${depth > 0 && html`<div class="trail-chips" aria-label="Chosen so far">
+            ${steps.filter((s) => chosen[s.key] != null).map((s) => html`<button type="button" class="chip" title=${`Change ${s.title.toLowerCase()}`}
+              onClick=${() => go(href(['find', 'browse', family], clearFrom(family, chosen, s.key)))}>${chosenLabel(catalogue, family, chosen, s.key)}<${Icon} name="x" /></button>`)}
+          </div>`}
+        </div>
 
         ${rx && position === 1 && rx.reasons.length > 0 && html`<div class="pad"><${Flag} icon="doc">
           <strong style="font-weight:500">From the prescription.</strong> ${rx.reasons.join(' ')}
@@ -86,13 +93,6 @@ export function CascadeScreen({ family, query }) {
           ${!shown.length && html`<div class="row"><span class="muted small">Nothing matches “${filter}”.</span></div>`}
         <//>
 
-        ${depth > 0 && html`<section class="gap-s">
-          <div class="pad"><${Eyebrow}>Chosen<//></div>
-          <${List}>${steps.filter((s) => chosen[s.key] != null).map((s) => html`
-            <${Row} title=${html`<span class="muted small">${s.title}</span>`}
-              end=${html`<span class="silver">${chosenLabel(catalogue, family, chosen, s.key)}</span><${Icon} name="undo" size=${12} />`}
-              onClick=${() => go(href(['find', 'browse', family], clearFrom(family, chosen, s.key)))} />`)}<//>
-        </section>`}
       </div>
     <//>`;
 }
@@ -122,7 +122,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
 
   return html`
     <${Bar} backTo=${backTo} title="Lens" trail=${html`<button class="bar-btn" onClick=${() => setEditing(true)}>Edit</button>`} />
-    <${Screen}>
+    <${Screen} class="has-dock">
       <div class="stack pad">
         ${!lens.available && html`<${Flag}>This lens is on the printed table but the register will not take it. The price is here so you can explain why, but it cannot go on an order.<//>`}
 
@@ -154,9 +154,11 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
 
         <${SetsSection} lens=${lens} />
         <${PromotionsSection} lens=${lens} />
-
-        <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>Add to order<//>
       </div>
+    <//>
+    <${Dock}>
+      <div class="dock-total"><span class="v">${money(lens.priceCents)}</span><span class="k">${lens.family === 'CL' ? 'Per box' : 'Per pair'}</span></div>
+      <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>Add to order<//>
     <//>
     ${editing && html`<${ConfigureSheet} row=${row} onClose=${() => setEditing(false)} />`}
     ${adding && html`<${LineEditorSheet} lens=${lens} onClose=${() => setAdding(false)} onAdded=${() => { setAdding(false); go('#/find/order'); }} />`}`;

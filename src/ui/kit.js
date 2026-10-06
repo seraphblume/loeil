@@ -1,6 +1,6 @@
 // GinAile components. Flat panels, hairlines, one indigo action per screen.
 
-import { html, useState, useEffect, useRef } from './html.js';
+import { html, useState, useEffect, useRef, useLayoutEffect } from './html.js';
 import { Icon } from './icons.js';
 import { back, linkProps } from './router.js';
 import { dayToDate } from '../core/util.js';
@@ -118,17 +118,53 @@ export function SearchField({ value, onInput, placeholder, autofocus, icon = 'se
   </label>`;
 }
 
-/** A bottom sheet. Escape and the scrim close it. */
+/**
+ * A bottom sheet. Escape, the scrim, or a pull down on its bar close it.
+ *
+ * Every way a sheet can close — Cancel, a choice made inside it, the parent
+ * moving on — ends the same way: as the sheet leaves the tree, a copy of it
+ * slides down and the scrim fades, so nothing ever just vanishes.
+ */
 export function Sheet({ title, onClose, left, right, children, full }) {
+  const ref = useRef();
+  const drag = useRef(null);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, []);
-  return html`<div class="scrim" onClick=${(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+  useLayoutEffect(() => () => leaveGracefully(ref.current), []);
+
+  // Pull to dismiss: follows the finger, with friction upward; a flick is enough.
+  const down = (e) => {
+    if (drag.current || e.button > 0) return;
+    if (e.target.closest('button, a, input, select, textarea')) return;
+    drag.current = { y: e.clientY, t: performance.now(), dy: 0, id: e.pointerId };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = (e) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.id) return;
+    const raw = e.clientY - d.y;
+    d.dy = raw < 0 ? -Math.sqrt(-raw) * 2 : raw;
+    const sheet = ref.current?.firstElementChild;
+    if (sheet) { sheet.style.transition = 'none'; sheet.style.transform = `translateY(${d.dy}px)`; }
+  };
+  const up = (e) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.id) return;
+    drag.current = null;
+    const sheet = ref.current?.firstElementChild;
+    const velocity = d.dy / Math.max(1, performance.now() - d.t);
+    if (d.dy > 110 || (d.dy > 12 && velocity > 0.45)) { onClose?.(); return; }
+    if (sheet) { sheet.style.transition = 'transform .32s cubic-bezier(.32, .72, 0, 1)'; sheet.style.transform = ''; }
+  };
+
+  return html`<div class="scrim" ref=${ref} onClick=${(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
     <div class=${'sheet' + (full ? ' full' : '')} role="dialog" aria-modal="true" aria-label=${title}>
-      <div class="sheet-bar">
+      <div class="sheet-bar" onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up}>
+        <div class="grab" aria-hidden="true"></div>
         <div class="l">${left ?? html`<button class="bar-btn" onClick=${onClose}>Cancel</button>`}</div>
         <div class="title">${title}</div>
         <div class="r">${right}</div>
@@ -136,6 +172,33 @@ export function Sheet({ title, onClose, left, right, children, full }) {
       <div class="sheet-body">${children}</div>
     </div>
   </div>`;
+}
+
+/** The leaving copy of a sheet: it slides from wherever it was, the scrim fades, then it is gone. */
+function leaveGracefully(node) {
+  if (!node || !node.isConnected || !node.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const ghost = node.cloneNode(true);
+  ghost.classList.add('leaving');
+  ghost.setAttribute('aria-hidden', 'true');
+  const sheet = ghost.firstElementChild;
+  const from = node.firstElementChild?.style.transform || 'translateY(0)';
+  node.parentNode.insertBefore(ghost, node);
+  const done = () => ghost.remove();
+  ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' });
+  sheet?.animate([{ transform: from }, { transform: 'translateY(100%)' }], { duration: 220, easing: 'cubic-bezier(.32, .72, 0, 1)', fill: 'forwards' }).finished.then(done, done);
+  setTimeout(done, 400);
+}
+
+/**
+ * Actions that stay in reach: pinned above the tab bar, on the glass. The
+ * screen under it gets room to scroll clear (Screen class "has-dock").
+ */
+export function Dock({ children }) {
+  useEffect(() => {
+    document.documentElement.classList.add('with-dock');
+    return () => document.documentElement.classList.remove('with-dock');
+  }, []);
+  return html`<div class="dock"><div class="dock-in">${children}</div></div>`;
 }
 
 /** Destructive actions name their cost and ask once. */

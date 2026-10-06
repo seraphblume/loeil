@@ -131,6 +131,7 @@ export function readBackend(sheets, report = new Report()) {
         rank: Number.isFinite(rank) ? rank : null,
         group: cellText(r.promo_group ?? r.group).trim().toUpperCase(),
         sameAs: cellText(r.same_as).trim(), highRx: isYes(r.high_rx),
+        ...(cellText(r.print_as).trim() ? { printAs: cellText(r.print_as).trim() } : {}),
       });
     }
   }

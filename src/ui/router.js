@@ -4,7 +4,7 @@
 //   #/find …          the Find tab and everything reached from it
 //   #/clients/<id>    #/orders/<id>    #/me …
 
-import { useState, useEffect, useLayoutEffect } from './html.js';
+import { useState, useEffect, useLayoutEffect, useRef } from './html.js';
 
 export const TABS = ['find', 'clients', 'orders', 'me'];
 const lastByTab = {};
@@ -32,7 +32,23 @@ export function go(target, { replace = false } = {}) {
   remember();
   if (replace) history.replaceState(null, '', url);
   else { history.pushState(null, '', url); depth++; scrollByHref.delete(parseHash(url).href); }
-  window.dispatchEvent(new CustomEvent('route'));
+  window.dispatchEvent(new CustomEvent('route', { detail: { replace } }));
+}
+
+const pathOf = (r) => r.parts.join('/');
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * How a route change should move: deeper slides forward, back slides back,
+ * another tab crossfades. A change of query alone (a search, a cascade
+ * choice) or a replace does not move at all.
+ */
+function motionFor(from, to, e) {
+  if (pathOf(from) === pathOf(to)) return null;
+  if (e.type === 'route' && e.detail?.replace) return null;
+  if (from.tab !== to.tab) return 'tab';
+  if (e.type === 'popstate') return 'back';
+  return to.parts.length < from.parts.length ? 'back' : 'fwd';
 }
 
 /** Back within the app, or to `fallback` when there is nowhere to go back to. */
@@ -49,12 +65,23 @@ export function tabHref(tab, current) {
 
 export function useRoute() {
   const [route, setRoute] = useState(() => parseHash());
+  const current = useRef(route);
   useEffect(() => {
     const on = (e) => {
       if (e.type === 'popstate') depth = Math.max(0, depth - 1);
       const r = parseHash();
+      // Back fires popstate and hashchange both; the second has nothing new.
+      if (e.type === 'hashchange' && r.href === current.current.href) return;
       lastByTab[r.tab] = r.href;
-      setRoute(r);
+      const motion = motionFor(current.current, r, e);
+      current.current = r;
+      if (motion && document.startViewTransition && !reduceMotion() && document.visibilityState === 'visible') {
+        document.documentElement.dataset.nav = motion;
+        // Preact renders on the next microtask; the transition waits for it.
+        document.startViewTransition(() => new Promise((done) => { setRoute(r); setTimeout(done, 0); }));
+      } else {
+        setRoute(r);
+      }
     };
     const onClickLink = () => remember();
     window.addEventListener('route', on);

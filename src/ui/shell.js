@@ -1,6 +1,6 @@
 // The shell: four tabs, the gates in front of them, and the router between.
 
-import { html } from './html.js';
+import { html, useState, useEffect } from './html.js';
 import { useApp } from './hooks.js';
 import { useRoute, tabHref, linkProps } from './router.js';
 import { Icon } from './icons.js';
@@ -11,6 +11,7 @@ import { CascadeScreen, LensScreen } from './cascade.js';
 import { FramesScreen, FrameScreen, StockScreen } from './frames.js';
 import { ScanScreen } from './scan.js';
 import { SetsScreen, SetScreen } from './sets.js';
+import { CheckoutScreen, SavedReceiptScreen } from './receipt.js';
 import { SetsAdminScreen, SetAdminScreen, SetLensesScreen, DiscountsScreen } from './data/sets.js';
 import { OrderScreen } from './order.js';
 import { ClientsScreen, ClientScreen } from './clients.js';
@@ -40,9 +41,19 @@ function TabBar({ route }) {
   </nav>`;
 }
 
+/** One toast at a time: it rises in, and fades down on its way out. */
 function Toast() {
   const message = useApp((s) => s.toast);
-  return message ? html`<div class="toast" role="status">${message}</div>` : null;
+  const [shown, setShown] = useState(message);
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (message) { setShown(message); setLeaving(false); return undefined; }
+    if (!shown) return undefined;
+    setLeaving(true);
+    const t = setTimeout(() => { setShown(null); setLeaving(false); }, 170);
+    return () => clearTimeout(t);
+  }, [message]);
+  return shown ? html`<div class=${'toast' + (leaving ? ' out' : '')} key=${shown} role="status">${shown}</div>` : null;
 }
 
 function screenFor(route) {
@@ -56,10 +67,14 @@ function screenFor(route) {
     if (a === 'scan') return html`<${ScanScreen} />`;
     if (a === 'sets') return b ? html`<${SetScreen} id=${decodeURIComponent(b)} />` : html`<${SetsScreen} />`;
     if (a === 'order') return html`<${OrderScreen} />`;
+    if (a === 'checkout') return html`<${CheckoutScreen} />`;
     return html`<${FindHome} query=${route.query} />`;
   }
   if (tab === 'clients') return a ? html`<${ClientScreen} id=${a} />` : html`<${ClientsScreen} />`;
-  if (tab === 'orders') return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} />`;
+  if (tab === 'orders') {
+    if (a && b === 'receipt') return html`<${SavedReceiptScreen} id=${a} />`;
+    return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} />`;
+  }
   if (tab === 'me') {
     if (a === 'publish') return html`<${PublishScreen} />`;
     if (a === 'data') {

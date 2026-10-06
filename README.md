@@ -92,6 +92,24 @@ discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
 priced from the frame and spectacle lenses on the order after their discounts —
 Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
 
+## Checkout and the receipt
+
+**Checkout** on the order prints it: the paper feeds out of the printer (with a
+printer sound, if he turns it on — off by default), in two copies:
+
+- **Register copy** — what the POS asks for, in its order: 1 frame SKU, 2 lens
+  and coating codes (each ×2; a coating sold under a newer code prints as that
+  code — `printAs` in the names list, so CZS prints as CZN), 3 set or discount
+  numbers, 4 extras, 5 the prescription (OD/OS SPH CYL AXI ADD PD; PD per eye is
+  the monocular figure, or half the binocular one, marked). Below the paper every
+  value is a tap to copy, and the frame's barcode on the receipt scans.
+- **Customer copy** — a quote in plain words and prices, no codes, no Rx.
+
+**Share image** sends the receipt as a picture (the phone's share sheet, or a
+download); **Copy all** puts everything on the clipboard as text. A saved order
+keeps its prices and the prescription it was made for, and reprints from
+Orders → the order → Print the receipt.
+
 ## Sets
 
 A set is the campaign's price for an ophthalmic frame of its brands with single

@@ -7,7 +7,7 @@
 import { html, useState, useRef } from './html.js';
 import { useApp } from './hooks.js';
 import {
-  Bar, Screen, ScreenTitle, SearchField, Section, Row, List, Panel, KV, Eyebrow, Empty, Anchor, Secondary, Sheet,
+  Bar, Screen, ScreenTitle, SearchField, Section, Row, List, Panel, KV, Eyebrow, Empty, Anchor, Secondary, Sheet, Dock,
   Confirm, fmtDate, fmtDayMonth,
 } from './kit.js';
 import { Icon } from './icons.js';
@@ -128,7 +128,7 @@ export function ClientScreen({ id }) {
 
   return html`
     <${Bar} backTo="#/clients" title="" trail=${html`<button class="bar-btn" onClick=${() => setSheet('edit')}>Edit</button>`} />
-    <${Screen}>
+    <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow="Client" title=${client.name} detail=${due ? (due <= new Date() ? 'Overdue for a visit' : 'Next visit ' + fmtDate(due)) : null} />
         <${Panel}>
@@ -143,9 +143,9 @@ export function ClientScreen({ id }) {
           <${Eyebrow}>Orders and history<//>
           ${mine.length === 0 ? html`<p class="para muted">Nothing yet.</p>` : html`<div style="margin:0 calc(-1 * var(--gutter))"><${List}>${mine.map((o) => html`<${OrderRow} order=${o} byTitle />`)}<//></div>`}
         </section>
-        <${Anchor} icon="plus" onClick=${startOrder}>Start an order<//>
       </div>
     <//>
+    <${Dock}><${Anchor} icon="plus" onClick=${startOrder}>Start an order<//><//>
     ${sheet === 'edit' && html`<${ClientEditorSheet} client=${client} onClose=${() => setSheet(null)} />`}
     ${sheet === 'scan' && html`<${RxScanSheet} onClose=${() => setSheet(null)} onAccept=${(rx) => { upsertClient({ ...client, prescription: rx }); toast('Prescription saved'); }} />`}
     ${sheet === 'replace' && html`<${Confirm} title="Replace the order in progress?" message="The order being built belongs to another client. Starting one here clears it — save it first if you need it."

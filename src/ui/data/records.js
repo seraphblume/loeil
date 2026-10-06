@@ -72,9 +72,11 @@ export function VocabScreen({ query }) {
         { key: 'group', label: 'Promo group', caps: true, placeholder: 'e.g. CRIZAL, POLY, TRANS' },
         { key: 'sameAs', label: 'Same as', caps: true, placeholder: 'old/new code' },
         { key: 'highRx', label: 'High Rx', type: 'toggle' },
+        { key: 'printAs', label: 'Register takes', caps: true, placeholder: 'blank = this code', hint: 'For a coating sold under a newer code: the code the register takes today (CZS → CZN).' },
       ]}
       onSave=${(x) => {
-        const v = { ...x, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase() };
+        const { printAs, ...rest } = x;
+        const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}) };
         const key = `${v.kind}|${v.code}`;
         if (key !== open.key && bundle.vocabulary.some((y) => `${y.kind}|${y.code}` === key)) return `${v.code} is already listed.`;
         edit((b) => upsertVocab(b, v, open.key)); saved();

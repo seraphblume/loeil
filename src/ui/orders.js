@@ -4,10 +4,10 @@
 import { html, useState } from './html.js';
 import { useApp } from './hooks.js';
 import { Bar, Screen, ScreenTitle, Section, Row, Empty, Eyebrow, Seg, Secondary, Quiet, Confirm, KV, Panel, fmtDate } from './kit.js';
-import { STATUSES, statusLabel, orderTotal, composition, orderTitle, ticketText, unpriced } from '../core/orders.js';
+import { STATUSES, statusLabel, orderTotal, composition, orderTitle } from '../core/orders.js';
 import { money } from '../core/money.js';
 import { upsertOrder, deleteOrder, clientById, toast } from '../state/app.js';
-import { CodesBlock, LinesPanel, TotalBlock, OrderPromotions, shareText } from './order.js';
+import { LinesPanel, TotalBlock, OrderPromotions } from './order.js';
 import { go } from './router.js';
 
 export function OrderRow({ order, byTitle }) {
@@ -50,7 +50,6 @@ export function SavedOrderScreen({ id }) {
     <${Screen}>
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${client?.name ?? (order.clientNameAtSale || 'No client')} title=${orderTitle(order)} detail=${fmtDate(order.createdOn)} />
-        <${CodesBlock} order=${order} />
         <${LinesPanel} order=${order} />
         <${TotalBlock} order=${order} />
         ${(order.sellerEmployeeNumber || client) && html`<${Panel}>
@@ -63,7 +62,7 @@ export function SavedOrderScreen({ id }) {
           <${Eyebrow}>Status<//>
           <${Seg} label="Status" value=${order.status} onChange=${setStatus} options=${STATUSES.map((s) => ({ value: s.id, label: s.label }))} />
         </div>
-        <${Secondary} icon="share" onClick=${() => shareText(ticketText(order, client?.name), 'Order')}>Share ticket<//>
+        <${Secondary} icon="receipt" onClick=${() => go('#/orders/' + order.id + '/receipt')}>Print the receipt<//>
         <${Quiet} danger onClick=${() => setConfirm(true)}>Delete order<//>
       </div>
     <//>

@@ -32,8 +32,8 @@ export function bundleToWorkbooks(b, XLSX) {
     ...b.lenses.multifocal.map((r) => [r.category, r.material, r.type, r.design, r.colour, r.treatment, amount(r.price), r.available ? 'YES' : 'NO'])], [14, 24, 18, 24, 28, 26, 11, 9]);
   add(backend, 'lenses_contact', [['Material', 'Lens Type', 'Color', 'Price MXN', 'available'],
     ...b.lenses.contact.map((r) => [r.material, r.product, r.colour, amount(r.price), r.available ? 'YES' : 'NO'])], [20, 34, 26, 11, 9]);
-  add(backend, 'vocabulary', [['kind', 'code', 'english', 'blurb', 'rank', 'promo_group', 'same_as', 'high_rx'],
-    ...b.vocabulary.map((v) => [v.kind, v.code, v.english, v.blurb, v.rank, v.group, v.sameAs, v.highRx ? 'YES' : ''])], [16, 8, 26, 58, 6, 12, 9, 8]);
+  add(backend, 'vocabulary', [['kind', 'code', 'english', 'blurb', 'rank', 'promo_group', 'same_as', 'high_rx', 'print_as'],
+    ...b.vocabulary.map((v) => [v.kind, v.code, v.english, v.blurb, v.rank, v.group, v.sameAs, v.highRx ? 'YES' : '', v.printAs ?? ''])], [16, 8, 26, 58, 6, 12, 9, 8, 9]);
   add(backend, 'frame_brands', [['Brand', 'Tier'], ...b.frameBrands.map((x) => [x.brand, x.tier])], [24, 22]);
   add(backend, 'inventory', [['SKU', 'Material (True SKU)', 'Descripción', 'Clasificación', 'Existencia', 'Lote', 'Caducidad'],
     ...b.inventory.map((i) => [i.vendorSku, i.sku, i.description, i.classification, i.stock, '', i.expires])], [18, 18, 46, 14, 10, 8, 12]);

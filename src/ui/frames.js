@@ -7,9 +7,10 @@ import { html, useState, useMemo } from './html.js';
 import { useApp, useDebounced } from './hooks.js';
 import {
   Bar, Screen, ScreenTitle, SearchField, Row, List, Eyebrow, Panel, KV, Figure, Flag, Anchor, Sheet, Toggle,
-  Empty, Secondary,
+  Empty, Secondary, Dock,
 } from './kit.js';
 import { go, href } from './router.js';
+import { Icon } from './icons.js';
 import { money } from '../core/money.js';
 import { stockLabel, STOCK_KIND_LABEL } from '../core/catalogue.js';
 import { frameLine, extraLine } from '../core/orders.js';
@@ -76,12 +77,14 @@ export function FramesScreen({ query }) {
     <${Screen}>
       <div class="stack tight">
         <div class="pad"><${SearchField} value=${term} onInput=${(v) => set({ q: v })} placeholder="Brand, model, colour or barcode" /></div>
-        <${List}>
-          ${FILTERS.map((f) => html`<${Row} title=${html`<span class="silver" style="font-size:14px">${f.label}</span>`}
-            end=${html`<span style=${{ color: filters[f.key] != null ? 'var(--platinum)' : 'var(--pewter)' }}>${filters[f.key] ?? 'Any'}</span>`} chev onClick=${() => setPicking(f)} />`)}
-          <div class="row"><span class="main"><span class="silver" style="font-size:14px">In stock only</span></span>
-            <${Toggle} label="In stock only" on=${Boolean(filters.inStock)} onChange=${(v) => set({ stock: v ? '1' : null })} /></div>
-        <//>
+        <div class="chips" role="toolbar" aria-label="Filters">
+          <button type="button" class=${'chip' + (filters.inStock ? ' on' : '')} aria-pressed=${Boolean(filters.inStock)} onClick=${() => set({ stock: filters.inStock ? null : '1' })}>In stock</button>
+          ${FILTERS.map((f) => {
+            const v = filters[f.key];
+            return html`<button type="button" class=${'chip' + (v != null ? ' on' : '')} onClick=${() => setPicking(f)}>
+              ${v != null ? (f.num ? `${v} mm` : v) : f.label}<${Icon} name=${v != null ? 'x' : 'chevR'} /></button>`;
+          })}
+        </div>
         <div class="pad" style="display:flex;justify-content:space-between;align-items:baseline">
           <${Eyebrow}>${result.total === 1 ? '1 frame' : `${result.total.toLocaleString('en')} frames`}<//>
           ${Object.keys(filters).length > 0 && html`<button class="textbtn small" onClick=${() => go(href(['find', 'frames'], { q: term }), { replace: true })}>Clear filters</button>`}
@@ -121,7 +124,7 @@ export function FrameScreen({ sku }) {
   };
   return html`
     <${Bar} backTo="#/find/frames" title="Frame" />
-    <${Screen}>
+    <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
         ${frame.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
@@ -146,8 +149,11 @@ export function FrameScreen({ sku }) {
             <div class="note">${p.conditions}</div></div>`)}<//>
           <p class="note">Read the condition: some promotions exclude the brands they name.</p>
         </section>`}
-        <${Anchor} icon="plus" onClick=${add}>Add to order<//>
       </div>
+    <//>
+    <${Dock}>
+      <div class="dock-total"><span class="v">${money(set ? set.price : frame.price)}</span><span class="k">${set ? set.name : 'Tag price'}</span></div>
+      <${Anchor} icon="plus" onClick=${add}>Add to order<//>
     <//>`;
 }
 
@@ -169,7 +175,7 @@ export function StockScreen({ sku }) {
   };
   return html`
     <${Bar} backTo="#/find" title="Stock" />
-    <${Screen}>
+    <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${STOCK_KIND_LABEL[item.kind]} title=${item.description} />
         ${item.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
@@ -188,7 +194,9 @@ export function StockScreen({ sku }) {
             <input inputmode="numeric" placeholder="Read it off the tag" value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
           <p class="note">This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.</p>
         </section>` : html`<p class="para">Priced at the register. It goes on the ticket as a code and a quantity.</p>`}
-        <${Anchor} icon="plus" disabled=${isFrame && !price && !set} onClick=${add}>Add to order<//>
       </div>
+    <//>
+    <${Dock}>
+      <${Anchor} icon="plus" disabled=${isFrame && !price && !set} onClick=${add}>Add to order<//>
     <//>`;
 }
