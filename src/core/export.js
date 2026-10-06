@@ -42,6 +42,14 @@ export function bundleToWorkbooks(b, XLSX) {
     ...b.promotions.map((p) => [p.id, p.kind, p.name, p.description, p.category, p.conditions, p.validFrom, p.validTo, p.notes])], [10, 13, 26, 30, 16, 50, 12, 12, 40]);
   add(backend, 'promo_lens_map', [['promo_id', 'package', 'match_key', 'lens_description', 'resolved'],
     ...b.promoLensMap.map((l) => [l.promoId, l.package, l.matchKey, l.lensDescription, 'YES'])], [10, 10, 34, 50, 9]);
+  add(backend, 'sets', [['id_maestro', 'name', 'price', 'valid_from', 'valid_to', 'brands', 'notes'],
+    ...(b.sets ?? []).map((s) => [s.id, s.name, amount(s.price), s.validFrom, s.validTo, s.brands, s.notes])], [11, 14, 9, 11, 11, 70, 30]);
+  add(backend, 'set_lenses', [['id', 'group', 'name', 'match'],
+    ...(b.setLenses ?? []).map((d) => [d.id, d.group, d.name, d.match])], [16, 18, 44, 50]);
+  add(backend, 'set_prices', [['set_id', 'lens_id', 'price', 'special'],
+    ...(b.setPrices ?? []).map((p) => [p.setId, p.lensId, amount(p.price), p.special ? 'YES' : ''])], [10, 16, 9, 8]);
+  add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to'],
+    ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo])], [10, 30, 8, 12, 40, 50, 11, 11]);
 
   const catalogue = XLSX.utils.book_new();
   const brands = [...new Set(b.frames.map((f) => f.brand || 'Other'))].sort((a, c) => a.localeCompare(c));

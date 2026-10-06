@@ -136,6 +136,7 @@ button.row:active, a.row:active, .row.pressable:active { background: var(--press
 .chip { font-size: 11px; color: var(--silver); border: 1px solid var(--hair); border-radius: 999px; padding: 2px 9px; line-height: 1.4; transition: opacity .12s; }
 .chip:active { opacity: .5; }
 .chip.on { color: var(--platinum); border-color: rgba(185, 191, 201, 0.35); }
+.chip.warn { color: var(--platinum); border-color: rgba(185, 191, 201, 0.55); background: rgba(185, 191, 201, 0.08); }
 .inline-ico svg { width: 11px; height: 11px; color: var(--silver); vertical-align: -1px; }
 
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--panel-raised); color: var(--silver); font-size: 12px; display: flex; align-items: center; justify-content: center; flex: none; }

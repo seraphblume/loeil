@@ -22,6 +22,7 @@ import { money, moneyDelta } from '../core/money.js';
 import { fold, signed } from '../core/util.js';
 import { guidance, rxIsBlank } from '../core/crm.js';
 import { lensLine, pairLine } from '../core/orders.js';
+import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
 import { addLine, toast } from '../state/app.js';
 
 function chosenFrom(family, query) {
@@ -151,6 +152,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
             onClick=${() => go(href(['find', 'lens', u.row.id]), { replace: true })} />`)}<//>
         </section>`}
 
+        <${SetsSection} lens=${lens} />
         <${PromotionsSection} lens=${lens} />
 
         <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>Add to order<//>
@@ -233,6 +235,29 @@ export function LineEditorSheet({ lens, onClose, onAdded }) {
       <${Anchor} onClick=${add}>Add line<//>
     </div>
   <//>`;
+}
+
+/**
+ * What this lens costs in each live set: the set's price for frame and single
+ * vision lenses, plus this lens's row. Contacts: a campaign discount instead.
+ */
+function SetsSection({ lens }) {
+  const catalogue = useApp((s) => s.catalogue);
+  if (lens.family === 'CL') {
+    const d = autoDiscountFor(catalogue, { kind: 'lens', lens });
+    return d ? html`<${Panel}><${KV} k=${`${d.name} · ${d.id}`} v=${`${money(lens.priceCents - Math.round((lens.priceCents * d.percent) / 100))} per box`} em /><//>` : null;
+  }
+  const sets = liveSets(catalogue);
+  if (!sets.length) return null;
+  const hits = sets.map((set) => ({ set, hit: setLensFor(catalogue, set, lens) })).filter((x) => x.hit).sort((a, b) => a.set.price - b.set.price);
+  return html`<section class="gap-s" style="margin:0 calc(-1 * var(--gutter))">
+    <div class="pad"><${Eyebrow}>In the sets<//></div>
+    ${hits.length === 0
+      ? html`<p class="note pad">No set’s table names this lens. With a set frame, choose its row on the order, or price it outside the set.</p>`
+      : html`<${List}>${hits.map(({ set, hit }) => html`<${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} + ${hit.def.name}`}
+          detail=${`${rowPriceText(hit.entry, money)} on top · ID Maestro ${set.id}`} end=${money(set.price + hit.entry.price)} chev />`)}<//>
+        <p class="note pad">With a frame from that set’s brands. Plus Protection, if added, is worked out on these prices.</p>`}
+  </section>`;
 }
 
 // ---------------------------------------------------------------------------

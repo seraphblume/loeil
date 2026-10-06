@@ -84,6 +84,19 @@ export class Catalogue {
     this.promotions = bundle?.promotions ?? [];
     this.promotionsById = new Map(this.promotions.map((p) => [p.id, p]));
     this.promoLensMap = bundle?.promoLensMap ?? [];
+
+    // sets: the campaign's frame-and-lens packages (see core/sets.js)
+    this.sets = bundle?.sets ?? [];
+    this.setsById = new Map(this.sets.map((s) => [s.id, s]));
+    this.setLenses = bundle?.setLenses ?? [];
+    this.setLensesById = new Map(this.setLenses.map((d) => [d.id, d]));
+    this.setPrices = bundle?.setPrices ?? [];
+    this.setPricesBySet = new Map();
+    for (const p of this.setPrices) {
+      if (!this.setPricesBySet.has(p.setId)) this.setPricesBySet.set(p.setId, new Map());
+      this.setPricesBySet.get(p.setId).set(p.lensId, p);
+    }
+    this.discounts = bundle?.discounts ?? [];
   }
 
   get isEmpty() { return !this.bundle || this.lensCount === 0; }

@@ -3,10 +3,10 @@
 // between. The codes are the headline because the codes are the output.
 
 import { html, useState } from './html.js';
-import { useApp } from './hooks.js';
+import { useApp, useResolvedDraft } from './hooks.js';
 import {
   Bar, Screen, Eyebrow, Panel, Figure, Anchor, Secondary, Row, List, Section, Sheet, Empty, Seg,
-  SearchField, Confirm, useCopy, KV,
+  SearchField, Confirm, useCopy, KV, Flag,
 } from './kit.js';
 import { Icon } from './icons.js';
 import { go } from './router.js';
@@ -17,6 +17,7 @@ import {
   isPair, isShare, isGlasses, discountable,
 } from '../core/orders.js';
 import { LINE_DISCOUNTS } from '../config.js';
+import { promoNumbers, autoDiscountFor, setTable, rowPriceText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
 import { stockLabel } from '../core/catalogue.js';
 import { eligibility } from '../core/promotions.js';
@@ -29,18 +30,23 @@ import {
 export function CodesBlock({ order }) {
   const [copied, copy] = useCopy();
   if (!order.lines.length) return null;
-  const all = order.lines.map((l) => `${lineCode(l)}  x${lineQuantity(l)}`).join('\n');
+  const promos = promoNumbers(order);
+  const all = [...order.lines.map((l) => `${lineCode(l)}  x${lineQuantity(l)}`), ...promos.map((x) => `${x.id}  ${x.name}`)].join('\n');
   return html`<div class="gap-s">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <${Eyebrow}>${order.lines.length === 1 ? 'Code' : 'Codes'}<//>
       <button class="icon-btn" aria-label="Copy all codes" onClick=${() => copy(all, 'all')}><${Icon} name=${copied === 'all' ? 'check' : 'copy'} /></button>
     </div>
     ${order.lines.map((l) => html`<div class="code-line"><span class="code sel">${lineCode(l)}</span><span class="qty">×${lineQuantity(l)}</span></div>`)}
+    ${promos.length > 0 && html`<div class="gap-s" style="margin-top:6px">
+      <${Eyebrow}>${promos.length === 1 ? 'Promotion number' : 'Promotion numbers'}<//>
+      ${promos.map((x) => html`<div class="code-line"><span class="code sel">${x.id}</span><span class="qty" style="font-family:inherit">${x.name}</span></div>`)}
+    </div>`}
   </div>`;
 }
 
 export function LinesPanel({ order, editable }) {
-  const [discounting, setDiscounting] = useState(null);
+  const [open, setOpen] = useState(null);
   const p = priceOrder(order);
   return html`<section class="gap-s">
     <${Eyebrow}>Lines<//>
@@ -48,23 +54,30 @@ export function LinesPanel({ order, editable }) {
       ${p.rows.map((r) => {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
+        const setChip = l.kind === 'frame' && (l.set || l.setAvailable);
         return html`<div class="kv lined" style="align-items:flex-start">
         <span style="min-width:0;flex:1">
           <div style="font-size:14px;color:var(--platinum);overflow-wrap:anywhere">${lineText(l)}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          ${l.setLens?.id && html`<div class="tiny silver" style="margin-top:2px">${l.setLens.setName} · ${l.setLens.name}</div>`}
+          ${l.set && html`<div class="tiny silver" style="margin-top:2px">${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}</div>`}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:2px">
             <span class="mono tiny muted">${lineCode(l)}</span>
-            ${l.kind === 'frame' && l.priceSource === 'tag' && html`<span class="tiny muted">price typed from tag</span>`}
-            ${isPair(l) && html`<span class="tiny muted">${l.quantity === 2 ? 'the pair' : `${l.eye} only`}</span>`}
+            ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">price typed from tag</span>`}
+            ${isPair(l) && !l.setLens && html`<span class="tiny muted">${l.quantity === 2 ? 'the pair' : `${l.eye} only`}</span>`}
             ${isShare(l) && html`<span class="tiny muted">${l.percent}% of ${money(r.base)}</span>`}
             ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
-            ${discountable(l) && (editable
-              ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setDiscounting(r)}>${r.discount ? `−${r.discount}%` : 'Discount'}</button>`
-              : r.discount > 0 && html`<span class="chip on">−${r.discount}%</span>`)}
+            ${setChip && (editable
+              ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? l.set.id : 'Outside the set'}</button>`
+              : l.set && html`<span class="chip on">${l.set.id}</span>`)}
+            ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row in the set' : 'Change row'}</button>`}
+            ${discountable(l) && !r.pending && (editable
+              ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${r.discount ? `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}` : 'Discount'}</button>`
+              : r.discount > 0 && html`<span class="chip on">−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}</span>`)}
           </div>
         </span>
         <span style="text-align:right;flex:none">
           ${r.discount > 0 && html`<div class="tiny muted num" style="text-decoration:line-through">${money(r.list)}</div>`}
-          <div class="num" style=${{ fontSize: r.net == null ? '12px' : '14px', color: r.net == null ? 'var(--silver)' : 'var(--platinum)' }}>${r.net == null ? 'At register' : money(r.net)}</div>
+          <div class="num" style=${{ fontSize: r.net == null ? '12px' : '14px', color: r.net == null ? 'var(--silver)' : 'var(--platinum)' }}>${r.pending ? 'Row?' : r.net == null ? 'At register' : money(r.net)}</div>
           ${steps
             ? html`<div style="display:flex;gap:2px;justify-content:flex-end;align-items:center">
                 <button class="icon-btn" aria-label="One fewer" onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
@@ -77,22 +90,76 @@ export function LinesPanel({ order, editable }) {
       </div>`;
       })}
     <//>
-    ${discounting && html`<${DiscountSheet} row=${discounting} onClose=${() => setDiscounting(null)} />`}
+    ${open?.kind === 'discount' && html`<${DiscountSheet} row=${open.r} onClose=${() => setOpen(null)} />`}
+    ${open?.kind === 'set' && html`<${SetFrameSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
+    ${open?.kind === 'row' && html`<${SetRowSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
   </section>`;
 }
 
-/** No discount, or one of the set percentages, each with what the line comes to. */
+/** The campaign's discount if one applies, none, or a set percentage — each with what the line comes to. */
 function DiscountSheet({ row, onClose }) {
-  const pick = (pct) => { updateLine(row.line.id, { discount: pct }); onClose(); };
+  const catalogue = useApp((s) => s.catalogue);
+  const l = row.line;
+  const auto = autoDiscountFor(catalogue, { ...l, discount: undefined });
+  const pick = (pct) => { updateLine(l.id, { discount: pct }); onClose(); };
   const at = (pct) => money(row.list - Math.round((row.list * pct) / 100));
+  const manual = typeof l.discount === 'number';
   return html`<${Sheet} title="Discount" onClose=${onClose}>
     <div class="stack tight">
-      <p class="para pad">${lineText(row.line)}</p>
+      <p class="para pad">${lineText(l)}</p>
       <${List}>
+        ${auto && html`<${Row} title=${auto.name} detail=${`Promotion ${auto.id} · applies on its own while the campaign runs`}
+          end=${html`${at(auto.percent)}${!manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(undefined)} />`}
         ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? `${pct}% off` : 'No discount'}
-          end=${html`${at(pct)}${row.discount === pct ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
+          end=${html`${at(pct)}${manual && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
       <//>
-      ${isGlasses(row.line) && html`<p class="note pad">${isPair(row.line) ? 'On the pair. ' : ''}Plus Protection is worked out after the discount.</p>`}
+      ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out after the discount.</p>`}
+    </div>
+  <//>`;
+}
+
+/** A frame in a set: what the set includes, and the way out of it. */
+function SetFrameSheet({ line, onClose }) {
+  const catalogue = useApp((s) => s.catalogue);
+  const info = line.set ?? line.setAvailable;
+  const set = catalogue.setsById.get(info.id);
+  const included = set ? setTable(catalogue, set).filter((r) => !r.entry.price).map((r) => r.def.name) : [];
+  const toggle = (noSet) => { updateLine(line.id, { noSet }); onClose(); };
+  return html`<${Sheet} title=${info.name} onClose=${onClose}>
+    <div class="pad stack tight">
+      <${Panel}>
+        <${KV} k="ID Maestro" v=${info.id} mono />
+        <${KV} k="Set price" v=${money(info.price)} em />
+        ${line.priceCents != null && html`<${KV} k="Tag price" v=${money(line.priceCents)} />`}
+      <//>
+      <p class="para">The frame with single vision lenses${included.length ? ` — ${included.join(', ').toLowerCase()} included` : ''}. Better lenses add their row of the set’s table.</p>
+      ${line.set
+        ? html`<${Secondary} onClick=${() => toggle(true)}>Price outside the set<//>
+          <p class="note">The frame goes back to its tag price and the lenses to their catalogue price.</p>`
+        : html`<${Anchor} onClick=${() => toggle(false)}>Use ${info.name}<//>`}
+      ${set && html`<button class="btn quiet" onClick=${() => { onClose(); go('#/find/sets/' + encodeURIComponent(set.id)); }}>See the set’s table</button>`}
+    </div>
+  <//>`;
+}
+
+/** The lens's row in the set's table. Matched on its own where it can be; his choice wins. */
+function SetRowSheet({ line, onClose }) {
+  const catalogue = useApp((s) => s.catalogue);
+  const set = catalogue.setsById.get(line.setLens.setId);
+  if (!set) return null;
+  const rows = setTable(catalogue, set);
+  const groups = [...new Set(rows.map((r) => r.def.group))];
+  const pick = (id) => { updateLine(line.id, { setLensId: id }); onClose(); };
+  return html`<${Sheet} title=${`${set.name} · lens row`} onClose=${onClose} full>
+    <div class="stack tight">
+      <p class="para pad">${line.lens.displayName}</p>
+      ${line.setLens.id && line.setLens.auto && html`<p class="note pad">Matched on its own to “${line.setLens.name}”. Choose another row if the lens on the register is a different one.</p>`}
+      ${!line.setLens.id && html`<p class="note pad">This lens is not one the set’s table names, so it has no row of its own. Pick the row the register will take, or price the frame outside the set.</p>`}
+      ${groups.map((g) => html`<${Section} title=${g}>
+        ${rows.filter((r) => r.def.group === g).map((r) => html`<${Row} title=${r.def.name}
+          end=${html`${rowPriceText(r.entry, money)}${line.setLens.id === r.def.id ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(r.def.id)} />`)}
+      <//>`)}
+      ${line.setLensId && html`<div class="pad"><button class="btn quiet" onClick=${() => pick(undefined)}>Match it on its own again</button></div>`}
     </div>
   <//>`;
 }
@@ -101,7 +168,8 @@ export function TotalBlock({ order }) {
   const p = priceOrder(order);
   const rest = p.unpriced;
   return html`<div class="gap-m">
-    <${Figure} value=${money(p.total)} caption="Total" size=${40} />
+    ${p.pending.length > 0 && html`<${Flag}>${p.pending.length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
+    <${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />
     ${p.off > 0 && html`<${Panel}>
       <${KV} k="Before discounts" v=${money(p.list)} />
       <${KV} k="Discounts" v=${'−' + money(p.off)} />
@@ -135,7 +203,7 @@ export async function shareText(text, title) {
 }
 
 export function OrderScreen() {
-  const draft = useApp((s) => s.draft);
+  const draft = useResolvedDraft();
   const client = useApp((s) => clientById(s.draft.clientId, s));
   const [sheet, setSheet] = useState(null);
 
@@ -234,7 +302,7 @@ export function ClientPickerSheet({ title, onClose, onPick }) {
 }
 
 function SaveSheet({ onClose }) {
-  const draft = useApp((s) => s.draft);
+  const draft = useResolvedDraft();
   const client = useApp((s) => clientById(s.draft.clientId, s));
   const [status, setStatus] = useState('presented');
   const [picking, setPicking] = useState(!client);

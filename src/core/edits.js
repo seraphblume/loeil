@@ -185,11 +185,65 @@ export function setLine(b, index, line) {
 export const deleteLine = (b, index) => ({ ...b, promoLensMap: b.promoLensMap.filter((_, i) => i !== index) });
 
 // ---------------------------------------------------------------------------
+// Sets: the sets, the table's rows, each row's price in each set, and the
+// campaign discounts that apply on their own. Older bundles have none.
+
+const L = (b, k) => b[k] ?? [];
+
+/** Renaming an ID Maestro carries the set's prices with it. */
+export function upsertSet(b, s, originalId) {
+  const sets = upsertBy(L(b, 'sets'), (x) => x.id, s, originalId);
+  const setPrices = originalId && originalId !== s.id
+    ? L(b, 'setPrices').map((p) => (p.setId === originalId ? { ...p, setId: s.id } : p))
+    : L(b, 'setPrices');
+  return { ...b, sets, setPrices };
+}
+
+export const deleteSet = (b, id) => ({
+  ...b, sets: L(b, 'sets').filter((s) => s.id !== id), setPrices: L(b, 'setPrices').filter((p) => p.setId !== id),
+});
+
+/** One row's price in one set; null takes the row out of that set. */
+export function setSetPrice(b, setId, lensId, entry) {
+  const rest = L(b, 'setPrices').filter((p) => !(p.setId === setId && p.lensId === lensId));
+  if (!entry) return { ...b, setPrices: rest };
+  const i = L(b, 'setPrices').findIndex((p) => p.setId === setId && p.lensId === lensId);
+  const row = { setId, lensId, price: entry.price, ...(entry.special ? { special: true } : {}) };
+  if (i < 0) return { ...b, setPrices: [...rest, row] };
+  return { ...b, setPrices: L(b, 'setPrices').map((p, j) => (j === i ? row : p)) };
+}
+
+/** Renaming a row carries its prices in every set with it. */
+export function upsertSetLens(b, d, originalId) {
+  const setLenses = upsertBy(L(b, 'setLenses'), (x) => x.id, d, originalId);
+  const setPrices = originalId && originalId !== d.id
+    ? L(b, 'setPrices').map((p) => (p.lensId === originalId ? { ...p, lensId: d.id } : p))
+    : L(b, 'setPrices');
+  return { ...b, setLenses, setPrices };
+}
+
+export const deleteSetLens = (b, id) => ({
+  ...b, setLenses: L(b, 'setLenses').filter((d) => d.id !== id), setPrices: L(b, 'setPrices').filter((p) => p.lensId !== id),
+});
+
+export const upsertDiscount = (b, d, originalId) => ({ ...b, discounts: upsertBy(L(b, 'discounts'), (x) => x.id, d, originalId) });
+export const deleteDiscount = (b, id) => ({ ...b, discounts: L(b, 'discounts').filter((d) => d.id !== id) });
+
+/** A new campaign window for every set and discount at once. */
+export function setCampaignDates(b, validFrom, validTo) {
+  return {
+    ...b,
+    sets: L(b, 'sets').map((s) => ({ ...s, validFrom, validTo })),
+    discounts: L(b, 'discounts').map((d) => ({ ...d, validFrom, validTo })),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Imports replace whole domains.
 
 export function applyPieces(b, pieces) {
   const n = { ...b };
-  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap']) if (pieces[k]) n[k] = pieces[k];
+  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts']) if (pieces[k]) n[k] = pieces[k];
   if (pieces.lenses) n.lenses = pieces.lenses;
   if (pieces.stockReport) n.stockReport = pieces.stockReport;
   return n;

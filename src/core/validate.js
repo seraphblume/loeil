@@ -8,6 +8,7 @@
 import { parseCodeLabel, brandKey } from './util.js';
 import { stockKind } from './stock.js';
 import { PRICE_BOUNDS, EMPLOYEE_NUMBER_DIGITS, TRUE_SKU_DIGITS } from '../config.js';
+import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO } from './sets.js';
 
 export const VOCAB_KINDS = [
   'category', 'material', 'lens_type', 'design', 'colour', 'treatment',
@@ -49,6 +50,8 @@ export function counts(b) {
     Staff: b.staff.length,
     Promotions: b.promotions.length,
     'Promo lines': b.promoLensMap.length,
+    Sets: (b.sets ?? []).length,
+    'Campaign discounts': (b.discounts ?? []).length,
     Vocabulary: b.vocabulary.length,
   };
 }
@@ -183,5 +186,89 @@ export function validateBundle(b, report = new Report()) {
     if (orphans) report.note('Promo lines', `${orphans} promo line${orphans > 1 ? 's name' : ' names'} a design or coating no lens has, so ${orphans > 1 ? 'they' : 'it'} can never match.`);
   }
 
+  validateSets(b, report);
   return report.done(counts(b));
+}
+
+/** Sets, their table and the campaign discounts. Older bundles have none, which is fine. */
+function validateSets(b, report) {
+  const sets = b.sets ?? [];
+  const rows = b.setLenses ?? [];
+  const prices = b.setPrices ?? [];
+  const discounts = b.discounts ?? [];
+
+  const ids = new Set();
+  for (const s of sets) {
+    const where = `${s.name || 'A set'}`;
+    if (!s.id) report.error('Sets', `${where} has no ID Maestro.`);
+    if (ids.has(s.id)) report.error('Sets', `ID Maestro ${s.id} is used by two sets.`);
+    ids.add(s.id);
+    if (!(s.price > 0)) report.error('Sets', `${where} has no price.`);
+    if (!brandAlternatives(s).length) report.error('Sets', `${where} names no brands, so no frame can be in it.`);
+    if (s.validFrom && s.validTo && s.validTo < s.validFrom) report.error('Sets', `${where} ends before it starts.`);
+  }
+
+  // Codes and groups a match may name.
+  const vocab = new Map();
+  const groups = new Map();
+  for (const v of b.vocabulary) {
+    if (!vocab.has(v.kind)) vocab.set(v.kind, new Set());
+    vocab.get(v.kind).add(v.code);
+    if (v.group) { const k = v.kind + '|' + v.group; if (!groups.has(k)) groups.set(k, new Set()); groups.get(k).add(v.code); }
+  }
+  const lookup = { codesInGroup: (kind, g) => groups.get(kind + '|' + g) ?? new Set() };
+  const KIND = { material: 'material', design: 'design', filter: 'category', colour: 'colour', coating: 'treatment' };
+  const families = new Set(['SV', ...(vocab.get('lens_type') ?? [])]);
+  const facts = [
+    ...b.lenses.single.map((r) => ({ family: 'SV', material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
+    ...b.lenses.multifocal.map((r) => ({ family: parseCodeLabel(r.type).code, material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
+  ];
+
+  const rowIds = new Set();
+  const handPicked = [];
+  for (const d of rows) {
+    if (!d.id) report.error('Set lens rows', `${d.name || 'A row'} has no id.`);
+    if (rowIds.has(d.id)) report.error('Set lens rows', `Row id ${d.id} is used twice.`);
+    rowIds.add(d.id);
+    if (!d.name) report.error('Set lens rows', `Row ${d.id} has no name.`);
+    if (!String(d.match ?? '').trim()) { handPicked.push(d.name); continue; }
+    for (const m of parseMatch(d.match)) {
+      if (m.extra) report.error('Set lens rows', `${d.name}: a match has more than six parts.`);
+      for (const [seg, part] of Object.entries(m)) {
+        if (seg === 'extra' || part.any) continue;
+        for (const t of part.tokens) {
+          const ok = seg === 'family' ? families.has(t)
+            : t.startsWith('*') ? groups.has(KIND[seg] + '|' + t.slice(1))
+              : vocab.get(KIND[seg])?.has(t);
+          if (!ok) report.warn('Set lens rows', `${d.group} · ${d.name}: “${t}” is not a ${seg === 'filter' ? 'filter' : seg} the vocabulary knows.`);
+        }
+      }
+    }
+    if (!facts.some((f) => factsMatch(lookup, d.match, f))) report.note('Set lens rows', `${d.group} · ${d.name} matches no lens in the catalogue, so it is only ever chosen by hand.`);
+  }
+  if (handPicked.length) report.note('Set lens rows', `Chosen by hand on the order (no match): ${handPicked.join(', ')}.`);
+
+  const seen = new Set();
+  for (const p of prices) {
+    if (!ids.has(p.setId)) report.error('Set prices', `A price names set ${p.setId}, which does not exist.`);
+    if (!rowIds.has(p.lensId)) report.error('Set prices', `A price names row ${p.lensId}, which does not exist.`);
+    if (!(p.price >= 0)) report.error('Set prices', `${p.setId} · ${p.lensId}: the price is not a number.`);
+    const k = p.setId + '|' + p.lensId;
+    if (seen.has(k)) report.error('Set prices', `${p.setId} · ${p.lensId} is priced twice.`);
+    seen.add(k);
+  }
+
+  const frameBrandKeys = new Set(b.frames.map((f) => brandKey(f.brand)));
+  const unknown = sets.flatMap((s) => String(s.brands ?? '').split(',').map((x) => x.trim()).filter(Boolean)
+    .filter((name) => !name.split('/').some((alt) => frameBrandKeys.has(brandKey(alt)))).map((name) => name.split('/')[0].trim()));
+  if (unknown.length) report.note('Sets', `${unknown.length} set brand${unknown.length > 1 ? 's are' : ' is'} not in the frame catalogue — those frames are found from stock by their description: ${unknown.slice(0, 10).join(', ')}${unknown.length > 10 ? '…' : ''}.`);
+
+  const dIds = new Set();
+  for (const d of discounts) {
+    if (!d.id) report.error('Campaign discounts', `${d.name || 'A discount'} has no promotion number.`);
+    if (dIds.has(d.id)) report.error('Campaign discounts', `Promotion ${d.id} is listed twice.`);
+    dIds.add(d.id);
+    if (!(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${d.name || d.id}: the percentage must be more than 0 and at most 100.`);
+    if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${d.name || d.id}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
+  }
 }

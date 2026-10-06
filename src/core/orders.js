@@ -6,9 +6,14 @@
 // Contact lenses routinely differ between eyes — a different power, often a
 // different product — so they are one line per eye (OD or OS), priced per box.
 //
-// A priced line can carry a discount (see LINE_DISCOUNTS). An add-on with a
-// percentage, like Plus Protection, is priced from the glasses it covers —
-// the frame and the spectacle lenses, after their discounts.
+// A frame in one of the campaign's sets is priced at the set, and the pair of
+// lenses that goes with it at the set's row for that lens (core/sets.js) — the
+// draft is resolved against the campaign before it is priced.
+//
+// A priced line can carry a discount: one the seller chose (LINE_DISCOUNTS),
+// or, when he has not chosen, a campaign discount that applies on its own. An
+// add-on with a percentage, like Plus Protection, is priced from the glasses
+// it covers — the frame and the spectacle lenses, after their discounts.
 //
 // Other add-ons, cases and solutions carry no price here. They reach the ticket
 // as code, description and quantity, and the register prices them. An invented
@@ -17,6 +22,7 @@
 import { uid, plural } from './util.js';
 import { money } from './money.js';
 import { lensCodeText } from './lens.js';
+import { promoNumbers } from './sets.js';
 
 export const STATUSES = [
   { id: 'draft', label: 'Draft' },
@@ -44,7 +50,7 @@ export const pairLine = (lens) => ({ id: uid(), kind: 'lens', lens, eye: 'OU', p
 
 export const frameLine = (frame, priceCents, priceSource) => ({
   id: uid(), kind: 'frame', sku: frame.sku, product: frame.product ?? frame.vendorSku ?? '',
-  description: frame.description, brand: frame.brand ?? '', priceCents, priceSource,
+  description: frame.description, brand: frame.brand ?? '', category: frame.category ?? '', priceCents, priceSource,
   stock: frame.stock ?? null,
 });
 
@@ -76,14 +82,26 @@ export function lineText(line) {
 
 export const lineQuantity = (line) => (line.kind === 'frame' ? 1 : line.quantity);
 
+/** A lens in a set whose row is not settled yet: no price until he picks one. */
+export const isPending = (line) => Boolean(line.setLens) && !line.setLens.id;
+
 /** Before any discount. null means "the register prices this", which is not zero. */
 function listCents(line) {
   if (line.kind === 'lens') {
     // Per pair for spectacles: a pair is two lenses. An older one-eye line is half.
-    return isPair(line) ? Math.round((line.lens.priceCents * line.quantity) / 2) : line.lens.priceCents * line.quantity;
+    const unit = line.setLens ? line.setLens.price : line.lens.priceCents;
+    if (unit == null) return null;
+    return isPair(line) ? Math.round((unit * line.quantity) / 2) : unit * line.quantity;
   }
-  if (line.kind === 'frame') return line.priceCents;
+  if (line.kind === 'frame') return line.set ? line.set.price : line.priceCents;
   return null;
+}
+
+/** The percentage off a line: the seller's choice, else the campaign's. */
+export function discountOf(line) {
+  if (!discountable(line)) return 0;
+  if (typeof line.discount === 'number') return line.discount;
+  return line.auto?.percent ?? 0;
 }
 
 const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] ?? 0), 0);
@@ -95,10 +113,10 @@ const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] ?? 0), 0);
  */
 export function priceOrder(order) {
   const rows = order.lines.map((line) => {
-    const list = listCents(line);
-    const discount = list != null && discountable(line) ? Number(line.discount) || 0 : 0;
+    const list = isPending(line) ? null : listCents(line);
+    const discount = list != null ? discountOf(line) : 0;
     const off = Math.round((list ?? 0) * discount / 100);
-    return { line, list, discount, off, net: list == null ? null : list - off };
+    return { line, list, discount, auto: discount > 0 && typeof line.discount !== 'number', off, net: list == null ? null : list - off, pending: isPending(line) };
   });
   const covered = rows.filter((r) => r.net != null && isGlasses(r.line)).reduce((s, r) => s + r.net, 0);
   for (const r of rows) {
@@ -114,7 +132,8 @@ export function priceOrder(order) {
     list: sum(priced, 'list'),
     off: sum(priced, 'off'),
     total: sum(priced, 'net'),
-    unpriced: rows.filter((r) => r.net == null).map((r) => r.line),
+    unpriced: rows.filter((r) => r.net == null && !r.pending).map((r) => r.line),
+    pending: rows.filter((r) => r.pending).map((r) => r.line),
   };
 }
 
@@ -150,11 +169,18 @@ export function ticketText(order, clientName) {
     const { line } = r;
     out.push(`${lineCode(line)}  ×${lineQuantity(line)}`);
     out.push(`  ${lineText(line)}`);
+    if (line.set) out.push(`  ${line.set.name} (${line.set.id})`);
+    if (line.setLens?.id) out.push(`  ${line.setLens.setName}: ${line.setLens.name}`);
     if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)}: ${money(r.net)}`);
-    else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%: ${money(r.net)}`);
+    else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%${r.auto ? ` (${line.auto.id})` : ''}: ${money(r.net)}`);
     else out.push(`  ${money(r.net)}`);
   }
   out.push('');
+  const promos = promoNumbers(order);
+  if (promos.length) {
+    out.push(`Promotions: ${promos.map((x) => `${x.id} ${x.name}`).join(' · ')}`);
+    out.push('');
+  }
   if (p.off) {
     out.push(`Before discounts: ${money(p.list)}`);
     out.push(`Discounts: −${money(p.off)}`);

@@ -26,6 +26,10 @@ export const SPECS = [
   { title: 'Extras', get: (b) => b.extras, key: (e) => e.id, label: (e) => e.description || e.id, fields: ['description', 'percent'] },
   { title: 'Staff', get: (b) => b.staff, key: (s) => s.employeeNumber, label: (s) => s.name || s.employeeNumber, fields: ['name', 'shortName', 'role', 'active'] },
   { title: 'Promotions', get: (b) => b.promotions, key: (p) => p.id, label: (p) => `${p.id} ${p.name}`, fields: ['name', 'kind', 'description', 'category', 'conditions', 'validFrom', 'validTo', 'notes'] },
+  { title: 'Sets', get: (b) => b.sets ?? [], key: (s) => s.id, label: (s) => `${s.id} ${s.name}`, fields: ['name', 'price', 'validFrom', 'validTo', 'brands', 'notes'] },
+  { title: 'Set lens rows', get: (b) => b.setLenses ?? [], key: (d) => d.id, label: (d) => `${d.group} · ${d.name}`, fields: ['group', 'name', 'match'] },
+  { title: 'Set prices', get: (b) => b.setPrices ?? [], key: (p) => `${p.setId}|${p.lensId}`, label: (p) => `${p.setId} ${p.lensId}`, fields: ['price', 'special'] },
+  { title: 'Campaign discounts', get: (b) => b.discounts ?? [], key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'validFrom', 'validTo'] },
   { title: 'Promo lines', get: (b) => b.promoLensMap, key: (l) => `${l.promoId}|${l.package}|${l.matchKey}`, label: (l) => `${l.promoId} ${l.matchKey}`, fields: ['lensDescription'] },
 ];
 

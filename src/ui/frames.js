@@ -16,6 +16,26 @@ import { frameLine, extraLine } from '../core/orders.js';
 import { addLine, toast } from '../state/app.js';
 import { livePromotions } from '../core/promotions.js';
 import { brandKey, fmtExpiry } from './format.js';
+import { setForFrame, setTable, frameFacts, autoDiscountFor } from '../core/sets.js';
+
+/** What the campaign does for a frame: its set, or a discount that applies on its own. */
+function CampaignPanel({ frame, set, sun }) {
+  const catalogue = useApp((s) => s.catalogue);
+  if (set) {
+    const included = setTable(catalogue, set).filter((r) => !r.entry.price).map((r) => r.def.name.toLowerCase());
+    return html`<section class="gap-s">
+      <${Eyebrow}>In a set<//>
+      <${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} · ID Maestro ${set.id}`}
+        detail=${`With single vision lenses${included.length ? ` (${included.join(', ')} included)` : ''}. Better lenses add their row.`} end=${money(set.price)} chev />
+    </section>`;
+  }
+  if (sun) {
+    return html`<${Panel}>
+      <${KV} k=${`${sun.name} · ${sun.id}`} v=${money(frame.price - Math.round((frame.price * sun.percent) / 100))} em />
+    <//>`;
+  }
+  return null;
+}
 
 const FILTERS = [
   { key: 'brand', label: 'Brand' },
@@ -92,6 +112,8 @@ export function FrameScreen({ sku }) {
     return html`<${Bar} backTo="#/find" title="Frame" /><${Screen}><div class="pad"><${Empty} title="Not in the catalogue">Barcode ${sku} is not in the frame catalogue or the stock list.<//></div><//>`;
   }
   const promos = livePromotions(catalogue).filter((p) => brandKey(p.conditions).includes(brandKey(frame.brand)));
+  const set = setForFrame(catalogue, frame);
+  const sun = set ? null : autoDiscountFor(catalogue, { kind: 'frame', sku: frame.sku });
   const add = async () => {
     await addLine(frameLine(frame, frame.price, 'catalogue'));
     toast('Frame added to the order');
@@ -104,6 +126,7 @@ export function FrameScreen({ sku }) {
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
         ${frame.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
         <${Figure} value=${money(frame.price)} caption="Tag price" size=${38} />
+        <${CampaignPanel} frame=${frame} set=${set} sun=${sun} />
         <${Panel}>
           <${KV} k="Barcode" v=${frame.sku} mono />
           ${frame.product && html`<${KV} k="Product code" v=${frame.product} mono />`}
@@ -135,10 +158,11 @@ export function StockScreen({ sku }) {
   const [typed, setTyped] = useState('');
   if (!item) return html`<${Bar} backTo="#/find" title="Stock" /><${Screen}><div class="pad"><${Empty} title="Not in the stock list">Barcode ${sku} is not in the inventory.<//></div><//>`;
   const isFrame = item.kind === 'frame';
+  const set = isFrame ? setForFrame(catalogue, frameFacts(catalogue, { sku: item.sku, description: item.description })) : null;
   const pesos = Number(typed.replace(/[^\d]/g, ''));
   const price = pesos >= 50 && pesos <= 200000 ? pesos * 100 : null;
   const add = async () => {
-    if (isFrame) await addLine(frameLine({ sku: item.sku, product: item.vendorSku, description: item.description, stock: item.stock }, price, 'tag'));
+    if (isFrame) await addLine(frameLine({ sku: item.sku, product: item.vendorSku, description: item.description, stock: item.stock }, price, price == null ? 'set' : 'tag'));
     else await addLine(extraLine(item.sku, item.description, 1, item.stock));
     toast('Added to the order');
     go('#/find/order');
@@ -157,13 +181,14 @@ export function StockScreen({ sku }) {
           ${item.expires && html`<${KV} k="Expiry" v=${fmtExpiry(item.expires)} />`}
         <//>
         ${item.batches > 1 && html`<p class="note">${item.batches} batches, earliest expiry shown.</p>`}
+        ${set && html`<${CampaignPanel} frame=${item} set=${set} />`}
         ${isFrame ? html`<section class="gap-s">
-          <${Eyebrow}>Price from the tag<//>
+          <${Eyebrow}>${set ? 'Tag price, if it goes outside the set' : 'Price from the tag'}<//>
           <label class="field"><span class="unit">$</span>
             <input inputmode="numeric" placeholder="Read it off the tag" value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
           <p class="note">This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.</p>
         </section>` : html`<p class="para">Priced at the register. It goes on the ticket as a code and a quantity.</p>`}
-        <${Anchor} icon="plus" disabled=${isFrame && !price} onClick=${add}>Add to order<//>
+        <${Anchor} icon="plus" disabled=${isFrame && !price && !set} onClick=${add}>Add to order<//>
       </div>
     <//>`;
 }

@@ -48,6 +48,9 @@ copy* saved on that phone; nobody sees it until **Review and publish**.
 | Add, reprice or remove a frame | Frames (category, material and eye size are read from the product code) |
 | Set brand tiers | Brand tiers |
 | Update stock | Stock → **Import the stock report (PDF)**: print the POS *Reporte Existencias* to PDF and pick it |
+| Start a new campaign of sets | Sets → **New campaign dates**; then each set's price, brands and row prices |
+| Change which lenses a row of the sets' table covers | Sets → Lens rows |
+| Discounts that apply on their own (30% on contacts…) | Sets → Campaign discounts |
 | Rotate promotions | Promotions → **New campaign dates**, or edit one; lens lines are built from pickers |
 | Add or switch off a seller | Staff |
 | Price an add-on as a share of the glasses (Plus Protection: 10) | Extras → Percent |
@@ -88,6 +91,20 @@ at a time (OD or OS), priced per box. Any frame or lens line can take a 40% or 5
 discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
 priced from the frame and spectacle lenses on the order after their discounts —
 Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
+
+## Sets
+
+A set is the campaign's price for an ophthalmic frame of its brands with single
+vision lenses (Set $1,999, ID Maestro 19990). Better lenses add a fixed amount
+from the set's table, so Transitions with Crizal on a Xikú frame is
+$1,999 + $5,099 = $7,098 — and Plus Protection, if added, is 10% of that.
+
+Scan the frame and the order does the rest: the frame's brand picks the set, the
+lens walked in the cascade finds its row of the table on its own (or he picks
+it), and the ID Maestro goes in the codes. A catalogue frame is matched on its
+brand exactly; a frame known only from stock on the brand its description
+starts with. Each row's match (`family|material|design|filter|colour|coating`)
+lives in the data, as does every price, so a new campaign is a data edit.
 
 ## The passcode
 

@@ -6,7 +6,7 @@
 // 4. Browse — the three lens cascades and the frame catalogue.
 
 import { html, useMemo } from './html.js';
-import { useApp, useDebounced } from './hooks.js';
+import { useApp, useDebounced, useResolvedDraft } from './hooks.js';
 import { Bar, Screen, Wordmark, SearchField, Section, Row, Empty, Anchor, Eyebrow } from './kit.js';
 import { go, href } from './router.js';
 import { FAMILIES, searchLenses } from '../core/lens.js';
@@ -15,6 +15,7 @@ import { money } from '../core/money.js';
 import { orderTotal, composition, orderTitle } from '../core/orders.js';
 import { dueForRecall, warningIcon, eyeText, rxIsBlank } from '../core/crm.js';
 import { fold } from '../core/util.js';
+import { liveSets } from '../core/sets.js';
 import { Icon } from './icons.js';
 import { fmtDayMonth } from './kit.js';
 
@@ -32,7 +33,7 @@ export function FindHome({ query }) {
 }
 
 function Home() {
-  const draft = useApp((s) => s.draft);
+  const draft = useResolvedDraft();
   const orders = useApp((s) => s.orders);
   const clients = useApp((s) => s.clients);
   const catalogue = useApp((s) => s.catalogue);
@@ -63,6 +64,7 @@ function Home() {
     <${Section} title="Browse">
       ${FAMILIES.map((f) => html`<${Row} to=${'#/find/browse/' + f.id} icon=${f.icon} title=${f.label} detail=${f.blurb} count=${catalogue.rows(f.id).length} />`)}
       <${Row} to="#/find/frames" icon="glasses" title="Frames" detail=${`${new Set(catalogue.frames.map((f) => f.brand)).size} brands, from the catalogue`} count=${catalogue.frames.length} />
+      ${catalogue.sets.length > 0 && html`<${Row} to="#/find/sets" icon="doc" title="Sets" detail="Frame and lenses at one price, by brand" count=${liveSets(catalogue).length} />`}
     <//>`;
 }
 

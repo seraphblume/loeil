@@ -10,6 +10,8 @@ import { FindHome } from './find.js';
 import { CascadeScreen, LensScreen } from './cascade.js';
 import { FramesScreen, FrameScreen, StockScreen } from './frames.js';
 import { ScanScreen } from './scan.js';
+import { SetsScreen, SetScreen } from './sets.js';
+import { SetsAdminScreen, SetAdminScreen, SetLensesScreen, DiscountsScreen } from './data/sets.js';
 import { OrderScreen } from './order.js';
 import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
@@ -52,6 +54,7 @@ function screenFor(route) {
     if (a === 'frame' && b) return html`<${FrameScreen} sku=${b} />`;
     if (a === 'stock' && b) return html`<${StockScreen} sku=${b} />`;
     if (a === 'scan') return html`<${ScanScreen} />`;
+    if (a === 'sets') return b ? html`<${SetScreen} id=${decodeURIComponent(b)} />` : html`<${SetsScreen} />`;
     if (a === 'order') return html`<${OrderScreen} />`;
     return html`<${FindHome} query=${route.query} />`;
   }
@@ -70,6 +73,9 @@ function screenFor(route) {
       if (b === 'extras') return html`<${ExtrasScreen} />`;
       if (b === 'staff') return html`<${StaffAdminScreen} />`;
       if (b === 'promos') return route.parts[3] ? html`<${PromoScreen} id=${route.parts[3]} />` : html`<${PromosScreen} />`;
+      if (b === 'sets') return route.parts[3] ? html`<${SetAdminScreen} id=${decodeURIComponent(route.parts[3])} />` : html`<${SetsAdminScreen} />`;
+      if (b === 'setlenses') return html`<${SetLensesScreen} />`;
+      if (b === 'discounts') return html`<${DiscountsScreen} />`;
       return html`<${DataHome} />`;
     }
     if (a === 'promotions') return html`<${PromotionsScreen} />`;

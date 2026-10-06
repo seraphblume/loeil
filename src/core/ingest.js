@@ -22,6 +22,7 @@ export function emptyBundle() {
     format: BUNDLE_FORMAT, version: BUNDLE_VERSION, dataVersion: '', generatedAt: '', minAppBuild: BUNDLE_MIN_APP_BUILD,
     source: {}, vocabulary: [], lenses: { single: [], multifocal: [], contact: [] },
     frameBrands: [], frames: [], inventory: [], extras: [], staff: [], promotions: [], promoLensMap: [],
+    sets: [], setLenses: [], setPrices: [], discounts: [],
   };
 }
 
@@ -213,6 +214,35 @@ export function readBackend(sheets, report = new Report()) {
       out.promoLensMap.push({ promoId, package: cellText(r.package).trim(), matchKey, lensDescription: cellText(r.lens_description).trim() });
     }
   }
+
+  // Sets (see core/sets.js). Optional tabs: a workbook without them leaves the sets alone.
+  const se = tab('sets', ['id_maestro', 'name', 'price']);
+  if (se) {
+    out.sets = se.rows.filter((r) => cellText(r.id_maestro).trim()).map((r) => ({
+      id: cellText(r.id_maestro).trim(), name: cellText(r.name).trim(), price: toCents(r.price),
+      validFrom: sheetDay(r.valid_from), validTo: sheetDay(r.valid_to), brands: cellText(r.brands).trim(), notes: cellText(r.notes).trim(),
+    }));
+  }
+  const sl = tab('set_lenses', ['id', 'group', 'name']);
+  if (sl) {
+    out.setLenses = sl.rows.filter((r) => cellText(r.id).trim()).map((r) => ({
+      id: cellText(r.id).trim(), group: cellText(r.group).trim(), name: cellText(r.name).trim(), match: cellText(r.match).trim(),
+    }));
+  }
+  const sp = tab('set_prices', ['set_id', 'lens_id', 'price']);
+  if (sp) {
+    out.setPrices = sp.rows.filter((r) => cellText(r.set_id).trim() && cellText(r.lens_id).trim()).map((r) => ({
+      setId: cellText(r.set_id).trim(), lensId: cellText(r.lens_id).trim(), price: toCents(r.price) ?? 0, ...(isYes(r.special) ? { special: true } : {}),
+    }));
+  }
+  const di = tab('discounts', ['promo_id', 'name', 'percent', 'applies_to']);
+  if (di) {
+    out.discounts = di.rows.filter((r) => cellText(r.promo_id).trim()).map((r) => ({
+      id: cellText(r.promo_id).trim(), name: cellText(r.name).trim(), percent: Number(cellText(r.percent).replace('%', '')) || 0,
+      appliesTo: cellText(r.applies_to).trim(), only: cellText(r.only).trim(), except: cellText(r.except).trim(),
+      validFrom: sheetDay(r.valid_from), validTo: sheetDay(r.valid_to),
+    }));
+  }
   return out;
 }
 
@@ -282,4 +312,5 @@ export function ingest(workbooks, { now = new Date() } = {}) {
 export const DOMAIN_LABEL = {
   vocabulary: 'Coatings and names', lenses: 'Lens prices', frameBrands: 'Brand tiers', inventory: 'Stock',
   extras: 'Extras', staff: 'Staff', promotions: 'Promotions', promoLensMap: 'Promo lines', frames: 'Frames',
+  sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts',
 };

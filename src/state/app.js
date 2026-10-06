@@ -10,6 +10,7 @@ import { Catalogue } from '../core/catalogue.js';
 import { open, WrongPasscode } from '../core/crypto.js';
 import { APP_BUILD, DATA_PATH, FETCH_TIMEOUT_MS } from '../config.js';
 import { newOrder } from '../core/orders.js';
+import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
 
@@ -241,8 +242,12 @@ export async function clearDraft() {
 }
 
 /** Save the draft as a real order under a client, then start a fresh one. */
+/** The order in progress, read against today's campaign: sets, set rows, discounts. */
+export const resolvedDraft = (s = state) => resolveOrder(s.draft, s.catalogue);
+
 export async function saveDraftTo(clientId, status = 'draft') {
-  const saved = await upsertOrder({ ...state.draft, clientId, status });
+  // A saved order keeps the set prices it was sold at, whatever the next campaign does.
+  const saved = await upsertOrder({ ...resolvedDraft(), clientId, status });
   await clearDraft();
   return saved;
 }
