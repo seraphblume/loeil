@@ -5,7 +5,7 @@
 import { html, useState, useRef } from './html.js';
 import { useApp } from './hooks.js';
 import {
-  Bar, Screen, Figure, Eyebrow, Panel, KV, Section, Row, List, Secondary, Sheet, Anchor, Quiet, Confirm, Flag,
+  Bar, Screen, LargeTitle, Figure, Eyebrow, Panel, KV, Section, Row, List, Secondary, Sheet, Anchor, Quiet, Confirm, Flag,
   daysAgo, fmtDayMonth, fmtDate,
 } from './kit.js';
 import { Icon } from './icons.js';
@@ -17,8 +17,10 @@ import { livePromotions, unmatchableLines, conditionsOf, isLive } from '../core/
 import { addDays, startOfDay } from '../core/util.js';
 import { GRID_WEEKS, APP_BUILD } from '../config.js';
 import {
-  refresh, staffMember, backupJSON, previewBackup, restoreBackup, toast, lockDevice,
+  refresh, staffMember, backupJSON, previewBackup, restoreBackup, toast, lockDevice, previewAlpha, importAlpha,
 } from '../state/app.js';
+import { loadXLSX } from './data/io.js';
+import { plural } from '../core/util.js';
 import { go } from './router.js';
 import { applyUpdate } from '../state/update.js';
 
@@ -81,7 +83,10 @@ export function MeScreen() {
     const f = e.currentTarget.files?.[0];
     e.currentTarget.value = '';
     if (!f) return;
-    try { setRestore(previewBackup(await f.text())); } catch (err) { toast(err.message); }
+    try {
+      if (/\.xlsx$/i.test(f.name) || f.type.includes('spreadsheet')) setRestore(previewAlpha(await crmRows(f)));
+      else setRestore(previewBackup(await f.text()));
+    } catch (err) { toast(err.message); }
   };
 
   const syncLine = {
@@ -90,9 +95,10 @@ export function MeScreen() {
   }[sync.status];
 
   return html`
-    <${Bar} title="Me" />
+    <${Bar} title=${me?.name ?? 'Me'} large />
     <${Screen}>
       <div class="stack loose">
+        <${LargeTitle} detail=${me ? `${me.employeeNumber} · ${me.role ?? 'seller'}` : null}>${me?.name?.split(' ')[0] ?? 'Me'}<//>
         ${s.update && html`<div class="pad gap-s"><${Flag} icon="arrowUp">A new version of L\u2019\u0152il is ready. It switches over on the next launch, or now.<//>
           <${Secondary} icon="refresh" onClick=${applyUpdate}>Update now<//></div>`}
         <div class="pad"><${Figure} value=${String(soldWeek)} caption="sold this week" size=${48} /></div>
@@ -145,9 +151,9 @@ export function MeScreen() {
           <${Eyebrow}>Backup<//>
           <p class="para">Client records live only on this phone. There is no sync and no account, so export regularly — a lost phone or a cleared browser is otherwise the end of them.</p>
           <${Secondary} icon="download" onClick=${exportFile}>Export backup<//>
-          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Restore from a backup<//>
-          <input ref=${fileRef} type="file" accept="application/json,.json" style="display:none" onChange=${pickBackup} />
-          <p class="note">Backups from the iPhone and Android apps restore here too.</p>
+          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Restore or import<//>
+          <input ref=${fileRef} type="file" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pickBackup} />
+          <p class="note">A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales.</p>
         </div>
 
         ${!isStandalone() && html`<div class="pad"><${Flag} icon="download">
@@ -175,8 +181,46 @@ export function MeScreen() {
     ${restore && html`<${RestoreSheet} parsed=${restore} onClose=${() => setRestore(null)} />`}`;
 }
 
+/** The CRM tab of the Alpha workbook, as rows of cells. */
+async function crmRows(file) {
+  const XLSX = await loadXLSX();
+  const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
+  const read = (n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+  const name = wb.SheetNames.find((n) => n.trim().toUpperCase() === 'CRM')
+    ?? wb.SheetNames.find((n) => read(n).slice(0, 12).some((r) => String(r?.[0] ?? '').trim().toLowerCase() === 'sell id'));
+  if (!name) throw new Error('This workbook has no CRM table — the sheet with a Sell ID column.');
+  return read(name);
+}
+
+function AlphaSheet({ parsed, onClose }) {
+  const { counts, alpha } = parsed;
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    const done = await importAlpha(alpha);
+    toast(done.clients || done.orders ? `Added ${plural(done.clients, 'client', 'clients')} and ${plural(done.orders, 'past sale', 'past sales')}` : 'Nothing new to add');
+    onClose();
+  };
+  const nothing = !counts.clients && !counts.orders && !counts.updated;
+  return html`<${Sheet} title="Import from Alpha" onClose=${onClose}>
+    <div class="pad stack tight">
+      <${Panel}>
+        <${KV} k="People" v=${alpha.people.length} />
+        <${KV} k="New clients" v=${counts.clients} />
+        ${counts.matched > 0 && html`<${KV} k="Already here" v=${counts.updated ? `${counts.matched} · ${counts.updated} brought up to date` : counts.matched} />`}
+        <${KV} k="Past sales" v=${counts.already ? `${counts.orders} new · ${counts.already} already here` : counts.orders} />
+      <//>
+      <p class="para">Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.</p>
+      <p class="note">Someone already on this phone keeps what is here; only a newer prescription or a missing phone number is filled in. Importing the same workbook again adds only what is new.</p>
+      ${nothing ? html`<${Quiet} onClick=${onClose}>Nothing new — close<//>`
+        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? 'Adding…' : 'Add to this phone'}<//>`}
+    </div>
+  <//>`;
+}
+
 function RestoreSheet({ parsed, onClose }) {
   const [confirm, setConfirm] = useState(false);
+  if (parsed.source === 'Alpha') return html`<${AlphaSheet} parsed=${parsed} onClose=${onClose} />`;
   const run = async (mode) => {
     const added = await restoreBackup(parsed, mode);
     toast(mode === 'replace' ? 'Backup restored' : `Added ${added.clients} clients and ${added.orders} orders`);

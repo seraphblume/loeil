@@ -1,15 +1,21 @@
-import { useState, useEffect, useRef, useMemo } from './html.js';
+import { useState, useEffect, useRef, useMemo, useReducer } from './html.js';
 import { getState, subscribe } from '../state/app.js';
 import { resolveOrder } from '../core/sets.js';
 
-/** Re-render when the selected slice of app state changes. */
+/**
+ * The selected slice of app state, read fresh on every render — so a screen
+ * whose props change (another client's id) never shows the last one's data —
+ * and a re-render whenever the store changes that slice.
+ */
 export function useApp(select = (s) => s) {
-  const [value, setValue] = useState(() => select(getState()));
+  const [, rerender] = useReducer((n) => n + 1, 0);
   const sel = useRef(select);
   sel.current = select;
+  const value = select(getState());
+  const last = useRef(value);
+  last.current = value;
   useEffect(() => subscribe((s) => {
-    const next = sel.current(s);
-    setValue((prev) => (Object.is(prev, next) ? prev : next));
+    if (!Object.is(sel.current(s), last.current)) rerender();
   }), []);
   return value;
 }

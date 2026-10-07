@@ -52,6 +52,7 @@ export function counts(b) {
     'Promo lines': b.promoLensMap.length,
     Sets: (b.sets ?? []).length,
     'Campaign discounts': (b.discounts ?? []).length,
+    'Store fields': Object.keys(b.store ?? {}).length,
     Vocabulary: b.vocabulary.length,
   };
 }

@@ -11,7 +11,7 @@ import { Bar, Screen, Seg, Eyebrow, Empty, Anchor, Secondary, Dock, useCopy } fr
 import { Icon } from './icons.js';
 import { go } from './router.js';
 import { money } from '../core/money.js';
-import { buildReceipt, receiptText, RX_COLUMNS } from '../core/receipt.js';
+import { buildReceipt, receiptText } from '../core/receipt.js';
 import { code128Bars } from '../core/code128.js';
 import { receiptBlocks } from './receipt-layout.js';
 import { receiptImage, shareReceiptImage } from './receipt-image.js';
@@ -49,28 +49,26 @@ function Barcode({ value, caption }) {
 
 function Block({ b }) {
   switch (b.t) {
-    case 'logo': return html`<div class="rc-logo"><${Icon} name="store" /></div>`;
-    case 'title': return html`<div class="rc-title">${b.text}</div>`;
-    case 'subtitle': return html`<div class="rc-sub">${b.text}</div>`;
+    case 'brand': return html`<div class="rc-brand"><div class="rc-title">${b.title}</div><div class="rc-copy">${b.copy}</div></div>`;
+    case 'field': return html`<div class="rc-field"><span class="k">${b.k}:</span> <span class=${'v' + (b.strong ? ' strong' : '')}>${b.v}</span></div>`;
+    case 'text': return html`<div class="rc-text">${b.text}</div>`;
+    case 'gap': return html`<div class="rc-gap"></div>`;
     case 'rule': return html`<div class="rc-rule"></div>`;
-    case 'kv': return html`<div class="rc-kv"><span>${b.k}</span><b class=${b.strong ? 'strong' : ''}>${b.v}</b></div>`;
-    case 'head': return html`<div class="rc-head"><span class="n">${b.n}</span>${b.text}</div>`;
-    case 'none': return html`<div class="rc-none">${b.text}</div>`;
-    case 'item': return html`<div class="rc-item">
-      <div class="top"><span class="code">${b.copy ?? '—'}</span>${b.qty ? html`<span class="qty">×${b.qty}</span>` : null}<span class="price">${b.price != null ? money(b.price) : ''}</span></div>
-      <div class="txt">${b.text}</div>
-      ${b.note && html`<div class="note">${b.note}</div>`}
+    case 'items': return html`<div class="rc-items">
+      <div class="rc-irow head">${b.head.map((h) => html`<span>${h}</span>`)}</div>
+      ${b.rows.map((r) => html`<div class="rc-item">
+        <div class="rc-irow"><span class="code">${r.code}</span><span>${r.qty}</span>${r.cells.map((c) => html`<span>${c}</span>`)}</div>
+        <div class="desc">${r.desc}</div>
+        ${r.note && html`<div class="note">${r.note}</div>`}
+      </div>`)}
     </div>`;
-    case 'cols': return html`<div class="rc-cols"><span>${b.left}</span><span>${b.right}</span></div>`;
-    case 'line': return html`<div class="rc-line">
-      <div class="top"><span class="name">${b.name}</span><span class="price">${b.price != null ? money(b.price) : b.pending ? '—' : 'at register'}</span></div>
-      ${(b.detail || b.discount) && html`<div class="sub"><span>${b.detail}</span>${b.discount ? html`<span>${money(b.list)} less ${b.discount}%</span>` : null}</div>`}
-    </div>`;
+    case 'amount': return html`<div class="rc-amount"><span>${b.k}:</span><b>${b.v}</b></div>`;
+    case 'words': return html`<div class="rc-words">${b.text}</div>`;
     case 'rx': return html`<table class="rc-rx">
       <thead><tr><th></th>${b.cols.map((c) => html`<th>${c}</th>`)}</tr></thead>
       <tbody>${b.rows.map((r) => html`<tr><th>${r[0]}</th>${r.slice(1).map((v) => html`<td>${v}</td>`)}</tr>`)}</tbody>
     </table>`;
-    case 'total': return html`<div class="rc-total"><span>${b.k}</span><b>${b.v}</b></div>`;
+    case 'foot': return html`<div class="rc-foot">${b.text}</div>`;
     case 'barcode': return html`<${Barcode} value=${b.value} caption=${b.caption} />`;
     case 'thanks': return html`<div class="rc-thanks">${b.text}</div>`;
     case 'fine': return html`<div class=${'rc-fine' + (b.left ? ' left' : '')}>${b.text}</div>`;
@@ -107,17 +105,19 @@ function CopyList({ r }) {
     </div>`)}
     <div class="cl-group">
       <div class="cl-head"><span class="n">5</span>Prescription</div>
-      ${r.rx ? html`<div class="cl-rx">
-        <span></span>${RX_COLUMNS.map(([, label]) => html`<span class="h">${label}</span>`)}
+      ${r.rx ? html`<div class="cl-rx" style=${{ "--cols": r.rx.cols.length }}>
+        <span></span>${r.rx.cols.map(([, label]) => html`<span class="h">${label}</span>`)}
         ${['od', 'os'].filter((e) => r.rx[e]).map((e) => html`
           <span class="eye">${e.toUpperCase()}</span>
-          ${RX_COLUMNS.map(([k]) => {
+          ${r.rx.cols.map(([k]) => {
             const v = r.rx[e][k];
             const key = `rx-${e}-${k}`;
             return v ? html`<button type="button" class=${'cell' + (copied === key ? ' done' : '')} onClick=${() => take(v, key)}>${copied === key ? html`<${Icon} name="check" size=${13} />` : v}</button>` : html`<span class="cell empty">—</span>`;
           })}`)}
       </div>
-      ${r.rx.split && html`<p class="note">PD per eye is half the binocular ${r.rx.binocular} mm — no monocular PD was measured.</p>`}` : html`<div class="cl-none">No prescription on file. Choose the client on the order, or add their Rx.</div>`}
+      ${r.rx.split && html`<p class="note">PD per eye is half the binocular ${r.rx.binocular} mm — no monocular PD was measured.</p>`}
+      ${r.rx.prisms.length > 0 && html`<p class="note">Prism ${r.rx.prisms.join(' · ')}</p>`}
+      ${r.aobMissing && html`<p class="note">The AOB is not on the order yet — add it from the order’s Prescription row.</p>`}` : html`<div class="cl-none">No prescription on file. Choose the client on the order, or add their Rx.</div>`}
     </div>
   </section>`;
 }
@@ -160,7 +160,7 @@ function ReceiptStage({ order, client, rx }) {
   const share = async () => {
     setSharing(true);
     try {
-      const blob = await receiptImage(blocks, money);
+      const blob = await receiptImage(blocks);
       const how = await shareReceiptImage(blob, `loeil-${r.number}-${kind}.png`, `Order #${r.number}`);
       if (how === 'downloaded') toast('Receipt image saved');
     } catch { toast('The image could not be made on this browser'); } finally { setSharing(false); }
@@ -195,6 +195,7 @@ function ReceiptStage({ order, client, rx }) {
         <${Paper} blocks=${blocks} paperRef=${paperRef}
           soundToggle=${html`<button type="button" class="sound-toggle" aria-label=${sound ? 'Printer sound off' : 'Printer sound on'} onClick=${toggleSound}><${Icon} name=${sound ? 'sound' : 'mute'} /></button>`} />
       </div>
+      ${!r.store && html`<p class="note">The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.</p>`}
       ${register && html`<div class=${'after' + (done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
     </div>
     <${Dock}>

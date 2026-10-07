@@ -12,8 +12,43 @@ import {
 export const SPHERE_RANGE = [-20, 20];
 export const CYLINDER_RANGE = [-8, 8];
 
+/**
+ * What each value may be, and its step: the register's own limits, so a
+ * prescription typed here is one the POS will take.
+ */
+export const RX_LIMITS = {
+  sphere: { min: -25, max: 10, step: 0.25 },
+  cylinder: { min: -8, max: 0, step: 0.25 },
+  axis: { min: 0, max: 180, step: 1 },
+  pd: { min: 20, max: 40, step: 0.5 },
+  addition: { min: 0, max: 4, step: 0.25 },
+  prism: { min: 0, max: 10, step: 0.25 },
+  aob: { min: 15, max: 30, step: 1, ticks: [15, 19, 23, 26, 30] },
+};
+
+export const PRISM_BASES = [
+  { value: 'up', label: 'Up' }, { value: 'down', label: 'Down' },
+  { value: 'in', label: 'In' }, { value: 'out', label: 'Out' },
+];
+
+/** Into range and onto the step: 2.3 → 2.25, 45 → 40. */
+export function snap(value, { min, max, step }) {
+  const n = Math.min(max, Math.max(min, Number(value) || 0));
+  const s = Math.round((n - min) / step) * step + min;
+  return Number(s.toFixed(2));
+}
+
+/** Monocular far PD per eye: the eye's own, else half the binocular figure. */
+export function monoPd(rx, side) {
+  const own = rx?.[side]?.pdFar;
+  if (own) return Number(own);
+  return rx?.pdFarMM ? Number(rx.pdFarMM) / 2 : null;
+}
+
+export const hasPrism = (rx) => ['od', 'os'].some((e) => Number(rx?.[e]?.prism?.amount) > 0);
+
 export const blankEye = () => ({
-  sphere: 0, cylinder: 0, axis: 0, addition: 0, pdFar: null, pdNear: null, samples: [], confidence: null,
+  sphere: 0, cylinder: 0, axis: 0, addition: 0, pdFar: null, pdNear: null, prism: null,
 });
 
 export const blankRx = () => ({
@@ -22,9 +57,16 @@ export const blankRx = () => ({
   ticketNumber: null, site: null, expiryOverride: null,
 });
 
+/** Contact lenses: powers per eye, and the lens the fitting settled on. */
+export const blankContactEye = () => ({ sphere: 0, cylinder: 0, axis: 0 });
+export const blankContactRx = () => ({
+  od: blankContactEye(), os: blankContactEye(), addition: 0, brand: '', modality: '', issuedOn: null,
+});
+export const contactIsBlank = (cl) => !cl || (!cl.brand && ['od', 'os'].every((e) => !Number(cl[e]?.sphere) && !Number(cl[e]?.cylinder)));
+
 export function newClient(name = '') {
   return {
-    id: uid(), name, phone: '', email: '', prescription: blankRx(), notes: '',
+    id: uid(), name, phone: '', email: '', prescription: blankRx(), contactRx: null, notes: '',
     isFavourite: false, createdOn: new Date().toISOString(),
   };
 }
@@ -35,7 +77,7 @@ export const rxIsBlank = (rx) => !rx || (eyeIsBlank(rx.od) && eyeIsBlank(rx.os))
 /** `-2.25 -1.00 × 175°` — the way it is written on the form. */
 export function eyeText(e) {
   if (eyeIsBlank(e)) return '—';
-  const s = signed(e.sphere);
+  const s = Number(e.sphere) ? signed(e.sphere) : '0.00';
   if (!Number(e.cylinder)) return s;
   return `${s} ${signed(e.cylinder)} × ${e.axis}°`;
 }

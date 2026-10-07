@@ -94,6 +94,7 @@ function listCents(line) {
     return isPair(line) ? Math.round((unit * line.quantity) / 2) : unit * line.quantity;
   }
   if (line.kind === 'frame') return line.set ? line.set.price : line.priceCents;
+  if (line.kind === 'history') return line.priceCents ?? null;
   return null;
 }
 
@@ -151,10 +152,24 @@ export function composition(o) {
   if (n('lens')) bits.push(plural(n('lens'), 'lens line', 'lens lines'));
   if (n('frame')) bits.push(plural(n('frame'), 'frame', 'frames'));
   if (n('extra')) bits.push(plural(n('extra'), 'extra', 'extras'));
+  if (n('history')) bits.push('Ticket from Alpha');
   return bits.length ? bits.join(', ') : 'Nothing yet';
 }
 
 export const lensesOf = (o) => o.lines.filter((l) => l.kind === 'lens').map((l) => l.lens);
+
+const ATTR_KIND = { type: 'lens_type' };
+
+/**
+ * The spectacle lenses on the order whose design, type or coating asks for the
+ * AOB of each eye (Eyezen, progressives, Crizal Prevencia). The vocabulary
+ * says which — nothing here names a product.
+ */
+export function aobLenses(order, catalogue) {
+  return order.lines.filter((l) => isPair(l) && (l.lens.attributes ?? []).some((a) => a.key && catalogue?.meta(ATTR_KIND[a.key] ?? a.key, a.code)?.aob));
+}
+export const needsAob = (order, catalogue) => aobLenses(order, catalogue).length > 0;
+export const aobMissing = (order, catalogue) => needsAob(order, catalogue) && !(order.aob?.od && order.aob?.os);
 export const framesOf = (o) => o.lines.filter((l) => l.kind === 'frame');
 
 const longDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });

@@ -6,7 +6,7 @@
 // IMPORT READS THREE SHAPES: this app's own, the iOS app's export, and the
 // Android app's export — so moving from the native apps loses nothing.
 
-import { blankRx, blankEye } from './crm.js';
+import { blankRx, blankEye, blankContactRx } from './crm.js';
 import { uid } from './util.js';
 
 export const BACKUP_FORMAT = 'loeil-backup';
@@ -31,8 +31,7 @@ function eye(e) {
     ...b,
     sphere: num(e.sphere), cylinder: num(e.cylinder), axis: num(e.axis), addition: num(e.addition),
     pdFar: opt(e.pdFar), pdNear: opt(e.pdNear),
-    samples: Array.isArray(e.samples) ? e.samples.map((s) => ({ sphere: num(s.sphere), cylinder: num(s.cylinder), axis: num(s.axis), confidence: opt(s.confidence) })) : [],
-    confidence: opt(e.confidence),
+    prism: e.prism && Number(e.prism.amount) > 0 ? { amount: num(e.prism.amount), base: e.prism.base ?? 'in' } : null,
   };
 }
 
@@ -48,10 +47,17 @@ function rx(p) {
   };
 }
 
+function contact(cl) {
+  if (!cl) return null;
+  const b = blankContactRx();
+  const e = (x) => ({ sphere: num(x?.sphere), cylinder: num(x?.cylinder), axis: num(x?.axis) });
+  return { ...b, od: e(cl.od), os: e(cl.os), addition: num(cl.addition), brand: cl.brand ?? '', modality: cl.modality ?? '', issuedOn: day(cl.issuedOn) };
+}
+
 function client(c) {
   return {
     id: String(c.id ?? uid()), name: c.name ?? '', phone: c.phone ?? '', email: c.email ?? '',
-    prescription: rx(c.prescription), notes: c.notes ?? '', isFavourite: Boolean(c.isFavourite),
+    prescription: rx(c.prescription), contactRx: contact(c.contactRx), notes: c.notes ?? '', isFavourite: Boolean(c.isFavourite),
     createdOn: iso(c.createdOn) ?? new Date().toISOString(),
   };
 }
@@ -99,6 +105,10 @@ function order(o) {
     clientNameAtSale: o.clientNameAtSale ?? '',
     sellerEmployeeNumber: o.sellerEmployeeNumber ?? null,
     sellerName: o.sellerName ?? null,
+    // Carried as they are: the Rx it was made for, and where an imported sale came from.
+    ...(o.rx ? { rx: rx(o.rx) } : {}),
+    ...(o.aob ? { aob: { od: opt(o.aob.od), os: opt(o.aob.os) } } : {}),
+    ...(o.source ? { source: o.source, saleId: o.saleId ?? null, shipmentId: o.shipmentId ?? null, promo: o.promo ?? [] } : {}),
   };
 }
 

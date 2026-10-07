@@ -51,7 +51,7 @@ export function FormSheet({ title, fields, initial = {}, onSave, onDelete, delet
     groups[groups.length - 1].fields.push(f);
   }
 
-  return html`<${Sheet} title=${title} onClose=${onClose} full right=${html`<button class="bar-btn" style="font-weight:500" onClick=${save}>${saveLabel}</button>`}>
+  return html`<${Sheet} title=${title} onClose=${onClose} full right=${html`<button class="bar-btn strong" onClick=${save}>${saveLabel}</button>`}>
     <form class="pad form" onSubmit=${save}>
       ${intro && html`<p class="para">${intro}</p>`}
       ${groups.map((g) => html`<div class="form-group">
@@ -78,7 +78,7 @@ function Field({ f, value, onChange }) {
       </select></label>`;
   }
   if (f.type === 'textarea') {
-    return html`<label class="field" style="margin-top:6px"><textarea rows="3" placeholder=${f.label} value=${value} onInput=${(e) => onChange(e.currentTarget.value)}></textarea></label>`;
+    return html`<label class="field field-area"><span class="k">${f.label}</span><textarea rows=${f.rows ?? 3} placeholder=${f.placeholder ?? ''} value=${value} onInput=${(e) => onChange(e.currentTarget.value)}></textarea></label>`;
   }
   const listId = f.suggest ? `dl-${f.key}` : null;
   return html`<label class="form-row"><span class="k">${f.label}</span>

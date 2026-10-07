@@ -23,7 +23,7 @@ import { fold, signed } from '../core/util.js';
 import { guidance, rxIsBlank } from '../core/crm.js';
 import { lensLine, pairLine } from '../core/orders.js';
 import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
-import { addLine, toast } from '../state/app.js';
+import { addLine, toast, clientById } from '../state/app.js';
 
 function chosenFrom(family, query) {
   const out = {};
@@ -172,12 +172,12 @@ function ConfigureSheet({ row, onClose }) {
 
   if (attr) {
     const alts = alternatives(catalogue, row.id, attr.key);
-    return html`<${Sheet} title=${attr.name} onClose=${onClose} left=${html`<button class="bar-btn" onClick=${() => setAttr(null)}><${Icon} name="chevL" />Back</button>`}>
+    return html`<${Sheet} title=${attr.name} onClose=${onClose} left=${html`<button class="bar-btn round" aria-label="Back" onClick=${() => setAttr(null)}><${Icon} name="chevL" /></button>`}>
       <${List}>${alts.map((r) => html`<${Row} title=${r[attr.key].label} detail=${r[attr.key].code} end=${html`${money(r.price)}${r.id === row.id ? html` <${Icon} name="check" />` : ''}`}
         off=${!r.available} onClick=${() => { onClose(); go(href(['find', 'lens', r.id]), { replace: true }); }} />`)}<//>
     <//>`;
   }
-  return html`<${Sheet} title="Configure" onClose=${onClose} left=${html`<span></span>`} right=${html`<button class="bar-btn" onClick=${onClose}>Done</button>`}>
+  return html`<${Sheet} title="Configure" onClose=${onClose} left=${html`<span></span>`} right=${html`<button class="bar-btn strong" onClick=${onClose}>Done</button>`}>
     <div class="stack tight">
       <${List}>${lens.attributes.map((a) => {
         const n = alternatives(catalogue, row.id, a.key).length;
@@ -197,14 +197,21 @@ function ConfigureSheet({ row, onClose }) {
  */
 export function LineEditorSheet({ lens, onClose, onAdded }) {
   const rx = useApp((s) => s.draftRx);
+  const cl = useApp((s) => clientById(s.draft.clientId, s)?.contactRx ?? null);
   const [eye, setEye] = useState('OD');
   const [power, setPower] = useState('');
   const [qty, setQty] = useState(1);
+  // The contact lens prescription when there is one (sphere, and the toric part); else the glasses sphere.
   const suggested = useMemo(() => {
+    const side = eye === 'OS' ? 'os' : 'od';
+    if (cl && (Number(cl[side].sphere) || Number(cl[side].cylinder))) {
+      const e = cl[side];
+      return [signed(Number(e.sphere)), Number(e.cylinder) ? `${signed(Number(e.cylinder))} × ${Math.round(e.axis)}` : null].filter(Boolean).join(' ');
+    }
     if (!rx || rxIsBlank(rx)) return null;
-    const sphere = Number(eye === 'OS' ? rx.os.sphere : rx.od.sphere);
+    const sphere = Number(rx[side].sphere);
     return sphere ? signed(sphere) : null;
-  }, [rx, eye]);
+  }, [rx, cl, eye]);
 
   const add = async () => {
     await addLine(lensLine(lens, eye, power.trim(), qty));

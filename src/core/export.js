@@ -3,6 +3,7 @@
 // reads, so an exported pair can be edited and imported straight back.
 
 import { cellText } from './util.js';
+import { STORE_FIELDS } from './store.js';
 
 const amount = (cents) => (cents == null ? null : cents / 100);
 
@@ -32,8 +33,8 @@ export function bundleToWorkbooks(b, XLSX) {
     ...b.lenses.multifocal.map((r) => [r.category, r.material, r.type, r.design, r.colour, r.treatment, amount(r.price), r.available ? 'YES' : 'NO'])], [14, 24, 18, 24, 28, 26, 11, 9]);
   add(backend, 'lenses_contact', [['Material', 'Lens Type', 'Color', 'Price MXN', 'available'],
     ...b.lenses.contact.map((r) => [r.material, r.product, r.colour, amount(r.price), r.available ? 'YES' : 'NO'])], [20, 34, 26, 11, 9]);
-  add(backend, 'vocabulary', [['kind', 'code', 'english', 'blurb', 'rank', 'promo_group', 'same_as', 'high_rx', 'print_as'],
-    ...b.vocabulary.map((v) => [v.kind, v.code, v.english, v.blurb, v.rank, v.group, v.sameAs, v.highRx ? 'YES' : '', v.printAs ?? ''])], [16, 8, 26, 58, 6, 12, 9, 8, 9]);
+  add(backend, 'vocabulary', [['kind', 'code', 'english', 'blurb', 'rank', 'promo_group', 'same_as', 'high_rx', 'print_as', 'needs_aob'],
+    ...b.vocabulary.map((v) => [v.kind, v.code, v.english, v.blurb, v.rank, v.group, v.sameAs, v.highRx ? 'YES' : '', v.printAs ?? '', v.aob ? 'YES' : ''])], [16, 8, 26, 58, 6, 12, 9, 8, 9, 10]);
   add(backend, 'frame_brands', [['Brand', 'Tier'], ...b.frameBrands.map((x) => [x.brand, x.tier])], [24, 22]);
   add(backend, 'inventory', [['SKU', 'Material (True SKU)', 'Descripción', 'Clasificación', 'Existencia', 'Lote', 'Caducidad'],
     ...b.inventory.map((i) => [i.vendorSku, i.sku, i.description, i.classification, i.stock, '', i.expires])], [18, 18, 46, 14, 10, 8, 12]);
@@ -50,6 +51,7 @@ export function bundleToWorkbooks(b, XLSX) {
     ...(b.setPrices ?? []).map((p) => [p.setId, p.lensId, amount(p.price), p.special ? 'YES' : ''])], [10, 16, 9, 8]);
   add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to'],
     ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo])], [10, 30, 8, 12, 40, 50, 11, 11]);
+  add(backend, 'store', [['field', 'value'], ...STORE_FIELDS.map((f) => [f.key, b.store?.[f.key] ?? ''])], [16, 70]);
 
   const catalogue = XLSX.utils.book_new();
   const brands = [...new Set(b.frames.map((f) => f.brand || 'Other'))].sort((a, c) => a.localeCompare(c));

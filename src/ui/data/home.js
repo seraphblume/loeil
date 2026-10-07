@@ -73,6 +73,7 @@ export function DataHome() {
           <${Row} to="#/me/data/sets" icon="doc" title="Sets" detail="Set prices, ID Maestro, brands, lens rows, campaign discounts" count=${n(bundle?.sets?.length ?? 0)} chev />
           <${Row} to="#/me/data/promos" icon="doc" title="Promotions" count=${n(bundle?.promotions.length ?? 0)} chev />
           <${Row} to="#/me/data/staff" icon="people" title="Staff" count=${n(bundle?.staff.length ?? 0)} chev />
+          <${Row} to="#/me/data/store" icon="store" title="Store" detail=${bundle?.store?.branchName ?? 'The branch on the receipt'} chev />
         <//>
 
         <${Section} title="Prices in bulk">

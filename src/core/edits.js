@@ -4,6 +4,7 @@
 
 import { parseCodeLabel, brandKey } from './util.js';
 import { LENS_FIELDS } from './validate.js';
+import { cleanStore } from './store.js';
 
 const clone = (b) => ({ ...b, lenses: { ...b.lenses } });
 
@@ -238,6 +239,9 @@ export function setCampaignDates(b, validFrom, validTo) {
   };
 }
 
+/** The branch on the ticket. */
+export const setStore = (b, store) => ({ ...b, store: cleanStore(store) });
+
 // ---------------------------------------------------------------------------
 // Imports replace whole domains.
 
@@ -246,6 +250,7 @@ export function applyPieces(b, pieces) {
   for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts']) if (pieces[k]) n[k] = pieces[k];
   if (pieces.lenses) n.lenses = pieces.lenses;
   if (pieces.stockReport) n.stockReport = pieces.stockReport;
+  if (pieces.store) n.store = pieces.store;
   return n;
 }
 

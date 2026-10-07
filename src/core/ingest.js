@@ -8,6 +8,7 @@
 import { fold, parseCodeLabel, cellText, toCents, isYes, digits, sheetDay } from './util.js';
 import { Report, validateBundle, VOCAB_KINDS } from './validate.js';
 import { TRUE_SKU_DIGITS } from '../config.js';
+import { STORE_FIELDS, cleanStore } from './store.js';
 
 export { stockKind } from './stock.js';
 export { VOCAB_KINDS, parseCodeLabel };
@@ -22,7 +23,7 @@ export function emptyBundle() {
     format: BUNDLE_FORMAT, version: BUNDLE_VERSION, dataVersion: '', generatedAt: '', minAppBuild: BUNDLE_MIN_APP_BUILD,
     source: {}, vocabulary: [], lenses: { single: [], multifocal: [], contact: [] },
     frameBrands: [], frames: [], inventory: [], extras: [], staff: [], promotions: [], promoLensMap: [],
-    sets: [], setLenses: [], setPrices: [], discounts: [],
+    sets: [], setLenses: [], setPrices: [], discounts: [], store: null,
   };
 }
 
@@ -132,6 +133,7 @@ export function readBackend(sheets, report = new Report()) {
         group: cellText(r.promo_group ?? r.group).trim().toUpperCase(),
         sameAs: cellText(r.same_as).trim(), highRx: isYes(r.high_rx),
         ...(cellText(r.print_as).trim() ? { printAs: cellText(r.print_as).trim() } : {}),
+        ...(isYes(r.needs_aob) ? { aob: true } : {}),
       });
     }
   }
@@ -244,6 +246,13 @@ export function readBackend(sheets, report = new Report()) {
       validFrom: sheetDay(r.valid_from), validTo: sheetDay(r.valid_to),
     }));
   }
+  const storeTab = tab('store', ['field', 'value']);
+  if (storeTab) {
+    const byLabel = new Map(STORE_FIELDS.flatMap((f) => [[fold(f.key), f.key], [fold(f.label), f.key]]));
+    const raw = {};
+    for (const r of storeTab.rows) { const k = byLabel.get(fold(cellText(r.field)).trim()); if (k) raw[k] = cellText(r.value); }
+    out.store = cleanStore(raw);
+  }
   return out;
 }
 
@@ -313,5 +322,5 @@ export function ingest(workbooks, { now = new Date() } = {}) {
 export const DOMAIN_LABEL = {
   vocabulary: 'Coatings and names', lenses: 'Lens prices', frameBrands: 'Brand tiers', inventory: 'Stock',
   extras: 'Extras', staff: 'Staff', promotions: 'Promotions', promoLensMap: 'Promo lines', frames: 'Frames',
-  sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts',
+  sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts', store: 'Store',
 };

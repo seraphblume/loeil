@@ -4,7 +4,7 @@
 import { code128Bars } from '../core/code128.js';
 
 const W = 380;            // paper width, CSS px
-const M = 26;             // paper margin
+const M = 22;             // paper margin
 const SCALE = 3;
 const PAD = 22;           // background around the paper
 const INK = '#14161B';
@@ -12,7 +12,7 @@ const SOFT = '#6B717C';
 const PAPER = '#F6F6F3';
 const NIGHT = '#0B0D13';
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace';
-const SANS = 'Inter, -apple-system, "Segoe UI", Roboto, sans-serif';
+const SANS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, Inter, "Segoe UI", Roboto, sans-serif';
 
 function wrap(ctx, text, width) {
   const words = String(text ?? '').split(/\s+/).filter(Boolean);
@@ -28,7 +28,7 @@ function wrap(ctx, text, width) {
 
 /** Lays out (measure) or draws (draw) the blocks; returns the paper height. */
 function run(ctx, blocks, draw) {
-  let y = 30;
+  let y = 34;
   const inner = W - M * 2;
   const font = (size, weight = 400, family = MONO) => { ctx.font = `${weight} ${size}px ${family}`; };
   const text = (s, x, yy, align = 'left', color = INK) => { if (!draw) return; ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(s, x, yy); };
@@ -37,86 +37,87 @@ function run(ctx, blocks, draw) {
       ctx.strokeStyle = '#B9BDC4'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(M, y + 0.5); ctx.lineTo(W - M, y + 0.5); ctx.stroke(); ctx.setLineDash([]);
     }
-    y += 18;
+    y += 16;
+  };
+  // The item table: the code takes what the five figures leave.
+  const NUMW = 58; const QTYW = 24; const GAP = 8;
+  const colX = () => {
+    const total = W - M;
+    const net = total - NUMW - GAP;
+    const price = net - NUMW - GAP;
+    return { total, net, price, qty: price - NUMW - GAP - QTYW };
   };
   for (const b of blocks) {
-    if (b.t === 'logo') {
-      if (draw) {
-        ctx.fillStyle = '#E8E8E4'; ctx.beginPath(); ctx.arc(W / 2, y + 16, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = INK; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
-        ctx.strokeRect(W / 2 - 6.5, y + 15, 13, 8); ctx.beginPath();
-        ctx.moveTo(W / 2 - 8, y + 15); ctx.lineTo(W / 2 - 6, y + 9); ctx.lineTo(W / 2 + 6, y + 9); ctx.lineTo(W / 2 + 8, y + 15); ctx.stroke();
-      }
-      y += 46;
-    } else if (b.t === 'title') {
-      font(19, 600, SANS); text(b.text, W / 2, y + 6, 'center'); y += 24;
-    } else if (b.t === 'subtitle') {
-      font(12.5, 400, SANS); text(b.text, W / 2, y + 2, 'center', SOFT); y += 22;
+    if (b.t === 'brand') {
+      font(20, 600, SANS); text(b.title, W / 2, y + 4, 'center'); y += 20;
+      font(10.5, 600); text(b.copy, W / 2, y + 2, 'center', SOFT); y += 22;
+    } else if (b.t === 'field') {
+      font(11.5, 400);
+      const k = `${b.k}: `;
+      const kw = ctx.measureText(k).width;
+      const lines = wrap(ctx, b.v, inner - kw);
+      text(k, M, y, 'left', SOFT);
+      font(11.5, b.strong ? 700 : 500);
+      lines.forEach((l, i) => { text(l, M + kw, y); y += 15.5; if (i === lines.length - 1) y += 0; });
+    } else if (b.t === 'text') {
+      font(11.5, 500); for (const l of wrap(ctx, b.text, inner)) { text(l, M, y); y += 15.5; }
+    } else if (b.t === 'gap') {
+      y += 8;
     } else if (b.t === 'rule') {
       y += 2; rule();
-    } else if (b.t === 'kv') {
-      font(12, 400); text(b.k, M, y, 'left', SOFT);
-      font(12, b.strong ? 700 : 500); text(b.v, W - M, y, 'right'); y += 21;
-    } else if (b.t === 'head') {
-      y += 4; font(11, 700); text(`${b.n}  ${b.text}`, M, y, 'left', SOFT); y += 20;
-    } else if (b.t === 'none') {
-      font(11.5, 400); text(b.text, M + 22, y, 'left', SOFT); y += 20;
-    } else if (b.t === 'item') {
-      font(13.5, 600); text(b.copy ?? '—', M + 22, y);
-      if (b.qty) { const w = ctx.measureText(b.copy ?? '—').width; font(11.5, 400); text(`×${b.qty}`, M + 22 + w + 8, y, 'left', SOFT); }
-      if (b.price != null) { font(13, 600); text(fmtMoney(b.price), W - M, y, 'right'); }
+    } else if (b.t === 'items') {
+      const c = colX();
+      font(9.5, 700);
+      text(b.head[0], M, y, 'left', SOFT); text(b.head[1], c.qty + QTYW / 2, y, 'center', SOFT);
+      text(b.head[2], c.price, y, 'right', SOFT); text(b.head[3], c.net, y, 'right', SOFT); text(b.head[4], c.total, y, 'right', SOFT);
       y += 17;
-      font(11.5, 400);
-      for (const l of wrap(ctx, b.text, inner - 22)) { text(l, M + 22, y, 'left', '#3B3F47'); y += 15; }
-      if (b.note) { font(11, 400, SANS); ctx.font = `italic 400 11px ${SANS}`; for (const l of wrap(ctx, b.note, inner - 22)) { text(l, M + 22, y, 'left', SOFT); y += 14; } }
-      y += 8;
-    } else if (b.t === 'cols') {
-      font(11, 500); text(b.left, M, y, 'left', SOFT); text(b.right, W - M, y, 'right', SOFT); y += 22;
-    } else if (b.t === 'line') {
-      font(13, 500);
-      const price = b.price == null ? (b.pending ? '—' : 'at register') : fmtMoney(b.price);
-      const pw = ctx.measureText(price).width;
-      const lines = wrap(ctx, b.name, inner - pw - 16);
-      text(price, W - M, y, 'right');
-      for (const l of lines) { text(l, M, y); y += 17; }
-      if (b.discount) { font(11, 400); text(`${fmtMoney(b.list)} less ${b.discount}%`, W - M, y, 'right', SOFT); }
-      if (b.detail) { ctx.font = `italic 400 11px ${SANS}`; for (const l of wrap(ctx, b.detail, inner - 90)) { text(l, M, y, 'left', SOFT); y += 14; } } else if (b.discount) y += 14;
-      y += 9;
-    } else if (b.t === 'rx') {
-      const x0 = M + 22;
-      const cw = (inner - 22 - 26) / b.cols.length;
-      font(10.5, 600); b.cols.forEach((c, i) => text(c, x0 + 26 + cw * (i + 1) - 4, y, 'right', SOFT)); y += 18;
-      for (const row of b.rows) {
-        font(12, 700); text(row[0], x0, y);
-        font(12.5, 500); row.slice(1).forEach((v, i) => text(v, x0 + 26 + cw * (i + 1) - 4, y, 'right')); y += 19;
+      for (const r of b.rows) {
+        font(11, 700); text(r.code, M, y);
+        font(10.5, 500);
+        text(r.qty, c.qty + QTYW / 2, y, 'center');
+        text(r.cells[0], c.price, y, 'right'); text(r.cells[1], c.net, y, 'right'); text(r.cells[2], c.total, y, 'right');
+        y += 14;
+        font(10.5, 400); for (const l of wrap(ctx, r.desc, inner)) { text(l, M, y, 'left', '#3B3F47'); y += 13.5; }
+        if (r.note) { ctx.font = `italic 400 10.5px ${SANS}`; for (const l of wrap(ctx, r.note, inner)) { text(l, M, y, 'left', SOFT); y += 13.5; } }
+        y += 7;
       }
+    } else if (b.t === 'amount') {
+      y += 4; font(13, 700); text(`${b.k}:`, M, y + 2);
+      font(19, 700); text(b.v, W - M, y + 3, 'right'); y += 22;
+    } else if (b.t === 'words') {
+      font(10.5, 600); for (const l of wrap(ctx, b.text, inner)) { text(l, W / 2, y, 'center'); y += 14; }
       y += 4;
-    } else if (b.t === 'total') {
-      y += 6; font(14, 700); text(b.k, M, y + 2);
-      font(21, 700); text(b.v, W - M, y + 3, 'right'); y += 30;
+    } else if (b.t === 'rx') {
+      const n = b.cols.length;
+      const cw = (inner - 30) / n;
+      font(10, 700); b.cols.forEach((col, i) => text(col, M + 30 + cw * (i + 1) - 2, y, 'right', SOFT)); y += 17;
+      for (const row of b.rows) {
+        font(11.5, 700); text(row[0], M, y);
+        font(11.5, 500); row.slice(1).forEach((v, i) => text(v, M + 30 + cw * (i + 1) - 2, y, 'right')); y += 18;
+      }
+      y += 2;
+    } else if (b.t === 'foot') {
+      font(10.5, 400, SANS); for (const l of wrap(ctx, b.text, inner)) { text(l, W / 2, y, 'center', '#3B3F47'); y += 14; }
     } else if (b.t === 'barcode') {
-      y += 6;
+      y += 10;
       const { bars, width } = code128Bars(b.value);
       const unit = Math.min(2.4, (inner - 20) / width);
       const x0 = (W - width * unit) / 2;
-      if (draw) { ctx.fillStyle = INK; for (const bar of bars) ctx.fillRect(x0 + bar.x * unit, y, bar.w * unit, 54); }
-      y += 70; font(11, 400); text(b.caption, W / 2, y, 'center', SOFT); y += 26;
+      if (draw) { ctx.fillStyle = INK; for (const bar of bars) ctx.fillRect(x0 + bar.x * unit, y, bar.w * unit, 50); }
+      y += 64; font(10.5, 400); text(b.caption, W / 2, y, 'center', SOFT); y += 20;
     } else if (b.t === 'thanks') {
-      font(13, 500, SANS); text(b.text, W / 2, y, 'center', '#2A2D33'); y += 20;
+      y += 6; font(13, 500, SANS); text(b.text, W / 2, y, 'center', '#2A2D33'); y += 18;
     } else if (b.t === 'fine') {
       font(10.5, 400, SANS);
-      text(b.text, b.left ? M + 22 : W / 2, y, b.left ? 'left' : 'center', SOFT); y += 17;
+      for (const l of wrap(ctx, b.text, inner)) { text(l, b.left ? M : W / 2, y, b.left ? 'left' : 'center', SOFT); y += 14; }
     }
   }
-  return y + 18;
+  return y + 14;
 }
 
-let fmtMoney = (c) => String(c);
-
 /** A PNG blob of the receipt. */
-export async function receiptImage(blocks, money) {
-  fmtMoney = money;
-  try { await Promise.all([document.fonts.load(`600 19px Inter`), document.fonts.load(`400 12px Inter`), document.fonts.load(`500 13px Inter`)]); } catch { /* system fonts then */ }
+export async function receiptImage(blocks) {
+  try { await document.fonts.ready; } catch { /* system fonts then */ }
   const probe = document.createElement('canvas').getContext('2d');
   const h = run(probe, blocks, false);
   const edge = 9;

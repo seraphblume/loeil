@@ -1,20 +1,40 @@
-// GinAile components. Flat panels, hairlines, one indigo action per screen.
+// GinAile components, in the shape of iOS: inset grouped lists, large titles
+// that hand over to the bar as they scroll away, glass for the navigation
+// layer only, one indigo action per screen.
 
 import { html, useState, useEffect, useRef, useLayoutEffect } from './html.js';
 import { Icon } from './icons.js';
 import { back, linkProps } from './router.js';
 import { dayToDate } from '../core/util.js';
 
-export function Bar({ title, titleNode, backTo, backLabel = 'Back', lead, trail }) {
+/**
+ * The navigation bar. With `large`, the screen carries the title as a large
+ * heading and the bar shows it only once that heading has scrolled under it.
+ */
+export function Bar({ title, titleNode, backTo, lead, trail, large }) {
+  const ref = useRef();
+  const [compact, setCompact] = useState(!large);
+  useEffect(() => {
+    if (!large || !window.IntersectionObserver) { setCompact(true); return undefined; }
+    const bar = ref.current;
+    const heading = bar?.parentElement?.querySelector('.large-title, .screen-title h1');
+    if (!heading) { setCompact(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => setCompact(!e.isIntersecting), { rootMargin: `-${bar.offsetHeight}px 0px 0px 0px` });
+    io.observe(heading);
+    return () => io.disconnect();
+  }, [large, title]);
   return html`
-    <header class="bar">
+    <header class=${'bar' + (large ? ' large' : '') + (compact ? ' compact' : '')} ref=${ref}>
       <div class="lead">
-        ${backTo ? html`<button class="bar-btn" onClick=${() => back(backTo)} aria-label="Back"><${Icon} name="chevL" /><span>${backLabel}</span></button>` : lead}
+        ${backTo ? html`<button class="bar-btn round" onClick=${() => back(backTo)} aria-label="Back"><${Icon} name="chevL" /></button>` : lead}
       </div>
       <div class="title">${titleNode ?? title}</div>
       <div class="trail">${trail}</div>
     </header>`;
 }
+
+/** The large heading of a tab's first screen, as iOS sets it. */
+export const LargeTitle = ({ children, detail }) => html`<div class="large-head"><h1 class="large-title">${children}</h1>${detail && html`<div class="detail">${detail}</div>`}</div>`;
 
 export const Screen = ({ children, noTabs, class: cls = '' }) =>
   html`<main class=${'screen ' + (noTabs ? 'no-tabs ' : '') + cls}>${children}</main>`;
@@ -47,7 +67,7 @@ export const KV = ({ k, v, mono, em, lined }) => html`
 export const List = ({ children, flush }) => html`<div class=${flush ? 'list flush' : 'list'}>${children}</div>`;
 
 /** A full-width row: a button, a link, or static. */
-export function Row({ title, detail, sub, end, count, icon, chev, off, onClick, to, one, mono, children, avatar, badge }) {
+export function Row({ title, detail, sub, end, count, icon, chev, off, onClick, to, one, mono, children, avatar, badge, on }) {
   const inner = html`
     ${avatar}
     ${icon && html`<span class="ico"><${Icon} name=${icon} /></span>`}
@@ -61,16 +81,17 @@ export function Row({ title, detail, sub, end, count, icon, chev, off, onClick, 
       ${end}${count != null && html`<span class="count">${count}</span>`}
       ${chev && html`<span class="chev"><${Icon} name="chevR" /></span>`}
     </span>`}`;
-  const cls = 'row' + (off ? ' off' : '');
-  if (to) return html`<a class=${cls} ...${linkProps(to)}>${inner}</a>`;
+  const cls = 'row' + (off ? ' off' : '') + (on ? ' on' : '');
+  if (to) return html`<a class=${cls} ...${linkProps(to)} aria-current=${on ? 'true' : null}>${inner}</a>`;
   if (onClick) return html`<button type="button" class=${cls} onClick=${onClick}>${inner}</button>`;
   return html`<div class=${cls}>${inner}</div>`;
 }
 
-export function Section({ title, children, flush, action }) {
-  return html`<section class="gap-s">
-    ${title && html`<div class=${flush ? '' : 'pad'} style="display:flex;justify-content:space-between;align-items:baseline"><${Eyebrow}>${title}<//>${action}</div>`}
+export function Section({ title, children, flush, action, footer }) {
+  return html`<section class="section">
+    ${title && html`<div class="section-head"><${Eyebrow}>${title}<//>${action}</div>`}
     <${List} flush=${flush}>${children}<//>
+    ${footer && html`<p class="section-foot">${footer}</p>`}
   </section>`;
 }
 
@@ -88,8 +109,11 @@ export const Secondary = ({ children, icon, onClick, disabled, to, danger }) => 
 export const Quiet = ({ children, icon, onClick, danger }) =>
   html`<button type="button" class=${'btn quiet' + (danger ? ' danger' : '')} onClick=${onClick}>${icon && html`<${Icon} name=${icon} />`}${children}</button>`;
 
-export function Seg({ options, value, onChange, label }) {
-  return html`<div class="seg" role="radiogroup" aria-label=${label}>
+/** The segmented control: a thumb that slides to the choice. */
+export function Seg({ options, value, onChange, label, small }) {
+  const i = options.findIndex((o) => o.value === value);
+  return html`<div class=${'seg' + (small ? ' small' : '')} role="radiogroup" aria-label=${label} style=${{ '--n': options.length, '--i': Math.max(0, i) }}>
+    ${i >= 0 && html`<i class="thumb" aria-hidden="true"></i>`}
     ${options.map((o) => html`<button type="button" role="radio" aria-checked=${o.value === value} class=${o.value === value ? 'on' : ''} onClick=${() => onChange(o.value)}>${o.label}</button>`)}
   </div>`;
 }
@@ -110,7 +134,7 @@ export const Toggle = ({ on, onChange, label }) =>
 export function SearchField({ value, onInput, placeholder, autofocus, icon = 'search' }) {
   const ref = useRef();
   useEffect(() => { if (autofocus) ref.current?.focus(); }, []);
-  return html`<label class="field">
+  return html`<label class="field search">
     <${Icon} name=${icon} />
     <input ref=${ref} type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck=${false}
       placeholder=${placeholder} value=${value} onInput=${(e) => onInput(e.currentTarget.value)} />
@@ -165,7 +189,7 @@ export function Sheet({ title, onClose, left, right, children, full }) {
     <div class=${'sheet' + (full ? ' full' : '')} role="dialog" aria-modal="true" aria-label=${title}>
       <div class="sheet-bar" onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up}>
         <div class="grab" aria-hidden="true"></div>
-        <div class="l">${left ?? html`<button class="bar-btn" onClick=${onClose}>Cancel</button>`}</div>
+        <div class="l">${left ?? html`<button class="bar-btn round" aria-label="Close" onClick=${onClose}><${Icon} name="x" /></button>`}</div>
         <div class="title">${title}</div>
         <div class="r">${right}</div>
       </div>

@@ -25,7 +25,12 @@ export function href(parts, query) {
   return '#/' + path + (q ? '?' + q : '');
 }
 
-function remember() { scrollByHref.set(parseHash().href, window.scrollY); }
+/** What scrolls: the page on a phone, the record's pane on a wide screen. */
+const pane = () => document.querySelector('.detail-pane, .main-pane');
+const scrollPos = () => pane()?.scrollTop ?? window.scrollY;
+function scrollToY(y) { const p = pane(); if (p) p.scrollTop = y; else window.scrollTo(0, y); }
+
+function remember() { scrollByHref.set(parseHash().href, scrollPos()); }
 
 export function go(target, { replace = false } = {}) {
   const url = typeof target === 'string' ? target : href(target.parts, target.query);
@@ -97,7 +102,7 @@ export function useRoute() {
     };
   }, []);
   useLayoutEffect(() => {
-    window.scrollTo(0, scrollByHref.get(route.href) ?? 0);
+    scrollToY(scrollByHref.get(route.href) ?? 0);
   }, [route.href]);
   return route;
 }

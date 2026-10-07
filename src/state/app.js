@@ -13,6 +13,7 @@ import { newOrder } from '../core/orders.js';
 import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
+import { readAlpha, mergeAlpha } from '../core/alpha.js';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -236,6 +237,18 @@ export async function setDraftClient(clientId) {
   await saveDraft();
 }
 
+/** The prescription this job is made to. It starts as the client's and can differ from it. */
+export async function setDraftRx(rx) {
+  setState({ draftRx: rx });
+  await saveDraft();
+}
+
+/** AOB per eye, in mm: measured for the job, so it lives on the order, never on the client. */
+export async function setDraftAob(aob) {
+  setState({ draft: { ...state.draft, aob } });
+  await saveDraft();
+}
+
 export async function clearDraft() {
   setState({ draft: newOrder(), draftRx: null });
   await saveDraft();
@@ -269,6 +282,20 @@ export async function restoreBackup(parsed, mode) {
   setState({ clients: sortClients(next.clients), orders: sortOrders(next.orders) });
   await saveStore();
   return next.added;
+}
+
+/** The Alpha workbook's CRM table → what importing it would do, before it does anything. */
+export function previewAlpha(rows) {
+  const alpha = readAlpha(rows, state.catalogue.staff);
+  const { counts } = mergeAlpha({ clients: state.clients, orders: state.orders }, alpha);
+  return { source: 'Alpha', alpha, counts };
+}
+
+export async function importAlpha(alpha) {
+  const next = mergeAlpha({ clients: state.clients, orders: state.orders }, alpha);
+  setState({ clients: sortClients(next.clients), orders: sortOrders(next.orders) });
+  await saveStore();
+  return next.counts;
 }
 
 // ---------------------------------------------------------------------------

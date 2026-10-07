@@ -1,4 +1,4 @@
-// Line icons, drawn at 24 units with a light 1.5 stroke to sit beside Inter Light.
+// Line icons, drawn at 24 units with a 1.7 stroke to sit beside the system font, as SF Symbols do.
 
 import { html } from './html.js';
 
@@ -6,6 +6,7 @@ const P = {
   search: html`<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>`,
   people: html`<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.8" cy="9.2" r="2.6"/><path d="M15.6 14.1c2.4.1 4.2 1.7 4.8 4.4"/>`,
   doc: html`<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M14 3.5V8h4"/><path d="M9.5 12.5h5M9.5 15.5h5"/>`,
+  eye: html`<path d="M2.8 12c2.2-4 5.4-6 9.2-6s7 2 9.2 6c-2.2 4-5.4 6-9.2 6s-7-2-9.2-6z"/><circle cx="12" cy="12" r="3"/>`,
   person: html`<circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.8-3.8 3.6-6 7-6s6.2 2.2 7 6"/>`,
   barcode: html`<path d="M4 7V5.5A1.5 1.5 0 0 1 5.5 4H7M17 4h1.5A1.5 1.5 0 0 1 20 5.5V7M20 17v1.5a1.5 1.5 0 0 1-1.5 1.5H17M7 20H5.5A1.5 1.5 0 0 1 4 18.5V17"/><path d="M8 8v8M10.5 8v8M13 8v8M15 8v8M16.8 8v8"/>`,
   plus: html`<path d="M12 5v14M5 12h14"/>`,
@@ -48,5 +49,5 @@ const P = {
 
 export function Icon({ name, size }) {
   const s = size ? { width: size + 'px', height: size + 'px' } : undefined;
-  return html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style=${s}>${P[name] ?? null}</svg>`;
+  return html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style=${s}>${P[name] ?? null}</svg>`;
 }

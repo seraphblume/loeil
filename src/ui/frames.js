@@ -26,8 +26,8 @@ function CampaignPanel({ frame, set, sun }) {
     const included = setTable(catalogue, set).filter((r) => !r.entry.price).map((r) => r.def.name.toLowerCase());
     return html`<section class="gap-s">
       <${Eyebrow}>In a set<//>
-      <${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} · ID Maestro ${set.id}`}
-        detail=${`With single vision lenses${included.length ? ` (${included.join(', ')} included)` : ''}. Better lenses add their row.`} end=${money(set.price)} chev />
+      <div class="group"><${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} · ID Maestro ${set.id}`}
+        detail=${`With single vision lenses${included.length ? ` (${included.join(', ')} included)` : ''}. Better lenses add their row.`} end=${money(set.price)} chev /></div>
     </section>`;
   }
   if (sun) {

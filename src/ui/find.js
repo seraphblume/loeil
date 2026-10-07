@@ -23,9 +23,10 @@ export function FindHome({ query }) {
   const term = query.get('q') ?? '';
   const setTerm = (v) => go(href(['find'], { q: v }), { replace: true });
   return html`
-    <${Bar} titleNode=${html`<${Wordmark} size=${20} />`} />
+    <${Bar} titleNode=${html`<${Wordmark} size=${21} />`} large />
     <${Screen}>
       <div class="stack">
+        <div class="large-head"><h1 class="large-title wordmark-title"><${Wordmark} size=${40} /></h1></div>
         <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Lens, client, frame or barcode" /></div>
         ${term.trim() ? html`<${Results} term=${term} />` : html`<${Home} />`}
       </div>

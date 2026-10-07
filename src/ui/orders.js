@@ -3,38 +3,39 @@
 
 import { html, useState } from './html.js';
 import { useApp } from './hooks.js';
-import { Bar, Screen, ScreenTitle, Section, Row, Empty, Eyebrow, Seg, Secondary, Quiet, Confirm, KV, Panel, fmtDate } from './kit.js';
+import { Bar, Screen, ScreenTitle, LargeTitle, Section, Row, Empty, Eyebrow, Seg, Secondary, Quiet, Confirm, KV, Panel, fmtDate } from './kit.js';
 import { STATUSES, statusLabel, orderTotal, composition, orderTitle } from '../core/orders.js';
 import { money } from '../core/money.js';
 import { upsertOrder, deleteOrder, clientById, toast } from '../state/app.js';
 import { LinesPanel, TotalBlock, OrderPromotions } from './order.js';
 import { go } from './router.js';
 
-export function OrderRow({ order, byTitle }) {
+export function OrderRow({ order, byTitle, on }) {
   const client = useApp((s) => clientById(order.clientId, s));
   const heading = byTitle ? orderTitle(order) : client?.name || order.clientNameAtSale || orderTitle(order);
-  return html`<${Row} to=${'#/orders/' + order.id} title=${heading} one
+  return html`<${Row} to=${'#/orders/' + order.id} title=${heading} one on=${on}
     detail=${`${byTitle ? statusLabel(order.status) + ' · ' : ''}${composition(order)} · ${fmtDate(order.createdOn)}`}
     end=${orderTotal(order) ? money(orderTotal(order)) : statusLabel(order.status)} />`;
 }
 
-export function OrdersScreen() {
+export function OrdersScreen({ selected }) {
   const orders = useApp((s) => s.orders);
   return html`
-    <${Bar} title="Orders" />
+    <${Bar} title="Orders" large />
     <${Screen}>
       <div class="stack">
+        <${LargeTitle}>Orders<//>
         ${orders.length === 0
           ? html`<div class="pad"><${Empty} title="No orders yet">Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);
-            return group.length > 0 && html`<${Section} title=${`${s.label} · ${group.length}`}>${group.map((o) => html`<${OrderRow} order=${o} />`)}<//>`;
+            return group.length > 0 && html`<${Section} title=${`${s.label} · ${group.length}`}>${group.map((o) => html`<${OrderRow} order=${o} on=${o.id === selected} />`)}<//>`;
           })}
       </div>
     <//>`;
 }
 
-export function SavedOrderScreen({ id }) {
+export function SavedOrderScreen({ id, embedded }) {
   const order = useApp((s) => s.orders.find((o) => o.id === id));
   const client = useApp((s) => (order ? clientById(order.clientId, s) : null));
   const [confirm, setConfirm] = useState(false);
@@ -46,23 +47,28 @@ export function SavedOrderScreen({ id }) {
   };
 
   return html`
-    <${Bar} backTo="#/orders" title="Order" />
+    <${Bar} backTo=${embedded ? null : '#/orders'} title=${orderTitle(order)} large />
     <${Screen}>
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${client?.name ?? (order.clientNameAtSale || 'No client')} title=${orderTitle(order)} detail=${fmtDate(order.createdOn)} />
         <${LinesPanel} order=${order} />
         <${TotalBlock} order=${order} />
-        ${(order.sellerEmployeeNumber || client) && html`<${Panel}>
+        ${(order.sellerEmployeeNumber || client || order.saleId) && html`<${Panel}>
           ${client && html`<${KV} k="Client" v=${html`<a href=${'#/clients/' + client.id} onClick=${(e) => { e.preventDefault(); go('#/clients/' + client.id); }}>${client.name}</a>`} />`}
           ${order.sellerEmployeeNumber && html`<${KV} k="Sold by" v=${[order.sellerEmployeeNumber, order.sellerName].filter(Boolean).join(' · ')} />`}
           ${order.closedOn && html`<${KV} k="Closed" v=${fmtDate(order.closedOn)} />`}
+          ${order.saleId && html`<${KV} k="Sell ID" v=${order.saleId} mono />`}
+          ${order.shipmentId && html`<${KV} k="Shipment ID" v=${order.shipmentId} mono />`}
+          ${order.source === 'alpha' && html`<${KV} k="Deal" v=${order.promo?.length ? order.promo.join(' · ') : 'Normal sale'} />`}
         <//>`}
         <${OrderPromotions} order=${order} />
         <div class="gap-s">
           <${Eyebrow}>Status<//>
           <${Seg} label="Status" value=${order.status} onChange=${setStatus} options=${STATUSES.map((s) => ({ value: s.id, label: s.label }))} />
         </div>
-        <${Secondary} icon="receipt" onClick=${() => go('#/orders/' + order.id + '/receipt')}>Print the receipt<//>
+        ${order.source === 'alpha'
+          ? html`<p class="note">Imported from Alpha. The ticket is as Alpha recorded it — one line with what it carried and what it came to.</p>`
+          : html`<${Secondary} icon="receipt" onClick=${() => go('#/orders/' + order.id + '/receipt')}>Print the receipt<//>`}
         <${Quiet} danger onClick=${() => setConfirm(true)}>Delete order<//>
       </div>
     <//>

@@ -18,10 +18,11 @@ const exact = new Intl.NumberFormat('es-MX', {
   maximumFractionDigits: 2,
 });
 
-export function money(cents) {
+/** `{ cents: true }` always prints the centavos, the way a ticket does ($2,319.50, $8,594.00). */
+export function money(cents, { cents: always = false } = {}) {
   if (cents === null || cents === undefined || Number.isNaN(cents)) return '—';
   const c = Math.round(cents);
-  return (c % 100 === 0 ? whole : exact).format(c / 100);
+  return (c % 100 === 0 && !always ? whole : exact).format(c / 100);
 }
 
 /** `+$450` for a difference. */

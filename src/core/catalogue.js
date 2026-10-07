@@ -97,6 +97,7 @@ export class Catalogue {
       this.setPricesBySet.get(p.setId).set(p.lensId, p);
     }
     this.discounts = bundle?.discounts ?? [];
+    this.store = bundle?.store ?? null;
   }
 
   get isEmpty() { return !this.bundle || this.lensCount === 0; }

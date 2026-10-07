@@ -8,7 +8,11 @@ A GinAile product.
 It narrows the lens catalogue one decision at a time with a count on every
 option, prices frames from the catalogue by barcode, builds the order with the
 codes the register needs, says which promotions apply, keeps client records with
-their prescriptions, and reads the autorefractor ticket.
+their glasses and contact lens prescriptions, and prints the register's ticket.
+
+On a phone it has a floating tab bar and one screen at a time. On an iPad or a
+computer (768 px and wider) it has a sidebar, and Clients and Orders open as a
+list beside the record; in iPad portrait the sidebar folds to a rail of icons.
 
 ## Install on a phone
 
@@ -21,7 +25,7 @@ using the phone, and it is ready.
 
 | What | Where | Who can read it |
 |---|---|---|
-| Prices, lenses, frames, stock, promotions, staff | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
+| Prices, lenses, frames, stock, promotions, staff, the branch on the ticket | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
 | Unpublished edits | The admin’s phone (the working copy) | The admin |
 | Client records and orders | That phone only (IndexedDB) | Nobody else — no sync, no account |
 | GitHub token for publishing | The admin’s phone only | The admin |
@@ -31,8 +35,15 @@ or to change it. The published file is the source of truth, and every publish is
 a commit, so the full history is in this repository’s log. The repository and the
 site hold only code and the encrypted file; `.gitignore` refuses `*.xlsx`.
 
-Back up client records from **Me → Export backup**. Backups from the earlier
-iPhone and Android apps restore here too (**Me → Restore from a backup**).
+Back up client records from **Me → Export backup**. **Me → Restore or import**
+takes a backup from this app or the earlier iPhone and Android apps, or the
+**Alpha workbook**: its CRM table comes in on the phone — each client with their
+latest glasses and contact lens prescriptions, and every ticket as a sale in their
+history (Sell ID, shipment, deal, seller, amount). A client is the same name with
+the same phone (a phone is not a person: families share one). Someone already on
+the phone keeps what is there; a newer prescription or a missing phone is filled
+in, and importing the same workbook again adds only what is new. The workbook is
+read in the browser and never leaves the phone.
 
 ## Changing the catalogue
 
@@ -80,6 +91,7 @@ The names list says, per code, what the app does with it:
 | Promo group | The family the promo table speaks in: materials → `POLY`/`CR39`/`HI`, filters → `BLANCO`/`FOTO`/`TRANS`/`POLAR`, coatings → `CRIZAL` (matches `*CRIZAL` lines). |
 | Same as | Old and new codes for one product (`CZS` ↔ `CZN`). |
 | High Rx | Materials suggested when the sphere is beyond ±10. |
+| Needs AOB | A lens with this design, type or coating asks for the AOB of each eye on the order (Eyezen Start `ES`, progressives `PR`, Crizal Prevencia `CPU`). |
 
 A code with no entry still sells; it shows the POS wording and the gate lists it.
 
@@ -92,18 +104,37 @@ discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
 priced from the frame and spectacle lenses on the order after their discounts —
 Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
 
+## Prescriptions
+
+Entered the register's way: each eye in its own panel, every value a slider with
+its figure beside it to type, inside the POS's limits — SPH −25 to +10, CYL −8 to
+0, AXIS 0–180, PD (per eye) 20–40, ADD 0 to +4 — and **Add prisms** for a prism
+and its base per eye. A sphere typed without a sign keeps the one shown (± flips
+it); a cylinder is always minus. A binocular PD on file splits into halves the
+moment one eye's PD is set.
+
+A client has a glasses prescription and, if they wear them, a contact lens one
+(brand, replacement, SPH CYL AXIS per eye, ADD); a contact lens line suggests its
+power from it. The order carries the prescription the job is made to (it starts
+as the client's and can be saved back to them), and, when its lenses need it, the
+**AOB** of each eye (15–30 mm) — measured for the job, so it stays on the order.
+
 ## Checkout and the receipt
 
 **Checkout** on the order prints it: the paper feeds out of the printer (with a
-printer sound, if he turns it on — off by default), in two copies:
+printer sound, if he turns it on — off by default). Both copies — register and
+customer — print as the register's own ticket: the branch at the top (name,
+address, phone — **Me → Catalogue data → Store**, encrypted with the catalogue),
+employee, client and discount numbers; the material lines with quantity, price,
+net and total (a pair of lenses is a line per eye at half the pair, its coating a
+line of two, included); the time, the amount and the amount in words; the
+prescription (SPH CYL AXIS, ADD and AOB when the job has them, PD per eye — the
+monocular figure, or half the binocular one, marked); and the store's foot.
 
-- **Register copy** — what the POS asks for, in its order: 1 frame SKU, 2 lens
-  and coating codes (each ×2; a coating sold under a newer code prints as that
-  code — `printAs` in the names list, so CZS prints as CZN), 3 set or discount
-  numbers, 4 extras, 5 the prescription (OD/OS SPH CYL AXI ADD PD; PD per eye is
-  the monocular figure, or half the binocular one, marked). Below the paper every
-  value is a tap to copy, and the frame's barcode on the receipt scans.
-- **Customer copy** — a quote in plain words and prices, no codes, no Rx.
+Below the register copy, what the POS asks for in its order, every value a tap to
+copy: 1 frame SKU, 2 lens and coating codes (a coating sold under a newer code
+prints as that code — `printAs` in the names list, so CZS prints as CZN), 3 set or
+discount numbers, 4 extras, 5 the prescription.
 
 **Share image** sends the receipt as a picture (the phone's share sheet, or a
 download); **Copy all** puts everything on the clipboard as text. A saved order

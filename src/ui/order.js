@@ -14,8 +14,9 @@ import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
   lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
-  isPair, isShare, isGlasses, discountable,
+  isPair, isShare, isGlasses, discountable, needsAob, aobMissing,
 } from '../core/orders.js';
+import { OrderRxSheet, rxSummary } from './rx.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, autoDiscountFor, setTable, rowPriceText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
@@ -208,8 +209,12 @@ export function OrderScreen() {
   const draft = useResolvedDraft();
   const client = useApp((s) => clientById(s.draft.clientId, s));
   const [sheet, setSheet] = useState(null);
+  const catalogue = useApp((s) => s.catalogue);
+  const rx = useApp((s) => s.draftRx);
   const p = priceOrder(draft);
   const has = draft.lines.length > 0;
+  const aob = needsAob(draft, catalogue);
+  const missing = aobMissing(draft, catalogue);
 
   return html`
     <${Bar} backTo="#/find" title="Order" trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
@@ -217,7 +222,11 @@ export function OrderScreen() {
       <div class="stack">
         <${List}>
           <${Row} icon="person" title=${client ? client.name : 'No client yet'} detail=${client ? 'This order is for them' : 'Choose who this order is for'} chev onClick=${() => setSheet('client')} />
+          <${Row} icon="eye" title="Prescription" detail=${rxSummary(rx) ?? 'Enter the prescription for this job'} one
+            end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
+            chev onClick=${() => setSheet('rx')} />
         <//>
+        ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has
           ? html`<div class="pad stack">
@@ -246,8 +255,11 @@ export function OrderScreen() {
     ${sheet === 'client' && html`<${ClientPickerSheet} title="Who is this for?" onClose=${() => setSheet(null)} onPick=${(c) => { setDraftClient(c.id); setSheet(null); }} />`}
     ${sheet === 'lens' && html`<${LensFamilySheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'extra' && html`<${AddExtraSheet} onClose=${() => setSheet(null)} />`}
-    ${sheet === 'save' && html`<${SaveSheet} onClose=${() => setSheet(null)} />`}`;
+    ${sheet === 'save' && html`<${SaveSheet} onClose=${() => setSheet(null)} />`}
+    ${(sheet === 'rx' || sheet === 'aob') && html`<${OrderRxSheet} start=${sheet} onClose=${() => setSheet(null)} />`}`;
 }
+
+const pairCount = (order) => order.lines.filter((l) => isPair(l)).length;
 
 function LensFamilySheet({ onClose }) {
   const catalogue = useApp((s) => s.catalogue);

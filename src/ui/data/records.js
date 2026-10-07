@@ -13,7 +13,7 @@ import { go } from '../router.js';
 import { VOCAB_KINDS } from '../../core/validate.js';
 import {
   upsertVocab, deleteVocab, upsertFrame, deleteFrame, setTier, upsertStock, deleteStock, replaceStock,
-  upsertExtra, deleteExtra, upsertStaff, deleteStaff, framesFromCode, brandFromDescription,
+  upsertExtra, deleteExtra, upsertStaff, deleteStaff, framesFromCode, brandFromDescription, setStore,
 } from '../../core/edits.js';
 import { money } from '../../core/money.js';
 import { fold, brandKey, parseCodeLabel } from '../../core/util.js';
@@ -21,6 +21,7 @@ import { stockLabel, STOCK_KIND_LABEL } from '../../core/catalogue.js';
 import { stockKind } from '../../core/stock.js';
 import { readStockPdf } from './io.js';
 import { collapseStock } from '../../core/stockreport.js';
+import { STORE_FIELDS, footerLines } from '../../core/store.js';
 
 const KIND_LABEL = {
   category: 'Filters', material: 'Materials', lens_type: 'Lens types', design: 'Designs', colour: 'Colours', treatment: 'Coatings',
@@ -57,7 +58,7 @@ export function VocabScreen({ query }) {
         ${kind === 'treatment' && html`<p class="note pad">Rank is the upgrade ladder: a lens offers every coating ranked above its own. Promo group CRIZAL makes a coating match *CRIZAL promo lines.</p>`}
         ${missing.length > 0 && html`<div class="pad"><${Flag}>Used by lenses but not named here: ${missing.join(', ')}. They show in the POS wording until added.<//></div>`}
         <${List}>${entries.map((v) => html`<${Row} title=${v.english || v.code} detail=${[v.code, v.blurb].filter(Boolean).join(' · ')}
-          sub=${[v.rank != null ? `rank ${v.rank}` : null, v.group ? `group ${v.group}` : null, v.sameAs ? `same as ${v.sameAs}` : null, v.highRx ? 'high Rx' : null].filter(Boolean).join(' · ') || null}
+          sub=${[v.rank != null ? `rank ${v.rank}` : null, v.group ? `group ${v.group}` : null, v.sameAs ? `same as ${v.sameAs}` : null, v.highRx ? 'high Rx' : null, v.aob ? 'needs AOB' : null].filter(Boolean).join(' · ') || null}
           count=${usage.get(`${kind}|${v.code}`) ?? 0} onClick=${() => setOpen({ v, key: `${v.kind}|${v.code}` })} />`)}<//>
         ${!entries.length && html`<div class="pad"><${Empty} title="Nothing here">Add one with +.<//></div>`}
       </div>
@@ -73,10 +74,11 @@ export function VocabScreen({ query }) {
         { key: 'sameAs', label: 'Same as', caps: true, placeholder: 'old/new code' },
         { key: 'highRx', label: 'High Rx', type: 'toggle' },
         { key: 'printAs', label: 'Register takes', caps: true, placeholder: 'blank = this code', hint: 'For a coating sold under a newer code: the code the register takes today (CZS → CZN).' },
+        { key: 'aob', label: 'Needs AOB', type: 'toggle', hint: 'A lens with this design, type or coating asks for the AOB of each eye on the order (Eyezen, progressives, Crizal Prevencia).' },
       ]}
       onSave=${(x) => {
-        const { printAs, ...rest } = x;
-        const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}) };
+        const { printAs, aob, ...rest } = x;
+        const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}), ...(aob ? { aob: true } : {}) };
         const key = `${v.kind}|${v.code}`;
         if (key !== open.key && bundle.vocabulary.some((y) => `${y.kind}|${y.code}` === key)) return `${v.code} is already listed.`;
         edit((b) => upsertVocab(b, v, open.key)); saved();
@@ -276,6 +278,30 @@ export function ExtrasScreen() {
         edit((b) => upsertExtra(b, percent ? { ...rest, percent } : rest, open.id)); saved();
       }}
       onDelete=${open.id ? () => { edit((b) => deleteExtra(b, open.id)); saved('Removed'); } : null} />`}`;
+}
+
+// ---------------------------------------------------------------------------
+// The branch on the ticket
+
+export function StoreAdminScreen() {
+  const { bundle } = useWorking();
+  const [open, setOpen] = useState(false);
+  const store = bundle?.store ?? {};
+  const fields = STORE_FIELDS.filter((f) => f.key !== 'footer');
+  return html`
+    <${Bar} backTo="#/me/data" title="Store" trail=${html`<button class="bar-btn" onClick=${() => setOpen(true)}>Edit</button>`} />
+    <${Screen}>
+      <div class="stack tight pad">
+        <p class="para">What the receipt prints at its top and its foot. It travels encrypted with the catalogue, like every price.</p>
+        <div class="group">${fields.map((f) => html`<div class="cell"><span class="k">${f.label}</span><span class="v">${store[f.key] || html`<span class="muted">—</span>`}</span></div>`)}</div>
+        <${Eyebrow}>Footer<//>
+        <div class="group"><div class="cell cell-text-read">${store.footer ? footerLines(store).map((l) => html`<div>${l || ' '}</div>`) : html`<span class="muted">No footer</span>`}</div></div>
+        <${Secondary} icon="edit" onClick=${() => setOpen(true)}>Edit the store<//>
+      </div>
+    <//>
+    ${open && html`<${FormSheet} title="Store" initial=${store} onClose=${() => setOpen(false)}
+      fields=${STORE_FIELDS.map((f) => ({ ...f, rows: f.type === 'textarea' ? 9 : undefined, caps: false }))}
+      onSave=${(x) => { edit((b) => setStore(b, x)); saved(); }} />`}`;
 }
 
 export function StaffAdminScreen() {

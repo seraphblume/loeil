@@ -4,9 +4,10 @@
 import { parseCodeLabel, brandKey } from './util.js';
 import { LENS_FIELDS } from './validate.js';
 import { money } from './money.js';
+import { STORE_FIELDS } from './store.js';
 
 const lensLabel = (list) => (r) => LENS_FIELDS[list].map(([f]) => parseCodeLabel(r[f]).code).filter((c) => c && c !== 'N/A').join(' · ');
-const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), active: (v) => (v ? 'active' : 'inactive') };
+const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), active: (v) => (v ? 'active' : 'inactive') };
 const show = (field, v) => (fmt[field] ? fmt[field](v) : v === null || v === undefined || v === '' ? '—' : String(v));
 
 const lensSpec = (list) => ({
@@ -19,7 +20,7 @@ const lensSpec = (list) => ({
 
 export const SPECS = [
   lensSpec('single'), lensSpec('multifocal'), lensSpec('contact'),
-  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx', 'printAs'] },
+  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx', 'printAs', 'aob'] },
   { title: 'Frames', get: (b) => b.frames, key: (f) => f.sku, label: (f) => f.description || f.sku, fields: ['price', 'description', 'brand', 'category', 'frameType', 'material', 'size', 'product'] },
   { title: 'Brand tiers', get: (b) => b.frameBrands, key: (x) => brandKey(x.brand), label: (x) => x.brand, fields: ['tier'] },
   { title: 'Stock', get: (b) => b.inventory, key: (i) => i.sku, label: (i) => i.description || i.sku, fields: ['stock', 'description', 'classification', 'expires'] },
@@ -30,6 +31,7 @@ export const SPECS = [
   { title: 'Set lens rows', get: (b) => b.setLenses ?? [], key: (d) => d.id, label: (d) => `${d.group} · ${d.name}`, fields: ['group', 'name', 'match'] },
   { title: 'Set prices', get: (b) => b.setPrices ?? [], key: (p) => `${p.setId}|${p.lensId}`, label: (p) => `${p.setId} ${p.lensId}`, fields: ['price', 'special'] },
   { title: 'Campaign discounts', get: (b) => b.discounts ?? [], key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'validFrom', 'validTo'] },
+  { title: 'Store', get: (b) => STORE_FIELDS.filter((f) => b.store?.[f.key]).map((f) => ({ field: f.key, label: f.label, value: b.store[f.key] })), key: (x) => x.field, label: (x) => x.label, fields: ['value'] },
   { title: 'Promo lines', get: (b) => b.promoLensMap, key: (l) => `${l.promoId}|${l.package}|${l.matchKey}`, label: (l) => `${l.promoId} ${l.matchKey}`, fields: ['lensDescription'] },
 ];
 

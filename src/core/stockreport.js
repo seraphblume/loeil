@@ -49,7 +49,7 @@ export function parseStockReport(pages) {
       const t = i.str.match(/de un total de\s+(\d+)/i);
       if (t) total = Number(t[1]);
       if (!generated && /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(i.str.trim())) generated = i.str.trim();
-      // The branch carries the long code ([C010155 ] AGORA URUAPAN); the company a short one.
+      // The branch carries the long code ([C000000 ] BRANCH NAME); the company a short one.
       if (!branch && /^\[C\d{5,}\s*\]/.test(i.str.trim())) branch = i.str.trim().replace(/^\[[^\]]+\]\s*/, '');
     }
     cols = headerColumns(items) ?? cols;

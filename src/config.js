@@ -52,6 +52,3 @@ export const LINE_DISCOUNTS = [40, 50];
 /** Contribution grid on the Me tab. */
 export const GRID_WEEKS = 26;
 
-/** Optical character recognition for the autorefractor ticket. Loaded only
- *  when a ticket is photographed. */
-export const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.esm.min.js';
