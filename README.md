@@ -79,19 +79,19 @@ edited on a computer and imported back. From a computer without the app:
 
 ### Coatings, materials and names — nothing about the catalogue is in the code
 
-Each lens row names its attributes by code (`4300 — Polylite`, `CZS (Crizal Sapphire)`).
+Each lens row names its attributes by code (`4300 — Polylite`, `CZN (Crizal Natural Look)`).
 The names list says, per code, what the app does with it:
 
 | Field | Does |
 |---|---|
-| kind + code | The key: `treatment` + `CZS`. Never change a code lenses use. |
+| kind + code | The key: `treatment` + `CZN`. Never change a code lenses use. |
 | English name | What the app shows. Blank → the POS wording. |
 | Blurb | One line to say to the customer. |
 | Rank | Option order. For coatings it is the **upgrade ladder**: a lens offers every coating ranked above its own, with the price difference. |
 | Promo group | The family the promo table speaks in: materials → `POLY`/`CR39`/`HI`, filters → `BLANCO`/`FOTO`/`TRANS`/`POLAR`, coatings → `CRIZAL` (matches `*CRIZAL` lines). |
-| Same as | Old and new codes for one product (`CZS` ↔ `CZN`). |
+| Same as | Old and new codes for one product. |
 | High Rx | Materials suggested when the sphere is beyond ±10. |
-| Needs AOB | A lens with this design, type or coating asks for the AOB of each eye on the order (Eyezen Start `ES`, progressives `PR`, Crizal Prevencia `CPU`). |
+| Needs AOB | A lens with this design, type or coating asks for the AOB of each eye on the order (Eyezen Start `ES` and Kids `EK`, Stellest `SL`, progressives `PR`, Crizal Prevencia `CPU` and Kids `CZK`). |
 
 A code with no entry still sells; it shows the POS wording and the gate lists it.
 
@@ -133,7 +133,7 @@ monocular figure, or half the binocular one, marked); and the store's foot.
 
 Below the register copy, what the POS asks for in its order, every value a tap to
 copy: 1 frame SKU, 2 lens and coating codes (a coating sold under a newer code
-prints as that code — `printAs` in the names list, so CZS prints as CZN), 3 set or
+prints as that code — `printAs` in the names list), 3 set or
 discount numbers, 4 extras, 5 the prescription.
 
 **Share image** sends the receipt as a picture (the phone's share sheet, or a

@@ -133,7 +133,7 @@ export class Catalogue {
 
   tierFor(brand) { return this.tierByBrand.get(brandKey(brand)) ?? null; }
 
-  /** All codes of a kind that a promo group names: `CRIZAL` → CEU, CPU, CZS… */
+  /** All codes of a kind that a promo group names: `CRIZAL` → CEU, CPU, CZN, CZK… */
   codesInGroup(kind, group) {
     const out = new Set();
     for (const [code, v] of this.vocab.get(kind) ?? []) if (v.group === group) out.add(code);

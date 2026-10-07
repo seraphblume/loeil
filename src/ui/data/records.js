@@ -73,7 +73,7 @@ export function VocabScreen({ query }) {
         { key: 'group', label: 'Promo group', caps: true, placeholder: 'e.g. CRIZAL, POLY, TRANS' },
         { key: 'sameAs', label: 'Same as', caps: true, placeholder: 'old/new code' },
         { key: 'highRx', label: 'High Rx', type: 'toggle' },
-        { key: 'printAs', label: 'Register takes', caps: true, placeholder: 'blank = this code', hint: 'For a coating sold under a newer code: the code the register takes today (CZS → CZN).' },
+        { key: 'printAs', label: 'Register takes', caps: true, placeholder: 'blank = this code', hint: 'For a coating sold under a newer code: the code the register takes today.' },
         { key: 'aob', label: 'Needs AOB', type: 'toggle', hint: 'A lens with this design, type or coating asks for the AOB of each eye on the order (Eyezen, progressives, Crizal Prevencia).' },
       ]}
       onSave=${(x) => {

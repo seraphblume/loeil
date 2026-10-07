@@ -11,7 +11,7 @@
 //
 // The coating is its own register line (×2, like the lens) under the code the
 // register takes today: a coating whose vocabulary row says `printAs` prints
-// as that (Crizal Sapphire, CZS, prints as CZN).
+// as that code.
 
 import { priceOrder, lineQuantity, isPair, isShare, needsAob } from './orders.js';
 import { lensCodeText } from './lens.js';

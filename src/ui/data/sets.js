@@ -151,7 +151,7 @@ export function SetLensesScreen() {
         { key: 'id', label: 'Id', required: true, placeholder: 'sv-trans-crizal' },
         { key: 'group', label: 'Group', required: true, suggest: SET_GROUPS },
         { key: 'name', label: 'Name', required: true },
-        { key: 'match', label: 'Match', type: 'textarea', hint: 'family|material|design|filter|colour|coating. SV or a lens type (PR, FT); codes from the vocabulary, several with commas; *GROUP for a promo group (*POLY, *TRANS, *CRIZAL); ! for “anything but”; * for anything. Several matches separate with ; — e.g. SV|*POLY,*CR39|!ES,EK,SL|*TRANS|*|CZN,CZS,CPU' },
+        { key: 'match', label: 'Match', type: 'textarea', hint: 'family|material|design|filter|colour|coating. SV or a lens type (PR, FT); codes from the vocabulary, several with commas; *GROUP for a promo group (*POLY, *TRANS, *CRIZAL); ! for “anything but”; * for anything. Several matches separate with ; — e.g. SV|*POLY,*CR39|!ES,EK,SL|*TRANS|*|CZN,CPU' },
       ]}
       onSave=${(x) => {
         if (x.id !== open.id && rows.some((r) => r.id === x.id)) return `Row id ${x.id} is already used.`;

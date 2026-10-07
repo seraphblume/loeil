@@ -122,7 +122,7 @@ function packagesMatching(catalogue, key, on) {
 /**
  * Everything the lens screen needs to say about promotions.
  * `counterparts` are matches found only by swapping a coating for its `same_as`
- * code (CZS ↔ CZN). Shown separately and labelled — never counted as applying.
+ * code (an old code and its replacement). Shown separately and labelled — never counted as applying.
  */
 export function eligibility(catalogue, lens, on = new Date()) {
   const key = lens.promoKey;

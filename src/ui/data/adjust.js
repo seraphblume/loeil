@@ -1,4 +1,4 @@
-// Many prices at once: every Crizal Sapphire lens up $200, every Ray-Ban frame
+// Many prices at once: every Crizal Prevencia lens up $200, every Ray-Ban frame
 // up 5%. Previewed before anything changes, and applied to the working copy.
 
 import { html, useState, useMemo } from '../html.js';
