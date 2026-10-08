@@ -114,9 +114,10 @@ a kids' case and strap). Each preset has tiers: an accessible price and the bett
 value (Kids adds myopia control). Tapping another preset swaps the lens and what
 the last preset added; frames and anything added by hand stay.
 
-**Cleaning solutions damage Transitions and Crizal.** A preset never adds one to
-those lenses, whatever its data says, and an order that ends up with both is
-flagged.
+**Cleaning solutions damage Crizal (any of them), Transitions and Polarex**, and void
+their warranty. A preset never adds one to those lenses, whatever its data says,
+and an order that ends up with both is flagged — it stays only if the customer
+insists.
 
 Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 `presets` tab of the workbook): a row per tier with its single vision and

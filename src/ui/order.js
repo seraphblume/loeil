@@ -230,7 +230,7 @@ export function OrderScreen() {
             end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
             chev onClick=${() => setSheet('rx')} />
         <//>
-        ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Transitions and Crizal. Offer a microfibre cloth instead.<//></div>`}
+        ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Crizal, Transitions and Polarex and void their warranty. Offer a microfibre cloth instead — keep it only if the customer insists.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has

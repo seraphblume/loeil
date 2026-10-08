@@ -47,7 +47,7 @@ export function PresetSheet({ onClose }) {
   };
   return html`<${Sheet} title="Lifestyle presets" onClose=${onClose} full>
     <div class="stack">
-      <p class="para pad">${rxBasis(rx)} A preset replaces the lenses on the order and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Transitions or Crizal.</p>
+      <p class="para pad">${rxBasis(rx)} A preset replaces the lenses on the order and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.</p>
       ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
       ${groups.map((g) => html`<section class="section" key=${g.id}>
         <div class="preset-head"><div class="n">${g.name}</div>${g.blurb && html`<div class="b">${g.blurb}</div>`}</div>
@@ -71,7 +71,7 @@ const FIELDS = [
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
   { key: 'extras', label: 'Extras', placeholder: 'e.g. 600500800203', group: 'Adds', hint: 'Extra codes, separated by commas — Plus Protection is one.' },
   { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 61004120/61004121; Cleaning solution*: 61004172', group: 'Adds',
-    hint: 'Label: stock codes in order of preference (the first in stock is added), separated by ;. A * after the label marks a cleaning solution, which is never added to Transitions or Crizal.' },
+    hint: 'Label: stock codes in order of preference (the first in stock is added), separated by ;. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
 ];
 
 export function PresetsAdminScreen() {

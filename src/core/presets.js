@@ -7,9 +7,10 @@
 // row does — family|material|design|filter|colour|coating — once for single
 // vision and once for progressives, so the catalogue decides what exists.
 //
-// CLEANING SOLUTIONS DAMAGE TRANSITIONS AND CRIZAL. A preset never adds a
-// solution to a lens with either, whatever its data says, and an order that
-// ends up with both is flagged.
+// CLEANING SOLUTIONS DAMAGE CRIZAL (ANY OF THEM), TRANSITIONS AND POLAREX, and
+// void their warranty. A preset never adds a solution to such a lens, whatever
+// its data says, and an order that ends up with both is flagged — only a
+// customer who insists takes one home with them.
 
 import { factsMatch, lensFacts } from './sets.js';
 import { resolve } from './lens.js';
@@ -48,16 +49,20 @@ export function isSolution(catalogue, code, description = '') {
   return SOLUTION_WORDS.test(description || inv?.description || '');
 }
 
-/** Transitions or a Crizal coating: the lenses a solution damages. */
+/** The filters a solution damages, by promo group: Transitions and Polarex. Coatings: every Crizal. */
+const SENSITIVE_FILTERS = new Set(['TRANS', 'POLAR']);
+export const SOLUTION_WARNING = 'cleaning solutions damage Crizal, Transitions and Polarex and void their warranty';
+
+/** Crizal, Transitions or Polarex: the lenses a solution damages. */
 export function solutionSensitive(catalogue, lens) {
   if (!lens || lens.family === 'CL') return false;
   const a = Object.fromEntries((lens.attributes ?? []).map((x) => [x.key, x.code]));
-  const trans = catalogue?.meta('category', a.category)?.group === 'TRANS';
+  const filter = SENSITIVE_FILTERS.has(catalogue?.meta('category', a.category)?.group);
   const crizal = catalogue?.codesInGroup('treatment', 'CRIZAL').has(a.treatment);
-  return Boolean(trans || crizal);
+  return Boolean(filter || crizal);
 }
 
-/** The solution lines on an order that also carries Transitions or Crizal — empty when there is no clash. */
+/** The solution lines on an order that also carries Crizal, Transitions or Polarex — empty when there is no clash. */
 export function solutionClash(order, catalogue) {
   if (!order.lines.some((l) => isPair(l) && solutionSensitive(catalogue, l.lens))) return [];
   return order.lines.filter((l) => l.kind === 'extra' && isSolution(catalogue, l.code, l.description));
@@ -113,14 +118,14 @@ export function resolvePreset(catalogue, tier, rx) {
   for (const id of tier.extras ?? []) {
     const e = catalogue.extras.find((x) => x.id === id);
     if (!e) { skipped.push({ label: id, why: 'not in the extras list' }); continue; }
-    if (sensitive && isSolution(catalogue, e.id, e.description)) { skipped.push({ label: e.description, why: 'solutions damage Transitions and Crizal' }); continue; }
+    if (sensitive && isSolution(catalogue, e.id, e.description)) { skipped.push({ label: e.description, why: SOLUTION_WARNING }); continue; }
     extras.push(e);
   }
   const items = [];
   for (const spec2 of tier.items ?? []) {
     const known = spec2.skus.map((s) => catalogue.inventoryBySku.get(s)).filter(Boolean);
     const solution = spec2.solution || known.some((i) => isSolution(catalogue, i.sku, i.description));
-    if (sensitive && solution) { skipped.push({ label: spec2.label, why: 'solutions damage Transitions and Crizal' }); continue; }
+    if (sensitive && solution) { skipped.push({ label: spec2.label, why: SOLUTION_WARNING }); continue; }
     const item = known.find((i) => i.stock > 0) ?? null;
     if (!item) { skipped.push({ label: spec2.label, why: known.length ? 'out of stock' : 'not in the stock list' }); continue; }
     items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution });
