@@ -124,7 +124,12 @@ Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`), the extra
 codes, and the accessories as `Pouch: 61004120/61004121; Cleaning solution*: 61004172`
 — stock codes in order of preference (the first in stock is added), a `*` marking a
-cleaning solution.
+cleaning solution. A tier can also name its **frame brands** (comma-separated):
+choosing it then asks for a frame of one of them, unless the option already has one.
+
+**Luxury** is built that way: value and premium lenses only, with a renowned frame —
+Versace, Carolina Herrera, Michael Kors, Emporio Armani, Tous, Prada, Gucci,
+Tom Ford and the rest of its list.
 
 ## The quote
 
@@ -136,6 +141,21 @@ the employee and the quote number, then for each option the frame (by brand), th
 lenses, the treatments, the extras, the subtotal, the saving, the total and how long
 the prices hold (the end of the option's set or campaign); its foot is the store's
 **Quote footer**.
+
+**Add an option** builds one in two steps. First the frame: keep the one on the
+order, no frame, or quote it as
+
+- **Frame** — one from the catalogue, at its price (or its set's);
+- **Brand** — before the client has chosen the model. A brand in a live set is
+  quoted at the set's price; one outside a set *from* its lowest catalogue price,
+  and the option's total reads “from $…”;
+- **Set** — any frame of the set, at the set's price; the ticket adds a Set row with
+  its ID Maestro.
+
+Then the lenses: a lifestyle preset, or the lenses already on the order. A frame
+quoted by brand or set is a placeholder — the order flags it, and the real frame is
+scanned before checkout. **Frame brand or set** on the order's Add list does the same
+outside the quote.
 
 ## Prescriptions
 

@@ -109,13 +109,15 @@ export function quoteBlocks(q) {
     for (const r of o.rows) {
       B.push({
         t: 'qrow', label: r.label, desc: r.desc, qty: r.qty ? String(r.qty) : '',
-        price: r.label === 'Treatments' ? '' : r.pending ? '—' : r.included ? 'in the set' : r.register ? 'at register' : amount(r.price),
+        price: r.label === 'Treatments' || r.label === 'Set' ? '' : r.pending ? '—' : r.included ? 'in the set' : r.register ? 'at register' : (r.from ? 'from ' : '') + amount(r.price),
       });
     }
     B.push({ t: 'gap' });
-    B.push({ t: 'pair', k: 'Subtotal:', v: amount(o.subtotal) });
+    const fromText = o.from ? 'from ' : '';
+    B.push({ t: 'pair', k: 'Subtotal:', v: fromText + amount(o.subtotal) });
     B.push({ t: 'pair', k: 'You save:', v: amount(o.save) });
-    B.push({ t: 'amount', k: 'Total to pay', v: amount(o.total) });
+    B.push({ t: 'amount', k: 'Total to pay', v: fromText + amount(o.total) });
+    if (o.from) B.push({ t: 'fine', text: 'Frame quoted by brand, from its lowest price — the final price is the frame you choose.', left: true });
     if (o.pending) B.push({ t: 'fine', text: 'A lens still needs its row of the set — total so far', left: true });
     if (o.unpriced) B.push({ t: 'fine', text: `${o.unpriced} item${o.unpriced === 1 ? '' : 's'} priced at the register`, left: true });
     B.push({ t: 'fine', text: '*Authorised materials and treatments apply.', left: true });

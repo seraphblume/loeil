@@ -130,5 +130,5 @@ export function resolvePreset(catalogue, tier, rx) {
     if (!item) { skipped.push({ label: spec2.label, why: known.length ? 'out of stock' : 'not in the stock list' }); continue; }
     items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution });
   }
-  return { tier, family, lens, high, sensitive, extras, items, skipped, notes };
+  return { tier, family, lens, high, sensitive, extras, items, skipped, notes, brands: tier.brands ?? [] };
 }

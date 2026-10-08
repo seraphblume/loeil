@@ -221,7 +221,10 @@ export async function deleteOrder(id) {
 async function saveDraft() { await db.set('draft', { order: state.draft, rx: state.draftRx }); }
 
 export async function addLine(line) {
-  setState({ draft: { ...state.draft, lines: [...state.draft.lines, line] } });
+  // The frame the client chose takes the place of the one quoted by brand or set.
+  const chosen = line.kind === 'frame' && !line.placeholder;
+  const lines = state.draft.lines.filter((l) => !(chosen && l.kind === 'frame' && l.placeholder));
+  setState({ draft: { ...state.draft, lines: [...lines, line] } });
   await saveDraft();
 }
 
@@ -246,9 +249,11 @@ export async function setDraftClient(clientId) {
  * there, and what an earlier preset added goes, so tapping another preset
  * swaps cleanly. Frames, contact lenses and what he added by hand stay.
  */
-export async function applyPreset(result) {
+export async function applyPreset(result, frame = null) {
   const tag = `${result.tier.presetId}|${result.tier.tier}`;
-  const keep = state.draft.lines.filter((l) => !l.preset && !isPair(l));
+  // frame: null keeps the order's frame, false leaves none, a line takes its place.
+  const keep = state.draft.lines.filter((l) => !l.preset && !isPair(l) && !(frame !== null && l.kind === 'frame'));
+  if (frame) keep.unshift(frame);
   const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
   const lines = [
     ...keep,
@@ -257,6 +262,13 @@ export async function applyPreset(result) {
     ...result.items.filter((i) => !have.has(i.sku)).map((i) => ({ ...extraLine(i.sku, i.description, 1, i.stock), preset: tag })),
   ];
   setState({ draft: { ...state.draft, lines } });
+  await saveDraft();
+}
+
+/** The order's frame becomes this one — a frame in hand, a brand or a set. */
+export async function setOrderFrame(line) {
+  const rest = state.draft.lines.filter((l) => l.kind !== 'frame');
+  setState({ draft: { ...state.draft, lines: line ? [line, ...rest] : rest } });
   await saveDraft();
 }
 

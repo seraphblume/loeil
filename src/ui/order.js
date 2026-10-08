@@ -14,11 +14,12 @@ import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
   lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
-  isPair, isShare, isGlasses, discountable, needsAob, aobMissing,
+  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder,
 } from '../core/orders.js';
 import { OrderRxSheet, rxSummary } from './rx.js';
 import { addOrderToQuote } from './quote.js';
 import { PresetSheet } from './presets.js';
+import { FramePickSheet } from './framepick.js';
 import { solutionClash } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, autoDiscountFor, setTable, rowPriceText } from '../core/sets.js';
@@ -28,7 +29,7 @@ import { eligibility } from '../core/promotions.js';
 import { guidance, rxIsBlank, newClient } from '../core/crm.js';
 import { fold } from '../core/util.js';
 import {
-  removeLine, clearDraft, setDraftClient, saveDraftTo, addLine, toast, clientById, upsertClient, updateLine,
+  removeLine, clearDraft, setDraftClient, saveDraftTo, addLine, toast, clientById, upsertClient, updateLine, setOrderFrame,
 } from '../state/app.js';
 
 export function CodesBlock({ order }) {
@@ -59,7 +60,9 @@ export function LinesPanel({ order, editable }) {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
         const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
-        const via = l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
+        const via = l.placeholder && !l.set ? 'Quoted by brand · from its lowest catalogue price'
+          : l.placeholder && l.set ? `${l.set.name} · any frame of the set, with single vision lenses`
+          : l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
           : l.set ? `${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}`
             : isShare(l) ? `${l.percent}% of ${money(r.base)}`
               : isPair(l) ? [l.presetName, l.quantity === 2 ? 'The pair' : `${l.eye} only`].filter(Boolean).join(' · ') : null;
@@ -68,7 +71,7 @@ export function LinesPanel({ order, editable }) {
             <div class="name">${lineText(l)}</div>
             ${via && html`<div class="via">${via}</div>`}
             <div class="meta">
-              <span class="mono">${lineCode(l)}</span>
+              <span class="mono">${lineCode(l) || (l.placeholder ? 'frame not chosen' : '')}</span>
               ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">from the tag</span>`}
               ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
               ${inSet && (editable
@@ -230,6 +233,7 @@ export function OrderScreen() {
             end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
             chev onClick=${() => setSheet('rx')} />
         <//>
+        ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
         ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Crizal, Transitions and Polarex and void their warranty. Offer a microfibre cloth instead — keep it only if the customer insists.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
@@ -246,6 +250,7 @@ export function OrderScreen() {
           <${Row} icon="lens" title="Lens" chev onClick=${() => setSheet('lens')} />
           <${Row} icon="barcode" title="Scan a frame or stock item" chev onClick=${() => go('#/find/scan')} />
           <${Row} icon="glasses" title="Browse frames" chev onClick=${() => go('#/find/frames')} />
+          <${Row} icon="tag" title="Frame brand or set" detail="For a quote, before the frame is chosen" chev onClick=${() => setSheet('framepick')} />
           <${Row} icon="box" title="Case, solution or extra" chev onClick=${() => setSheet('extra')} />
         <//>
 
@@ -257,7 +262,9 @@ export function OrderScreen() {
     <//>
     ${has && html`<${Dock}>
       <div class="dock-total"><span class="v" key=${p.total}>${money(p.total)}</span><span class="k">${p.pending.length ? 'So far' : 'Total'}</span></div>
-      <${Anchor} icon="receipt" onClick=${() => go('#/find/checkout')}>Checkout<//>
+      ${draft.lines.some(isPlaceholder)
+        ? html`<${Anchor} icon="barcode" onClick=${() => go('#/find/scan')}>Scan the frame<//>`
+        : html`<${Anchor} icon="receipt" onClick=${() => go('#/find/checkout')}>Checkout<//>`}
     <//>`}
     ${sheet === 'clear' && html`<${Confirm} title="Clear this order?" message="Every line on the order in progress will be removed. Saved orders are not affected." action="Clear order"
       onConfirm=${() => { clearDraft(); toast('Order cleared'); }} onClose=${() => setSheet(null)} />`}
@@ -266,7 +273,9 @@ export function OrderScreen() {
     ${sheet === 'extra' && html`<${AddExtraSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'save' && html`<${SaveSheet} onClose=${() => setSheet(null)} />`}
     ${(sheet === 'rx' || sheet === 'aob') && html`<${OrderRxSheet} start=${sheet} onClose=${() => setSheet(null)} />`}
-    ${sheet === 'preset' && html`<${PresetSheet} onClose=${() => setSheet(null)} />`}`;
+    ${sheet === 'preset' && html`<${PresetSheet} onClose=${() => setSheet(null)} />`}
+    ${sheet === 'framepick' && html`<${FramePickSheet} title="Frame brand or set" start="brand" onClose=${() => setSheet(null)}
+      onPick=${async (line) => { await setOrderFrame(line); toast(`${line.brand || line.description} on the order`); }} />`}`;
 }
 
 const pairCount = (order) => order.lines.filter((l) => isPair(l)).length;

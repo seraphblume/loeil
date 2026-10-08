@@ -32,7 +32,7 @@ export const SPECS = [
   { title: 'Set lens rows', get: (b) => b.setLenses ?? [], key: (d) => d.id, label: (d) => `${d.group} · ${d.name}`, fields: ['group', 'name', 'match'] },
   { title: 'Set prices', get: (b) => b.setPrices ?? [], key: (p) => `${p.setId}|${p.lensId}`, label: (p) => `${p.setId} ${p.lensId}`, fields: ['price', 'special'] },
   { title: 'Campaign discounts', get: (b) => b.discounts ?? [], key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'validFrom', 'validTo'] },
-  { title: 'Lifestyle presets', get: (b) => (b.presets ?? []).map((t) => ({ ...t, itemsText: itemsText(t.items), extrasText: (t.extras ?? []).join(', ') })), key: (t) => `${t.presetId}|${t.tier}`, label: (t) => `${t.preset} · ${t.tier}`, fields: ['preset', 'blurb', 'tierBlurb', 'sv', 'mf', 'extrasText', 'itemsText'] },
+  { title: 'Lifestyle presets', get: (b) => (b.presets ?? []).map((t) => ({ ...t, itemsText: itemsText(t.items), extrasText: (t.extras ?? []).join(', '), brandsText: (t.brands ?? []).join(', ') })), key: (t) => `${t.presetId}|${t.tier}`, label: (t) => `${t.preset} · ${t.tier}`, fields: ['preset', 'blurb', 'tierBlurb', 'sv', 'mf', 'extrasText', 'itemsText', 'brandsText'] },
   { title: 'Store', get: (b) => STORE_FIELDS.filter((f) => b.store?.[f.key]).map((f) => ({ field: f.key, label: f.label, value: b.store[f.key] })), key: (x) => x.field, label: (x) => x.label, fields: ['value'] },
   { title: 'Promo lines', get: (b) => b.promoLensMap, key: (l) => `${l.promoId}|${l.package}|${l.matchKey}`, label: (l) => `${l.promoId} ${l.matchKey}`, fields: ['lensDescription'] },
 ];

@@ -730,7 +730,7 @@ html[data-nav="tab"]::view-transition-old(root), html[data-nav="tab"]::view-tran
 .rc-center.soft { color: var(--ink-soft); }
 .rc-opthead { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
 .rc-opthead.center { text-align: center; }
-.rc-qrow { display: grid; grid-template-columns: 7.4em minmax(0, 1fr) 1.6em 6.6em; gap: 6px; align-items: baseline; font-size: 10.5px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+.rc-qrow { display: grid; grid-template-columns: 7.4em minmax(0, 1fr) 1.6em minmax(6.6em, max-content); gap: 6px; align-items: baseline; font-size: 10.5px; padding: 2px 0; font-variant-numeric: tabular-nums; }
 .rc-qrow .l { font-weight: 700; color: var(--ink-soft); }
 .rc-qrow .d { overflow-wrap: anywhere; font-weight: 500; }
 .rc-qrow .q { text-align: center; }

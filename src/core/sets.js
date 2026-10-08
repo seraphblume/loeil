@@ -225,7 +225,8 @@ export function resolveOrder(order, catalogue, on = new Date()) {
   const frames = lines.filter((l) => l.kind === 'frame');
   const pairs = lines.filter((l) => l.kind === 'lens' && l.lens.family !== 'CL');
   frames.forEach((f, i) => {
-    const set = setForFrame(catalogue, frameFacts(catalogue, f), on);
+    const named = f.setId ? catalogue.setsById?.get(f.setId) : null;
+    const set = (named && isCurrent(named, on) ? named : null) ?? setForFrame(catalogue, frameFacts(catalogue, f), on);
     const lens = pairs[i];
     if (lens) f.hasLenses = true;
     if (!set) return;

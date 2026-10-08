@@ -5,9 +5,9 @@
 // quote. He changes the lens or the frame and adds again; each snapshot keeps
 // the prices it was quoted at, whatever the order does next.
 
-import { priceOrder, isPair, isShare, lineQuantity } from './orders.js';
-import { fold, uid } from './util.js';
-import { liveSets } from './sets.js';
+import { priceOrder, isPair, isShare, lineQuantity, placeholderFrame } from './orders.js';
+import { fold, uid, brandKey } from './util.js';
+import { liveSets, setForFrame } from './sets.js';
 
 export const QUOTE_OPTIONS = 3;
 
@@ -63,8 +63,13 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
   const p = priceOrder(order);
   const rows = [];
   const byKind = (k) => p.rows.filter((r) => r.line.kind === k);
+  let from = false;
   for (const r of byKind('frame')) {
-    rows.push({ label: 'Frame', desc: upper(r.line.brand || r.line.description), qty: 1, price: r.list });
+    const l = r.line;
+    const isFrom = l.placeholder && l.priceSource === 'from' && !l.set;
+    if (isFrom) from = true;
+    rows.push({ label: 'Frame', desc: upper(l.brand || l.description), qty: 1, price: r.list, from: isFrom });
+    if (l.set) rows.push({ label: 'Set', desc: upper(`${l.set.name} · ID Maestro ${l.set.id}`) });
   }
   for (const r of byKind('lens')) {
     const l = r.line;
@@ -82,6 +87,7 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
   return {
     n,
     id: order.id,
+    from,
     rows,
     subtotal: p.list,
     save: p.off,
@@ -90,6 +96,52 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
     unpriced: p.unpriced.length,
     validUntil: validUntil(order, catalogue, on),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Frames for a quote: one in hand, a brand, or a set
+
+/**
+ * Every brand a frame can be quoted by: from the catalogue (with its lowest
+ * ophthalmic price and what is on hand) and from the live sets (brands sold
+ * only through a set). A brand in a set is quoted at the set's price.
+ */
+export function brandOptions(catalogue, on = new Date()) {
+  const out = new Map();
+  for (const f of catalogue.frames) {
+    if (!f.brand || !(f.price > 0)) continue;
+    const k = brandKey(f.brand);
+    const b = out.get(k) ?? { key: k, brand: f.brand, from: null, sunFrom: null, count: 0, stock: 0, tier: f.tier?.label ?? '', rank: f.tier?.rank ?? 9 };
+    b.count++;
+    if (f.stock > 0) b.stock += f.stock;
+    if (f.category === 'Sunglasses') b.sunFrom = Math.min(b.sunFrom ?? Infinity, f.price);
+    else b.from = Math.min(b.from ?? Infinity, f.price);
+    out.set(k, b);
+  }
+  for (const s of liveSets(catalogue, on)) {
+    for (const name of String(s.brands ?? '').split(',').map((x) => x.split('/')[0].trim()).filter(Boolean)) {
+      const k = brandKey(name);
+      if (!out.has(k)) out.set(k, { key: k, brand: name, from: null, sunFrom: null, count: 0, stock: 0, tier: '', rank: 9 });
+    }
+  }
+  return [...out.values()].map((b) => {
+    const set = setForFrame(catalogue, { brand: b.brand, category: 'Ophthalmic' }, on);
+    return { ...b, from: b.from ?? b.sunFrom, set: set ? { id: set.id, name: set.name, price: set.price } : null };
+  }).filter((b) => b.set || b.from != null)
+    .sort((a, b) => a.rank - b.rank || a.brand.localeCompare(b.brand));
+}
+
+/** A frame quoted by brand: the set's price when the brand is in one, else its lowest catalogue price. */
+export function brandFrame(option) {
+  return placeholderFrame({
+    brand: option.brand, description: option.brand.toUpperCase(),
+    priceCents: option.set ? option.set.price : option.from, priceSource: option.set ? 'set' : 'from',
+  });
+}
+
+/** A frame quoted by the set it will come from. */
+export function setFrame(set) {
+  return placeholderFrame({ description: `Frame from ${set.name}`, priceCents: set.price, priceSource: 'set', setId: set.id });
 }
 
 /** The whole ticket, drawn by the screen and the image alike. */
@@ -113,9 +165,9 @@ export function quoteText(q) {
   if (q.client) out.push(q.client.name);
   for (const o of q.options) {
     out.push('', `Option ${o.n}`);
-    for (const r of o.rows) out.push(`  ${r.label}: ${r.desc}${r.qty ? ` ×${r.qty}` : ''}${r.included ? '  in the set' : r.price != null ? `  ${pesos(r.price)}` : r.label === 'Treatments' ? '' : '  at the register'}`);
+    for (const r of o.rows) out.push(`  ${r.label}: ${r.desc}${r.qty ? ` ×${r.qty}` : ''}${r.included ? '  in the set' : r.price != null ? `  ${r.from ? 'from ' : ''}${pesos(r.price)}` : r.label === 'Treatments' ? '' : '  at the register'}`);
     if (o.save) out.push(`  Subtotal ${pesos(o.subtotal)} · you save ${pesos(o.save)}`);
-    out.push(`  Total to pay ${pesos(o.total)}`);
+    out.push(`  Total to pay ${o.from ? 'from ' : ''}${pesos(o.total)}`);
   }
   return out.join('\n');
 }

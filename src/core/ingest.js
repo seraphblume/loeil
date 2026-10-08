@@ -255,6 +255,7 @@ export function readBackend(sheets, report = new Report()) {
       sv: cellText(r.single_vision).trim(), mf: cellText(r.progressive).trim(),
       extras: cellText(r.extras).split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean),
       items: parseItems(cellText(r.items)),
+      ...(cellText(r.brands).trim() ? { brands: cellText(r.brands).split(',').map((x) => x.trim()).filter(Boolean) } : {}),
     }));
   }
   const storeTab = tab('store', ['field', 'value']);

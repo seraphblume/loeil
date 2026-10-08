@@ -113,7 +113,9 @@ function run(ctx, blocks, draw) {
     } else if (b.t === 'opthead') {
       y += 2; font(12, 700); text(String(b.text).toUpperCase(), b.center ? W / 2 : M, y, b.center ? 'center' : 'left'); y += 20;
     } else if (b.t === 'qrow') {
-      const LABW = 82; const QW = 20; const PW = 70; const G = 6;
+      const LABW = 82; const QW = 20; const G = 6;
+      font(10.5, 500);
+      const PW = Math.max(70, ctx.measureText(b.price).width); // `from $13,239.00` is wider than a plain price
       const descW = inner - LABW - QW - PW - G * 2;
       font(10.5, 700); text(b.label, M, y, 'left', SOFT);
       font(10.5, 500);

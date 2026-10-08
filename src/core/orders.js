@@ -48,6 +48,17 @@ export const lensLine = (lens, eye, power, quantity) => ({ id: uid(), kind: 'len
 /** Spectacle lenses: the pair. */
 export const pairLine = (lens) => ({ id: uid(), kind: 'lens', lens, eye: 'OU', power: '', quantity: 2 });
 
+/**
+ * A frame not chosen yet — quoted by its brand or by the set it will come
+ * from. `priceSource` 'from' is the brand's lowest catalogue price; a set
+ * prices it at the set's price. It stands in until the real frame is scanned.
+ */
+export const placeholderFrame = ({ brand = '', description, priceCents, priceSource, setId = null }) => ({
+  id: uid(), kind: 'frame', sku: '', product: '', description, brand, category: 'Ophthalmic', priceCents, priceSource,
+  stock: null, placeholder: true, ...(setId ? { setId } : {}),
+});
+export const isPlaceholder = (line) => line.kind === 'frame' && Boolean(line.placeholder);
+
 export const frameLine = (frame, priceCents, priceSource) => ({
   id: uid(), kind: 'frame', sku: frame.sku, product: frame.product ?? frame.vendorSku ?? '',
   description: frame.description, brand: frame.brand ?? '', category: frame.category ?? '', priceCents, priceSource,

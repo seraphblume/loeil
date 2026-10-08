@@ -72,13 +72,12 @@ export function QuoteScreen() {
         <//>
         <${Section} title=${`Options · ${n} of ${QUOTE_OPTIONS}`}
           footer=${n < QUOTE_OPTIONS ? (forSomeoneElse ? 'The order in progress belongs to another client — save or clear it first, or clear the quote.'
-            : hasFrame ? 'A preset keeps the frame on the order and swaps the lenses. Each option keeps the prices it was added at.'
-              : 'Scan or pick the frame on the order first for its price in every option; a preset alone quotes the lenses and extras.') : null}>
+            : 'Each option keeps the prices it was added at. A frame quoted by brand is priced from the set, or from the brand’s lowest catalogue price.') : null}>
           ${quote.options.map((o, i) => html`<${Row} key=${o.id} title=${`${i + 1} · ${optionTitle(o.order)}`} detail=${composition(o.order)} one
             end=${html`<span class="num">${money(q.options[i]?.total ?? 0)}</span>
               <button type="button" class="icon-btn" aria-label=${`Remove option ${i + 1}`} onClick=${() => removeQuoteOption(o.id)}><${Icon} name="x" size=${15} /></button>`} />`)}
           ${n < QUOTE_OPTIONS && html`
-            <${Row} icon="spark" title="Add an option from a preset" detail=${hasFrame ? 'With the frame on the order' : 'Lens, Plus Protection and accessories'} chev onClick=${() => setSheet('preset')} />
+            <${Row} icon="spark" title="Add an option" detail="A frame, a brand or a set, then a lifestyle preset" chev onClick=${() => setSheet('preset')} />
             ${draftLines > 0 && html`<${Row} icon="plus" title="Add the order as it is" detail=${`${draftLines} line${draftLines === 1 ? '' : 's'} on the order`} onClick=${addOrderToQuote} />`}
             <${Row} icon="glasses" title=${draftLines ? 'Change the order' : 'Build an option on the order'} detail=${hasFrame ? 'Frame, lenses and extras, then Add to quote' : 'Scan the frame, choose the lenses, then Add to quote'} chev onClick=${toOrder} />`}
         <//>

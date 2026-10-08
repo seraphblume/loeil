@@ -213,6 +213,8 @@ function validatePresets(b, report, { facts, lookup }) {
     }
     for (const id of t.extras ?? []) if (!extras.has(id)) report.warn('Lifestyle presets', `${where}: extra ${id} is not in the extras list.`);
     for (const i of t.items ?? []) if (!i.skus.some((s) => stock.has(s))) report.warn('Lifestyle presets', `${where}: no ${i.label.toLowerCase()} in the stock list (${i.skus.join(', ')}).`);
+    const known = new Set(b.frames.map((f) => brandKey(f.brand)));
+    for (const brand of t.brands ?? []) if (!known.has(brandKey(brand))) report.warn('Lifestyle presets', `${where}: no ${brand} frames in the catalogue.`);
   }
 }
 
