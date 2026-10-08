@@ -71,6 +71,11 @@ function Block({ b }) {
     case 'foot': return html`<div class="rc-foot">${b.text}</div>`;
     case 'barcode': return html`<${Barcode} value=${b.value} caption=${b.caption} />`;
     case 'thanks': return html`<div class="rc-thanks">${b.text}</div>`;
+    case 'hello': return html`<div class="rc-hello">${b.lines.map((l) => html`<div>${l}</div>`)}</div>`;
+    case 'center': return html`<div class=${'rc-center' + (b.soft ? ' soft' : '')}>${b.text}</div>`;
+    case 'opthead': return html`<div class=${'rc-opthead' + (b.center ? ' center' : '')}>${b.text}</div>`;
+    case 'qrow': return html`<div class="rc-qrow"><span class="l">${b.label}</span><span class="d">${b.desc}</span><span class="q">${b.qty}</span><span class="p">${b.price}</span></div>`;
+    case 'pair': return html`<div class="rc-pair"><span>${b.k}</span><span>${b.v}</span></div>`;
     case 'fine': return html`<div class=${'rc-fine' + (b.left ? ' left' : '')}>${b.text}</div>`;
     default: return null;
   }
@@ -125,17 +130,14 @@ function CopyList({ r }) {
 // ---------------------------------------------------------------------------
 // The stage: status, printer, paper
 
-function ReceiptStage({ order, client, rx }) {
-  const catalogue = useApp((s) => s.catalogue);
-  const [kind, setKind] = useState('register');
+/**
+ * The feed: prints whenever `key` changes, or on `reprint`. The paper steps
+ * out of the printer, a buzz and a sound if he wants it, then a small settle.
+ */
+export function usePrinter(key) {
   const [run, setRun] = useState(0);
   const [phase, setPhase] = useState('printing');
-  const [sound, setSound] = useState(soundOn);
-  const [sharing, setSharing] = useState(false);
   const paperRef = useRef();
-  const r = useMemo(() => buildReceipt({ order, catalogue, kind, client, rx }), [order, catalogue, kind, client, rx]);
-  const blocks = useMemo(() => receiptBlocks(r), [r]);
-
   useLayoutEffect(() => {
     const el = paperRef.current;
     if (!el) return undefined;
@@ -154,53 +156,80 @@ function ReceiptStage({ order, client, rx }) {
       el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], { duration: 260, easing: 'cubic-bezier(.23, 1, .32, 1)' });
     }).catch(() => {});
     return () => { alive = false; anim.cancel(); stop?.(); };
-  }, [kind, run]);
+  }, [key, run]);
+  return { paperRef, done: phase === 'done', reprint: () => setRun((n) => n + 1) };
+}
 
+/** Status card, printer and paper. `status` is `{ printing, done, detail }`. */
+export function PrinterRig({ printer, blocks, label, status }) {
+  const [sound, setSound] = useState(soundOn);
   const toggleSound = () => { const next = !sound; setSound(next); setSoundOn(next); if (next) toast('Printer sound on'); };
+  const { done } = printer;
+  return html`<div class="printer-rig">
+    <div class=${'status-card' + (done ? ' done' : '')}>
+      <span class="tick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" /><path d="m7.5 12.4 3 3 6-6.6" /></svg></span>
+      <span class="words">
+        <span class="t">${done ? status.done : status.printing}</span>
+        <span class="s">${done ? status.detail : 'Feeding paper…'}</span>
+      </span>
+      <span class="state">${done ? 'Printed' : 'Printing'}</span>
+    </div>
+    <div class=${'printer' + (done ? '' : ' busy')}>
+      <div class="printer-top">
+        <${Icon} name="printer" />
+        <span class="label">L’ŒIL · ${label}</span>
+        <button type="button" class="feed" onClick=${printer.reprint} aria-label="Print again"><i></i>FEED</button>
+      </div>
+      <div class="slot"></div>
+    </div>
+    <${Paper} blocks=${blocks} paperRef=${printer.paperRef}
+      soundToggle=${html`<button type="button" class="sound-toggle" aria-label=${sound ? 'Printer sound off' : 'Printer sound on'} onClick=${toggleSound}><${Icon} name=${sound ? 'sound' : 'mute'} /></button>`} />
+  </div>`;
+}
+
+/** Share sheet with the picture; a download where the phone has none. */
+export async function shareBlocks(blocks, name, title) {
+  try {
+    const blob = await receiptImage(blocks);
+    const how = await shareReceiptImage(blob, name, title);
+    if (how === 'downloaded') toast('Image saved');
+  } catch { toast('The image could not be made on this browser'); }
+}
+
+function ReceiptStage({ order, client, rx }) {
+  const catalogue = useApp((s) => s.catalogue);
+  const [kind, setKind] = useState('register');
+  const [sharing, setSharing] = useState(false);
+  const r = useMemo(() => buildReceipt({ order, catalogue, kind, client, rx }), [order, catalogue, kind, client, rx]);
+  const blocks = useMemo(() => receiptBlocks(r), [r]);
+  const printer = usePrinter(kind);
+
   const share = async () => {
     setSharing(true);
-    try {
-      const blob = await receiptImage(blocks);
-      const how = await shareReceiptImage(blob, `loeil-${r.number}-${kind}.png`, `Order #${r.number}`);
-      if (how === 'downloaded') toast('Receipt image saved');
-    } catch { toast('The image could not be made on this browser'); } finally { setSharing(false); }
+    await shareBlocks(blocks, `loeil-${r.number}-${kind}.png`, `Order #${r.number}`);
+    setSharing(false);
   };
   const copyAll = async () => {
     try { await navigator.clipboard.writeText(receiptText(r)); toast('Copied — every value, as text'); buzz(8); } catch { toast('Copying is not allowed here'); }
   };
 
-  const done = phase === 'done';
   const register = kind === 'register';
   return html`
     <div class="pad stack tight receipt-stage">
       <${Seg} label="Copy" value=${kind} onChange=${(k) => { if (k !== kind) setKind(k); }}
         options=${[{ value: 'register', label: 'Register copy' }, { value: 'customer', label: 'Customer copy' }]} />
-      <div class="printer-rig">
-        <div class=${'status-card' + (done ? ' done' : '')}>
-          <span class="tick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" /><path d="m7.5 12.4 3 3 6-6.6" /></svg></span>
-          <span class="words">
-            <span class="t">${done ? (register ? 'Ready for the register' : 'Quote ready') : register ? 'Printing the register copy' : 'Printing the quote'}</span>
-            <span class="s">${done ? `Receipt #${r.number} · ${money(r.totals.total)}` : 'Feeding paper…'}</span>
-          </span>
-          <span class="state">${done ? 'Printed' : 'Printing'}</span>
-        </div>
-        <div class=${'printer' + (done ? '' : ' busy')}>
-          <div class="printer-top">
-            <${Icon} name="printer" />
-            <span class="label">L’ŒIL · ${register ? 'REGISTER' : 'QUOTE'}</span>
-            <button type="button" class="feed" onClick=${() => setRun(run + 1)} aria-label="Print again"><i></i>FEED</button>
-          </div>
-          <div class="slot"></div>
-        </div>
-        <${Paper} blocks=${blocks} paperRef=${paperRef}
-          soundToggle=${html`<button type="button" class="sound-toggle" aria-label=${sound ? 'Printer sound off' : 'Printer sound on'} onClick=${toggleSound}><${Icon} name=${sound ? 'sound' : 'mute'} /></button>`} />
-      </div>
+      <${PrinterRig} printer=${printer} blocks=${blocks} label=${register ? 'REGISTER' : 'CUSTOMER'}
+        status=${{
+          printing: register ? 'Printing the register copy' : 'Printing the customer copy',
+          done: register ? 'Ready for the register' : 'Customer copy ready',
+          detail: `Receipt #${r.number} · ${money(r.totals.total)}`,
+        }} />
       ${!r.store && html`<p class="note">The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.</p>`}
-      ${register && html`<div class=${'after' + (done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
+      ${register && html`<div class=${'after' + (printer.done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
     </div>
     <${Dock}>
       <${Secondary} icon="copy" onClick=${copyAll}>Copy all<//>
-      <${Anchor} icon="share" disabled=${sharing || !done} onClick=${share}>${sharing ? 'Making the image…' : 'Share image'}<//>
+      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? 'Making the image…' : 'Share image'}<//>
     <//>`;
 }
 

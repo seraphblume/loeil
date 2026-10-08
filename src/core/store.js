@@ -15,6 +15,7 @@ export const STORE_FIELDS = [
   { key: 'country', label: 'Country' },
   { key: 'phone', label: 'Phone' },
   { key: 'footer', label: 'Footer', type: 'textarea', hint: 'One line per line of the ticket’s foot: the note to keep it, the return policy, customer service.' },
+  { key: 'quoteFooter', label: 'Quote footer', type: 'textarea', hint: 'The quote’s foot, under its QUOTE heading: what a quote is and is not, and the privacy notice.' },
 ];
 
 export const STORE_KEYS = STORE_FIELDS.map((f) => f.key);
@@ -30,5 +31,5 @@ export function cleanStore(s) {
   return Object.keys(out).length ? out : null;
 }
 
-/** The ticket's foot, one entry per line. */
-export const footerLines = (store) => String(store?.footer ?? '').split('\n').map((l) => l.trim());
+/** The ticket's foot (or the quote's), one entry per line. */
+export const footerLines = (store, key = 'footer') => String(store?.[key] ?? '').split('\n').map((l) => l.trim());

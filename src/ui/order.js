@@ -17,6 +17,9 @@ import {
   isPair, isShare, isGlasses, discountable, needsAob, aobMissing,
 } from '../core/orders.js';
 import { OrderRxSheet, rxSummary } from './rx.js';
+import { addOrderToQuote } from './quote.js';
+import { PresetSheet } from './presets.js';
+import { solutionClash } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, autoDiscountFor, setTable, rowPriceText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
@@ -59,7 +62,7 @@ export function LinesPanel({ order, editable }) {
         const via = l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
           : l.set ? `${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}`
             : isShare(l) ? `${l.percent}% of ${money(r.base)}`
-              : isPair(l) ? (l.quantity === 2 ? 'The pair' : `${l.eye} only`) : null;
+              : isPair(l) ? [l.presetName, l.quantity === 2 ? 'The pair' : `${l.eye} only`].filter(Boolean).join(' · ') : null;
         return html`<div class="ol" key=${l.id}>
           <div class="what">
             <div class="name">${lineText(l)}</div>
@@ -215,6 +218,7 @@ export function OrderScreen() {
   const has = draft.lines.length > 0;
   const aob = needsAob(draft, catalogue);
   const missing = aobMissing(draft, catalogue);
+  const clash = solutionClash(draft, catalogue);
 
   return html`
     <${Bar} backTo="#/find" title="Order" trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
@@ -226,6 +230,7 @@ export function OrderScreen() {
             end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
             chev onClick=${() => setSheet('rx')} />
         <//>
+        ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Transitions and Crizal. Offer a microfibre cloth instead.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has
@@ -237,13 +242,17 @@ export function OrderScreen() {
           : html`<div class="pad"><${Empty} title="Nothing on this order yet">Scan a frame, walk a lens, or add a case. When it is ready, Checkout prints the receipt with every code the register needs.<//></div>`}
 
         <${Section} title="Add">
+          <${Row} icon="spark" title="Lifestyle preset" detail="Lens, Plus Protection and accessories in one tap" chev onClick=${() => setSheet('preset')} />
           <${Row} icon="lens" title="Lens" chev onClick=${() => setSheet('lens')} />
           <${Row} icon="barcode" title="Scan a frame or stock item" chev onClick=${() => go('#/find/scan')} />
           <${Row} icon="glasses" title="Browse frames" chev onClick=${() => go('#/find/frames')} />
           <${Row} icon="box" title="Case, solution or extra" chev onClick=${() => setSheet('extra')} />
         <//>
 
-        ${has && html`<div class="pad"><${Secondary} icon="check" onClick=${() => setSheet('save')}>Save to client<//></div>`}
+        ${has && html`<div class="pad btn-row">
+          <${Secondary} icon="tag" onClick=${addOrderToQuote}>Add to quote<//>
+          <${Secondary} icon="check" onClick=${() => setSheet('save')}>Save to client<//>
+        </div>`}
       </div>
     <//>
     ${has && html`<${Dock}>
@@ -256,7 +265,8 @@ export function OrderScreen() {
     ${sheet === 'lens' && html`<${LensFamilySheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'extra' && html`<${AddExtraSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'save' && html`<${SaveSheet} onClose=${() => setSheet(null)} />`}
-    ${(sheet === 'rx' || sheet === 'aob') && html`<${OrderRxSheet} start=${sheet} onClose=${() => setSheet(null)} />`}`;
+    ${(sheet === 'rx' || sheet === 'aob') && html`<${OrderRxSheet} start=${sheet} onClose=${() => setSheet(null)} />`}
+    ${sheet === 'preset' && html`<${PresetSheet} onClose=${() => setSheet(null)} />`}`;
 }
 
 const pairCount = (order) => order.lines.filter((l) => isPair(l)).length;

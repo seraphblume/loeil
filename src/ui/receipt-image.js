@@ -105,6 +105,25 @@ function run(ctx, blocks, draw) {
       const x0 = (W - width * unit) / 2;
       if (draw) { ctx.fillStyle = INK; for (const bar of bars) ctx.fillRect(x0 + bar.x * unit, y, bar.w * unit, 50); }
       y += 64; font(10.5, 400); text(b.caption, W / 2, y, 'center', SOFT); y += 20;
+    } else if (b.t === 'hello') {
+      font(18, 600, SANS); for (const l of b.lines) { text(l, W / 2, y + 4, 'center'); y += 23; }
+      y += 2;
+    } else if (b.t === 'center') {
+      font(11.5, 500); for (const l of wrap(ctx, b.text, inner)) { text(l, W / 2, y, 'center', b.soft ? SOFT : INK); y += 15.5; }
+    } else if (b.t === 'opthead') {
+      y += 2; font(12, 700); text(String(b.text).toUpperCase(), b.center ? W / 2 : M, y, b.center ? 'center' : 'left'); y += 20;
+    } else if (b.t === 'qrow') {
+      const LABW = 82; const QW = 20; const PW = 70; const G = 6;
+      const descW = inner - LABW - QW - PW - G * 2;
+      font(10.5, 700); text(b.label, M, y, 'left', SOFT);
+      font(10.5, 500);
+      text(b.qty, M + LABW + descW + G + QW / 2, y, 'center');
+      text(b.price, W - M, y, 'right');
+      const lines = wrap(ctx, b.desc, descW);
+      for (const l of lines) { text(l, M + LABW, y); y += 14; }
+      y += 4;
+    } else if (b.t === 'pair') {
+      font(11.5, 500); text(b.k, M, y, 'left', SOFT); text(b.v, W - M, y, 'right'); y += 16;
     } else if (b.t === 'thanks') {
       y += 6; font(13, 500, SANS); text(b.text, W / 2, y, 'center', '#2A2D33'); y += 18;
     } else if (b.t === 'fine') {

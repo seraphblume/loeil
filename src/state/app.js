@@ -9,11 +9,13 @@ import * as db from './db.js';
 import { Catalogue } from '../core/catalogue.js';
 import { open, WrongPasscode } from '../core/crypto.js';
 import { APP_BUILD, DATA_PATH, FETCH_TIMEOUT_MS } from '../config.js';
-import { newOrder } from '../core/orders.js';
+import { newOrder, pairLine, extraLine, isPair } from '../core/orders.js';
 import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
 import { readAlpha, mergeAlpha } from '../core/alpha.js';
+import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
+import { uid } from '../core/util.js';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -28,6 +30,7 @@ let state = {
   identity: null,
   draft: newOrder(),
   draftRx: null,
+  quote: newQuote(),
   toast: null,
   update: false,
   working: null,
@@ -52,8 +55,8 @@ export function toast(message) {
 // Boot
 
 export async function boot() {
-  const [bundle, passcode, store, identity, draft] = await Promise.all([
-    db.get('bundle'), db.get('passcode'), db.get('store'), db.get('identity'), db.get('draft'),
+  const [bundle, passcode, store, identity, draft, quote] = await Promise.all([
+    db.get('bundle'), db.get('passcode'), db.get('store'), db.get('identity'), db.get('draft'), db.get('quote'),
   ]);
   setState({
     booted: true,
@@ -64,6 +67,7 @@ export async function boot() {
     identity: identity ?? null,
     draft: draft?.order ?? newOrder(),
     draftRx: draft?.rx ?? null,
+    quote: quote ?? newQuote(),
   });
   db.persist();
   if (passcode) refresh();
@@ -237,6 +241,25 @@ export async function setDraftClient(clientId) {
   await saveDraft();
 }
 
+/**
+ * A lifestyle preset onto the order: its lens replaces the spectacle lenses
+ * there, and what an earlier preset added goes, so tapping another preset
+ * swaps cleanly. Frames, contact lenses and what he added by hand stay.
+ */
+export async function applyPreset(result) {
+  const tag = `${result.tier.presetId}|${result.tier.tier}`;
+  const keep = state.draft.lines.filter((l) => !l.preset && !isPair(l));
+  const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
+  const lines = [
+    ...keep,
+    { ...pairLine(result.lens), preset: tag, presetName: `${result.tier.preset} · ${result.tier.tier}` },
+    ...result.extras.filter((e) => !have.has(e.id)).map((e) => ({ ...extraLine(e.id, e.description, 1, null, e.percent), preset: tag })),
+    ...result.items.filter((i) => !have.has(i.sku)).map((i) => ({ ...extraLine(i.sku, i.description, 1, i.stock), preset: tag })),
+  ];
+  setState({ draft: { ...state.draft, lines } });
+  await saveDraft();
+}
+
 /** The prescription this job is made to. It starts as the client's and can differ from it. */
 export async function setDraftRx(rx) {
   setState({ draftRx: rx });
@@ -265,6 +288,46 @@ export async function saveDraftTo(clientId, status = 'draft') {
   const saved = await upsertOrder({ ...resolvedDraft(), clientId, status, rx });
   await clearDraft();
   return saved;
+}
+
+// ---------------------------------------------------------------------------
+// The quote: up to three snapshots of the order in progress, for one client.
+
+async function saveQuote() { await db.set('quote', state.quote); }
+
+/** Snapshots the order in progress as the next option. Returns why it could not, if it could not. */
+export async function addToQuote() {
+  const q = state.quote;
+  const draft = resolvedDraft();
+  if (!draft.lines.length) return { error: 'The order is empty — add a frame or a lens first.' };
+  if (q.options.length >= QUOTE_OPTIONS) return { error: `The quote already has ${QUOTE_OPTIONS} options. Remove one first.` };
+  if (q.clientId && draft.clientId && q.clientId !== draft.clientId) {
+    return { error: `This quote is for ${clientById(q.clientId)?.name ?? 'another client'}. Clear it to quote someone else.` };
+  }
+  const seller = staffMember();
+  const order = {
+    ...draft, id: uid(), status: 'presented',
+    sellerEmployeeNumber: seller?.employeeNumber ?? null, sellerName: seller?.name ?? null,
+  };
+  const quote = { ...q, clientId: q.clientId ?? draft.clientId ?? null, options: [...q.options, { id: uid(), order, addedOn: new Date().toISOString() }] };
+  setState({ quote });
+  await saveQuote();
+  return { n: quote.options.length };
+}
+
+export async function removeQuoteOption(id) {
+  setState({ quote: { ...state.quote, options: state.quote.options.filter((o) => o.id !== id) } });
+  await saveQuote();
+}
+
+export async function setQuoteClient(clientId) {
+  setState({ quote: { ...state.quote, clientId } });
+  await saveQuote();
+}
+
+export async function clearQuote() {
+  setState({ quote: newQuote() });
+  await saveQuote();
 }
 
 // ---------------------------------------------------------------------------

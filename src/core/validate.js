@@ -53,6 +53,7 @@ export function counts(b) {
     Sets: (b.sets ?? []).length,
     'Campaign discounts': (b.discounts ?? []).length,
     'Store fields': Object.keys(b.store ?? {}).length,
+    'Preset tiers': (b.presets ?? []).length,
     Vocabulary: b.vocabulary.length,
   };
 }
@@ -194,6 +195,27 @@ export function validateBundle(b, report = new Report()) {
   return report.done(counts(b));
 }
 
+/** Lifestyle presets: named, each tier landing on a real lens, its extras and stock known. */
+function validatePresets(b, report, { facts, lookup }) {
+  const keys = new Set();
+  const extras = new Set(b.extras.map((e) => e.id));
+  const stock = new Set(b.inventory.map((i) => i.sku));
+  for (const t of b.presets ?? []) {
+    const where = `${t.preset || t.presetId || 'A preset'} · ${t.tier || '?'}`;
+    if (!t.presetId || !t.preset) report.error('Lifestyle presets', `${where}: the preset needs an id and a name.`);
+    if (!t.tier) report.error('Lifestyle presets', `${where}: the tier needs a name.`);
+    const k = `${t.presetId}|${t.tier}`;
+    if (keys.has(k)) report.error('Lifestyle presets', `${where} is listed twice.`);
+    keys.add(k);
+    if (!t.sv && !t.mf) report.error('Lifestyle presets', `${where} names no lens.`);
+    for (const [label, spec] of [['single vision', t.sv], ['progressive', t.mf]]) {
+      if (spec && !facts.some((f) => factsMatch(lookup, spec, f))) report.warn('Lifestyle presets', `${where}: the ${label} lens matches nothing in the catalogue.`);
+    }
+    for (const id of t.extras ?? []) if (!extras.has(id)) report.warn('Lifestyle presets', `${where}: extra ${id} is not in the extras list.`);
+    for (const i of t.items ?? []) if (!i.skus.some((s) => stock.has(s))) report.warn('Lifestyle presets', `${where}: no ${i.label.toLowerCase()} in the stock list (${i.skus.join(', ')}).`);
+  }
+}
+
 /** Sets, their table and the campaign discounts. Older bundles have none, which is fine. */
 function validateSets(b, report) {
   const sets = b.sets ?? [];
@@ -250,6 +272,7 @@ function validateSets(b, report) {
     }
     if (!facts.some((f) => factsMatch(lookup, d.match, f))) report.note('Set lens rows', `${d.group} · ${d.name} matches no lens in the catalogue, so it is only ever chosen by hand.`);
   }
+  validatePresets(b, report, { facts, lookup });
   if (handPicked.length) report.note('Set lens rows', `Chosen by hand on the order (no match): ${handPicked.join(', ')}.`);
 
   const seen = new Set();

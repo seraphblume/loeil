@@ -4,6 +4,7 @@
 
 import { cellText } from './util.js';
 import { STORE_FIELDS } from './store.js';
+import { itemsText } from './presets.js';
 
 const amount = (cents) => (cents == null ? null : cents / 100);
 
@@ -51,6 +52,8 @@ export function bundleToWorkbooks(b, XLSX) {
     ...(b.setPrices ?? []).map((p) => [p.setId, p.lensId, amount(p.price), p.special ? 'YES' : ''])], [10, 16, 9, 8]);
   add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to'],
     ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo])], [10, 30, 8, 12, 40, 50, 11, 11]);
+  add(backend, 'presets', [['preset_id', 'preset', 'blurb', 'tier', 'tier_blurb', 'single_vision', 'progressive', 'extras', 'items'],
+    ...(b.presets ?? []).map((t) => [t.presetId, t.preset, t.blurb, t.tier, t.tierBlurb, t.sv, t.mf, (t.extras ?? []).join(', '), itemsText(t.items)])], [12, 18, 40, 14, 40, 34, 34, 16, 70]);
   add(backend, 'store', [['field', 'value'], ...STORE_FIELDS.map((f) => [f.key, b.store?.[f.key] ?? ''])], [16, 70]);
 
   const catalogue = XLSX.utils.book_new();

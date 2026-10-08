@@ -75,3 +75,55 @@ export function receiptBlocks(r) {
   if (r.validUntil) B.push({ t: 'fine', text: `Set prices valid until ${dmy(new Date(r.validUntil + 'T12:00'))}` });
   return B;
 }
+
+// ---------------------------------------------------------------------------
+// The quote: the register's presupuesto, in English. A greeting, the branch
+// and the client, then each option — frame, lenses, treatments, extras, the
+// sums and how long the prices hold — and the quote's foot.
+
+const day = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return dmy(new Date(y, m - 1, d)); };
+
+export function quoteBlocks(q) {
+  const s = q.store ?? {};
+  const B = [];
+  B.push({ t: 'brand', title: 'L’ŒIL', copy: 'QUOTE' });
+  B.push({ t: 'hello', lines: ['Hello!', 'Welcome'] });
+  B.push({ t: 'center', text: q.client ? `Thank you for visiting us, ${q.client.first}!` : 'Thank you for visiting us!' });
+  if (s.branchName) B.push({ t: 'center', text: `at ${s.branchName}`, soft: true });
+  B.push({ t: 'gap' });
+  B.push({ t: 'field', k: 'Date', v: dmy(q.date) });
+  if (s.branchName || s.branchCode) B.push({ t: 'field', k: 'Branch', v: `${s.branchCode ? `( ${s.branchCode} ) ` : ''}${s.branchName ?? ''}` });
+  if (s.address) B.push({ t: 'field', k: 'Address', v: s.address });
+  if (s.district) B.push({ t: 'field', k: 'District', v: s.district });
+  if (s.phone || s.zip) B.push({ t: 'field', k: 'Phone', v: [s.phone, s.zip && `ZIP: ${s.zip}`].filter(Boolean).join('   ') });
+  if (q.seller) B.push({ t: 'field', k: 'Employee', v: `${q.seller.number} (${String(q.seller.name).toUpperCase()})` });
+  if (q.client) B.push({ t: 'field', k: 'Client', v: q.client.name });
+  if (q.client?.phone) B.push({ t: 'field', k: 'Phone', v: q.client.phone });
+  B.push({ t: 'gap' });
+  B.push({ t: 'center', text: 'Here is your quote. Please remember it is not proof of payment.', soft: true });
+  B.push({ t: 'field', k: 'Quote', v: q.number, strong: true });
+
+  for (const o of q.options) {
+    B.push({ t: 'rule' });
+    B.push({ t: 'opthead', text: `Option ${o.n}` });
+    for (const r of o.rows) {
+      B.push({
+        t: 'qrow', label: r.label, desc: r.desc, qty: r.qty ? String(r.qty) : '',
+        price: r.label === 'Treatments' ? '' : r.pending ? '—' : r.included ? 'in the set' : r.register ? 'at register' : amount(r.price),
+      });
+    }
+    B.push({ t: 'gap' });
+    B.push({ t: 'pair', k: 'Subtotal:', v: amount(o.subtotal) });
+    B.push({ t: 'pair', k: 'You save:', v: amount(o.save) });
+    B.push({ t: 'amount', k: 'Total to pay', v: amount(o.total) });
+    if (o.pending) B.push({ t: 'fine', text: 'A lens still needs its row of the set — total so far', left: true });
+    if (o.unpriced) B.push({ t: 'fine', text: `${o.unpriced} item${o.unpriced === 1 ? '' : 's'} priced at the register`, left: true });
+    B.push({ t: 'fine', text: '*Authorised materials and treatments apply.', left: true });
+    if (o.validUntil) B.push({ t: 'fine', text: `This quote is valid until: ${day(o.validUntil)}`, left: true });
+  }
+  B.push({ t: 'rule' });
+  B.push({ t: 'opthead', text: 'QUOTE', center: true });
+  for (const line of footerLines(q.store, 'quoteFooter')) B.push(line ? { t: 'foot', text: line } : { t: 'gap' });
+  B.push({ t: 'thanks', text: 'We hope to see you soon!' });
+  return B;
+}

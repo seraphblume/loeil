@@ -2,11 +2,12 @@
 // and gives the phone's back gesture something real to go back to.
 //
 //   #/find …          the Find tab and everything reached from it
+//   #/quote           the quote being put together
 //   #/clients/<id>    #/orders/<id>    #/me …
 
 import { useState, useEffect, useLayoutEffect, useRef } from './html.js';
 
-export const TABS = ['find', 'clients', 'orders', 'me'];
+export const TABS = ['find', 'quote', 'clients', 'orders', 'me'];
 const lastByTab = {};
 const scrollByHref = new Map();
 let depth = 0;

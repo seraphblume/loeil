@@ -239,6 +239,15 @@ export function setCampaignDates(b, validFrom, validTo) {
   };
 }
 
+/** A preset tier, keyed by preset and tier. */
+const presetKeyOf = (t) => `${t.presetId}|${t.tier}`;
+export function upsertPreset(b, t, originalKey) {
+  const list = L(b, 'presets');
+  const i = list.findIndex((x) => presetKeyOf(x) === (originalKey ?? presetKeyOf(t)));
+  return { ...b, presets: i < 0 ? [...list, t] : list.map((x, j) => (j === i ? t : x)) };
+}
+export const deletePreset = (b, key) => ({ ...b, presets: L(b, 'presets').filter((x) => presetKeyOf(x) !== key) });
+
 /** The branch on the ticket. */
 export const setStore = (b, store) => ({ ...b, store: cleanStore(store) });
 
@@ -247,7 +256,7 @@ export const setStore = (b, store) => ({ ...b, store: cleanStore(store) });
 
 export function applyPieces(b, pieces) {
   const n = { ...b };
-  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts']) if (pieces[k]) n[k] = pieces[k];
+  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts', 'presets']) if (pieces[k]) n[k] = pieces[k];
   if (pieces.lenses) n.lenses = pieces.lenses;
   if (pieces.stockReport) n.stockReport = pieces.stockReport;
   if (pieces.store) n.store = pieces.store;

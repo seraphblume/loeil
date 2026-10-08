@@ -21,6 +21,8 @@ import { SetsScreen, SetScreen } from './sets.js';
 import { CheckoutScreen, SavedReceiptScreen } from './receipt.js';
 import { SetsAdminScreen, SetAdminScreen, SetLensesScreen, DiscountsScreen } from './data/sets.js';
 import { OrderScreen } from './order.js';
+import { QuoteScreen } from './quote.js';
+import { PresetsAdminScreen } from './presets.js';
 import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
 import { MeScreen, PromotionsScreen } from './me.js';
@@ -33,6 +35,7 @@ import { PromosScreen, PromoScreen } from './data/promos.js';
 
 const TAB_ITEMS = [
   { id: 'find', label: 'Find', icon: 'search' },
+  { id: 'quote', label: 'Quote', icon: 'tag' },
   { id: 'clients', label: 'Clients', icon: 'people' },
   { id: 'orders', label: 'Orders', icon: 'doc' },
   { id: 'me', label: 'Me', icon: 'person' },
@@ -40,12 +43,14 @@ const TAB_ITEMS = [
 
 function TabBar({ route }) {
   const draftLines = useApp((s) => s.draft.lines.length);
+  const quoted = useApp((s) => s.quote.options.length);
   const i = TAB_ITEMS.findIndex((t) => t.id === route.tab);
   return html`<nav class="tabbar" aria-label="Sections" style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
     <i class="tab-pill" aria-hidden="true"></i>
     ${TAB_ITEMS.map((t) => html`<a ...${linkProps(tabHref(t.id, route))} class=${route.tab === t.id ? 'on' : ''} aria-current=${route.tab === t.id ? 'page' : null}>
       <${Icon} name=${t.icon} />${t.label}
       ${t.id === 'find' && draftLines > 0 && route.parts[1] !== 'order' && html`<i class="dot" aria-label="Order in progress"></i>`}
+      ${t.id === 'quote' && quoted > 0 && route.tab !== 'quote' && html`<i class="dot" aria-label="Quote in progress"></i>`}
     </a>`)}
   </nav>`;
 }
@@ -56,7 +61,8 @@ function Sidebar({ route }) {
   const seller = useApp((s) => staffMember(s));
   const clients = useApp((s) => s.clients.length);
   const open = useApp((s) => s.orders.filter((o) => o.status === 'draft' || o.status === 'presented').length);
-  const counts = { clients, orders: open || null };
+  const quoted = useApp((s) => s.quote.options.length);
+  const counts = { clients, orders: open || null, quote: quoted || null };
   const onOrder = route.parts[0] === 'find' && (route.parts[1] === 'order' || route.parts[1] === 'checkout');
   return html`<nav class="sidebar" aria-label="Sections">
     <div class="side-head"><${Wordmark} size=${30} /></div>
@@ -134,6 +140,7 @@ function screenFor(route) {
     if (a === 'checkout') return html`<${CheckoutScreen} />`;
     return html`<${FindHome} query=${route.query} />`;
   }
+  if (tab === 'quote') return html`<${QuoteScreen} />`;
   if (tab === 'clients') return a ? html`<${ClientScreen} id=${a} />` : html`<${ClientsScreen} />`;
   if (tab === 'orders') {
     if (a && b === 'receipt') return html`<${SavedReceiptScreen} id=${a} />`;
@@ -152,6 +159,7 @@ function screenFor(route) {
       if (b === 'extras') return html`<${ExtrasScreen} />`;
       if (b === 'staff') return html`<${StaffAdminScreen} />`;
       if (b === 'store') return html`<${StoreAdminScreen} />`;
+      if (b === 'presets') return html`<${PresetsAdminScreen} />`;
       if (b === 'promos') return route.parts[3] ? html`<${PromoScreen} id=${route.parts[3]} />` : html`<${PromosScreen} />`;
       if (b === 'sets') return route.parts[3] ? html`<${SetAdminScreen} id=${decodeURIComponent(route.parts[3])} />` : html`<${SetsAdminScreen} />`;
       if (b === 'setlenses') return html`<${SetLensesScreen} />`;

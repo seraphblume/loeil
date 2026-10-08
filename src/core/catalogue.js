@@ -98,6 +98,7 @@ export class Catalogue {
     }
     this.discounts = bundle?.discounts ?? [];
     this.store = bundle?.store ?? null;
+    this.presets = bundle?.presets ?? [];
   }
 
   get isEmpty() { return !this.bundle || this.lensCount === 0; }

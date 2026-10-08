@@ -70,6 +70,7 @@ export function DataHome() {
         <//>
 
         <${Section} title="Promotions and staff">
+          <${Row} to="#/me/data/presets" icon="spark" title="Lifestyle presets" detail="A lens, Plus Protection and accessories for each way of life" count=${n(new Set((bundle?.presets ?? []).map((t) => t.presetId)).size)} chev />
           <${Row} to="#/me/data/sets" icon="doc" title="Sets" detail="Set prices, ID Maestro, brands, lens rows, campaign discounts" count=${n(bundle?.sets?.length ?? 0)} chev />
           <${Row} to="#/me/data/promos" icon="doc" title="Promotions" count=${n(bundle?.promotions.length ?? 0)} chev />
           <${Row} to="#/me/data/staff" icon="people" title="Staff" count=${n(bundle?.staff.length ?? 0)} chev />

@@ -9,6 +9,7 @@ import { fold, parseCodeLabel, cellText, toCents, isYes, digits, sheetDay } from
 import { Report, validateBundle, VOCAB_KINDS } from './validate.js';
 import { TRUE_SKU_DIGITS } from '../config.js';
 import { STORE_FIELDS, cleanStore } from './store.js';
+import { parseItems } from './presets.js';
 
 export { stockKind } from './stock.js';
 export { VOCAB_KINDS, parseCodeLabel };
@@ -23,7 +24,7 @@ export function emptyBundle() {
     format: BUNDLE_FORMAT, version: BUNDLE_VERSION, dataVersion: '', generatedAt: '', minAppBuild: BUNDLE_MIN_APP_BUILD,
     source: {}, vocabulary: [], lenses: { single: [], multifocal: [], contact: [] },
     frameBrands: [], frames: [], inventory: [], extras: [], staff: [], promotions: [], promoLensMap: [],
-    sets: [], setLenses: [], setPrices: [], discounts: [], store: null,
+    sets: [], setLenses: [], setPrices: [], discounts: [], store: null, presets: [],
   };
 }
 
@@ -246,6 +247,16 @@ export function readBackend(sheets, report = new Report()) {
       validFrom: sheetDay(r.valid_from), validTo: sheetDay(r.valid_to),
     }));
   }
+  const presetTab = tab('presets', ['preset_id', 'preset', 'tier']);
+  if (presetTab) {
+    out.presets = presetTab.rows.filter((r) => cellText(r.preset_id).trim() && cellText(r.tier).trim()).map((r) => ({
+      presetId: cellText(r.preset_id).trim(), preset: cellText(r.preset).trim(), blurb: cellText(r.blurb).trim(),
+      tier: cellText(r.tier).trim(), tierBlurb: cellText(r.tier_blurb).trim(),
+      sv: cellText(r.single_vision).trim(), mf: cellText(r.progressive).trim(),
+      extras: cellText(r.extras).split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean),
+      items: parseItems(cellText(r.items)),
+    }));
+  }
   const storeTab = tab('store', ['field', 'value']);
   if (storeTab) {
     const byLabel = new Map(STORE_FIELDS.flatMap((f) => [[fold(f.key), f.key], [fold(f.label), f.key]]));
@@ -322,5 +333,5 @@ export function ingest(workbooks, { now = new Date() } = {}) {
 export const DOMAIN_LABEL = {
   vocabulary: 'Coatings and names', lenses: 'Lens prices', frameBrands: 'Brand tiers', inventory: 'Stock',
   extras: 'Extras', staff: 'Staff', promotions: 'Promotions', promoLensMap: 'Promo lines', frames: 'Frames',
-  sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts', store: 'Store',
+  sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts', store: 'Store', presets: 'Lifestyle presets',
 };

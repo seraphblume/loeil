@@ -104,6 +104,38 @@ discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
 priced from the frame and spectacle lenses on the order after their discounts —
 Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
 
+## Lifestyle presets
+
+**Lifestyle preset** at the top of the order's Add list puts a whole lens on the
+order in one tap — single vision, or progressive when the prescription has an ADD;
+high-index when the sphere is strong and the preset has one — with Plus Protection
+and the accessories that go with it (pouch, microfibre cloth, cleaning solution,
+a kids' case and strap). Each preset has tiers: an accessible price and the better
+value (Kids adds myopia control). Tapping another preset swaps the lens and what
+the last preset added; frames and anything added by hand stay.
+
+**Cleaning solutions damage Transitions and Crizal.** A preset never adds one to
+those lenses, whatever its data says, and an order that ends up with both is
+flagged.
+
+Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
+`presets` tab of the workbook): a row per tier with its single vision and
+progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`), the extra
+codes, and the accessories as `Pouch: 61004120/61004121; Cleaning solution*: 61004172`
+— stock codes in order of preference (the first in stock is added), a `*` marking a
+cleaning solution.
+
+## The quote
+
+The **Quote** tab is the register's presupuesto: up to three options side by side
+for one client, sent as a picture. Build the order and tap **Add to quote**; change
+the lens (a preset is the quick way) or the frame and add it again. Each option is
+a snapshot that keeps its prices. The ticket greets the client, gives the branch,
+the employee and the quote number, then for each option the frame (by brand), the
+lenses, the treatments, the extras, the subtotal, the saving, the total and how long
+the prices hold (the end of the option's set or campaign); its foot is the store's
+**Quote footer**.
+
 ## Prescriptions
 
 Entered the register's way: each eye in its own panel, every value a slider with
