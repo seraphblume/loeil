@@ -15,8 +15,10 @@ import { usePrinter, PrinterRig, shareBlocks } from './receipt.js';
 import { ClientPickerSheet } from './order.js';
 import { buzz } from './printsound.js';
 import {
-  addToQuote, removeQuoteOption, clearQuote, setQuoteClient, clientById, staffMember, toast,
+  addToQuote, removeQuoteOption, clearQuote, setQuoteClient, clientById, staffMember, toast, getState, setDraftClient,
 } from '../state/app.js';
+import { PresetSheet } from './presets.js';
+import { go } from './router.js';
 
 /** A preset's name says more than the lens's: `First glasses · Accessible`. */
 const optionTitle = (order) => order.lines.find((l) => l.presetName)?.presetName ?? orderTitle(order);
@@ -36,6 +38,8 @@ export function QuoteScreen() {
   const client = useApp((s) => clientById(s.quote.clientId ?? s.draft.clientId, s));
   const seller = useApp((s) => staffMember(s));
   const draftLines = useApp((s) => s.draft.lines.length);
+  const hasFrame = useApp((s) => s.draft.lines.some((l) => l.kind === 'frame'));
+  const forSomeoneElse = useApp((s) => Boolean(s.quote.clientId && s.draft.clientId && s.draft.lines.length && s.draft.clientId !== s.quote.clientId));
   const [sheet, setSheet] = useState(null);
   const [sharing, setSharing] = useState(false);
   const q = useMemo(() => buildQuote({ quote, catalogue, client, seller }), [quote, catalogue, client, seller]);
@@ -44,6 +48,11 @@ export function QuoteScreen() {
   const n = quote.options.length;
   const has = n > 0;
 
+  const toOrder = async () => {
+    const s = getState();
+    if (s.quote.clientId && !s.draft.lines.length && s.draft.clientId !== s.quote.clientId) await setDraftClient(s.quote.clientId);
+    go('#/find/order');
+  };
   const share = async () => {
     setSharing(true);
     await shareBlocks(blocks, `loeil-quote-${q.number}.png`, `Quote ${q.number}`);
@@ -62,25 +71,30 @@ export function QuoteScreen() {
           <${Row} icon="person" title=${client ? client.name : 'No client yet'} detail=${client ? (client.phone || 'On the quote by name') : 'Choose who the quote is for'} chev onClick=${() => setSheet('client')} />
         <//>
         <${Section} title=${`Options · ${n} of ${QUOTE_OPTIONS}`}
-          footer=${n < QUOTE_OPTIONS ? (draftLines ? 'Adds the order as it is now. Change the lens or the frame on the order, then add it again for the next option.' : 'Build an order in Find, then tap Add to quote on it. Each one becomes an option.') : null}>
+          footer=${n < QUOTE_OPTIONS ? (forSomeoneElse ? 'The order in progress belongs to another client — save or clear it first, or clear the quote.'
+            : hasFrame ? 'A preset keeps the frame on the order and swaps the lenses. Each option keeps the prices it was added at.'
+              : 'Scan or pick the frame on the order first for its price in every option; a preset alone quotes the lenses and extras.') : null}>
           ${quote.options.map((o, i) => html`<${Row} key=${o.id} title=${`${i + 1} · ${optionTitle(o.order)}`} detail=${composition(o.order)} one
             end=${html`<span class="num">${money(q.options[i]?.total ?? 0)}</span>
               <button type="button" class="icon-btn" aria-label=${`Remove option ${i + 1}`} onClick=${() => removeQuoteOption(o.id)}><${Icon} name="x" size=${15} /></button>`} />`)}
-          ${n < QUOTE_OPTIONS && html`<${Row} icon="plus" title="Add the order in progress" off=${!draftLines}
-            detail=${draftLines ? `${draftLines} line${draftLines === 1 ? '' : 's'} on the order` : 'The order is empty'} onClick=${draftLines ? addOrderToQuote : null} />`}
+          ${n < QUOTE_OPTIONS && html`
+            <${Row} icon="spark" title="Add an option from a preset" detail=${hasFrame ? 'With the frame on the order' : 'Lens, Plus Protection and accessories'} chev onClick=${() => setSheet('preset')} />
+            ${draftLines > 0 && html`<${Row} icon="plus" title="Add the order as it is" detail=${`${draftLines} line${draftLines === 1 ? '' : 's'} on the order`} onClick=${addOrderToQuote} />`}
+            <${Row} icon="glasses" title=${draftLines ? 'Change the order' : 'Build an option on the order'} detail=${hasFrame ? 'Frame, lenses and extras, then Add to quote' : 'Scan the frame, choose the lenses, then Add to quote'} chev onClick=${toOrder} />`}
         <//>
         ${has ? html`<div class="pad stack tight receipt-stage">
             <${PrinterRig} printer=${printer} blocks=${blocks} label="QUOTE"
               status=${{ printing: 'Printing the quote', done: 'Quote ready', detail: `Quote ${q.number} · ${n} option${n === 1 ? '' : 's'}` }} />
             ${!q.store?.quoteFooter && html`<p class="note">The quote’s foot is not set yet — an admin adds it under Me → Catalogue data → Store.</p>`}
           </div>`
-          : html`<div class="pad"><${Empty} title="No quote yet">Build an order — frame, lenses, Plus Protection — and tap Add to quote. Change what you want to compare and add it again: up to three options on one ticket, sent as a picture.<//></div>`}
+          : html`<div class="pad"><${Empty} title="No quote yet">Choose the client, then add up to three options: a preset in one tap, or the order as you built it. They print side by side on one ticket, sent as a picture.<//></div>`}
       </div>
     <//>
     ${has && html`<${Dock}>
       <${Secondary} icon="copy" onClick=${copy}>Copy text<//>
       <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? 'Making the image…' : 'Share image'}<//>
     <//>`}
+    ${sheet === 'preset' && html`<${PresetSheet} toQuote=${addOrderToQuote} onClose=${() => setSheet(null)} />`}
     ${sheet === 'client' && html`<${ClientPickerSheet} title="Who is the quote for?" onClose=${() => setSheet(null)} onPick=${(c) => { setQuoteClient(c.id); setSheet(null); }} />`}
     ${sheet === 'clear' && html`<${Confirm} title="Clear the quote?" message="Every option on it is removed. The order in progress is not touched." action="Clear quote"
       onConfirm=${() => { clearQuote(); toast('Quote cleared'); }} onClose=${() => setSheet(null)} />`}`;

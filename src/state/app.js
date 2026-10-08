@@ -320,9 +320,12 @@ export async function removeQuoteOption(id) {
   await saveQuote();
 }
 
+/** Choosing who the quote is for also makes the order theirs, unless it is already someone else's sale. */
 export async function setQuoteClient(clientId) {
   setState({ quote: { ...state.quote, clientId } });
   await saveQuote();
+  const d = state.draft;
+  if (!d.clientId || (!d.lines.length && d.clientId !== clientId)) await setDraftClient(clientId);
 }
 
 export async function clearQuote() {

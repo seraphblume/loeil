@@ -36,16 +36,21 @@ function TierRow({ result, onPick }) {
     end=${money(lens.priceCents)} chev onClick=${() => onPick(result)} />`;
 }
 
-export function PresetSheet({ onClose }) {
+/**
+ * `toQuote`: the chosen preset goes onto the order and the order straight onto
+ * the quote as the next option — the quick way to build a quote.
+ */
+export function PresetSheet({ onClose, toQuote }) {
   const catalogue = useApp((s) => s.catalogue);
   const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
   const groups = useMemo(() => presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx)) })), [catalogue, rx]);
   const pick = async (result) => {
     await applyPreset(result);
+    if (toQuote) { onClose(); await toQuote(); return; }
     toast(`${result.tier.preset} · ${result.tier.tier} on the order`);
     onClose();
   };
-  return html`<${Sheet} title="Lifestyle presets" onClose=${onClose} full>
+  return html`<${Sheet} title=${toQuote ? 'Add an option' : 'Lifestyle presets'} onClose=${onClose} full>
     <div class="stack">
       <p class="para pad">${rxBasis(rx)} A preset replaces the lenses on the order and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.</p>
       ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
