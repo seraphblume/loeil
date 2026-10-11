@@ -30,7 +30,7 @@ import { PublishScreen } from './publish.js';
 import { DataHome } from './data/home.js';
 import { LensPricesScreen, AddCoatingScreen } from './data/lenses.js';
 import { AdjustScreen } from './data/adjust.js';
-import { VocabScreen, FramesAdminScreen, BrandsScreen, StockAdminScreen, ExtrasScreen, StaffAdminScreen, StoreAdminScreen } from './data/records.js';
+import { VocabScreen, FramesAdminScreen, BrandsScreen, StockAdminScreen, ExtrasScreen, AccessoriesScreen, StaffAdminScreen, StoreAdminScreen } from './data/records.js';
 import { PromosScreen, PromoScreen } from './data/promos.js';
 
 const TAB_ITEMS = [
@@ -157,6 +157,7 @@ function screenFor(route) {
       if (b === 'brands') return html`<${BrandsScreen} />`;
       if (b === 'stock') return html`<${StockAdminScreen} />`;
       if (b === 'extras') return html`<${ExtrasScreen} />`;
+      if (b === 'accessories') return html`<${AccessoriesScreen} />`;
       if (b === 'staff') return html`<${StaffAdminScreen} />`;
       if (b === 'store') return html`<${StoreAdminScreen} />`;
       if (b === 'presets') return html`<${PresetsAdminScreen} />`;

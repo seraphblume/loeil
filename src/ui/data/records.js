@@ -14,6 +14,7 @@ import { VOCAB_KINDS } from '../../core/validate.js';
 import {
   upsertVocab, deleteVocab, upsertFrame, deleteFrame, setTier, upsertStock, deleteStock, replaceStock,
   upsertExtra, deleteExtra, upsertStaff, deleteStaff, framesFromCode, brandFromDescription, setStore,
+  upsertAccessory, deleteAccessory,
 } from '../../core/edits.js';
 import { money } from '../../core/money.js';
 import { fold, brandKey, parseCodeLabel } from '../../core/util.js';
@@ -261,7 +262,7 @@ export function ExtrasScreen() {
     <${Bar} backTo="#/me/data" title="Extras" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ e: { id: '', description: '' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order, after discounts. The rest carry no price — the register prices them.</p>
+        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order, after discounts. The rest take their price from the accessory price list when they are in it, else the register prices them.</p>
         <${List}>${bundle.extras.map((e) => html`<${Row} title=${e.description} detail=${e.id} mono end=${e.percent ? `${e.percent}%` : null} onClick=${() => setOpen({ e, id: e.id })} />`)}<//>
       </div>
     <//>
@@ -278,6 +279,50 @@ export function ExtrasScreen() {
         edit((b) => upsertExtra(b, percent ? { ...rest, percent } : rest, open.id)); saved();
       }}
       onDelete=${open.id ? () => { edit((b) => deleteExtra(b, open.id)); saved('Removed'); } : null} />`}`;
+}
+
+// ---------------------------------------------------------------------------
+// The accessory price list
+
+export function AccessoriesScreen() {
+  const { bundle } = useWorking();
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(null);
+  const all = bundle.accessories ?? [];
+  const stock = new Map((bundle.inventory ?? []).map((i) => [i.sku, i]));
+  const t = fold(term);
+  const list = all.filter((a) => !t || fold(`${a.description} ${a.collection}`).includes(t) || a.sku.includes(term) || (a.product ?? '').includes(term));
+  const groups = [...new Set(list.map((a) => a.collection || 'Other'))];
+  return html`
+    <${Bar} backTo="#/me/data" title="Accessory prices" trail=${html`<button class="bar-btn round" aria-label="Add" onClick=${() => setOpen({ a: { sku: '', product: '', description: '', price: null, collection: '' } })}><${Icon} name="plus" /></button>`} />
+    <${Screen}>
+      <div class="stack tight">
+        <p class="para pad">What a case, cloth, solution or gift costs at the register. An order prices them from here; a gift is $0.01. One not listed is priced at the register.</p>
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description, barcode or collection" /></div>
+        ${groups.map((g) => html`<section class="section"><div class="section-head"><div class="eyebrow">${g}</div></div>
+          <${List}>${list.filter((a) => (a.collection || 'Other') === g).map((a) => html`<${Row} key=${a.sku} title=${a.description}
+            detail=${`${a.sku}${stock.has(a.sku) ? ` · ${stockLabel(stock.get(a.sku).stock).toLowerCase()}` : ''}`} mono
+            end=${a.price === 1 ? 'Gift' : money(a.price)} onClick=${() => setOpen({ a, sku: a.sku })} />`)}<//>
+        </section>`)}
+        ${!list.length && html`<div class="pad"><${Empty} title=${all.length ? 'No match' : 'No prices yet'}>${all.length ? 'Try another word.' : 'Add them with +, or import a Backend workbook with an accessories tab.'}<//></div>`}
+      </div>
+    <//>
+    ${open && html`<${FormSheet} title=${open.sku ? open.a.description : 'New accessory'} initial=${open.a} onClose=${() => setOpen(null)}
+      fields=${[
+        { key: 'sku', label: 'Barcode', required: true, inputmode: 'numeric', hint: 'Material (true SKU): what the register takes.' },
+        { key: 'product', label: 'Product', inputmode: 'numeric', placeholder: '6003…' },
+        { key: 'description', label: 'Description', required: true },
+        { key: 'price', label: 'Price', type: 'money', required: true, hint: 'A gift is 0.01.' },
+        { key: 'collection', label: 'Collection', placeholder: 'e.g. Xikú, Solutions, Brand Gift' },
+      ]}
+      onSave=${(x) => {
+        const a = { sku: String(x.sku).replace(/\D/g, ''), product: String(x.product ?? '').replace(/\D/g, ''), description: String(x.description).trim(), price: x.price, collection: String(x.collection ?? '').trim() };
+        if (a.sku.length !== 8) return 'The barcode is the 8-digit true SKU.';
+        if (!(a.price > 0)) return 'Give it a price — a gift is 0.01.';
+        if (a.sku !== open.sku && all.some((y) => y.sku === a.sku)) return `${a.sku} is already listed.`;
+        edit((b) => upsertAccessory(b, a, open.sku)); saved();
+      }}
+      onDelete=${open.sku ? () => { edit((b) => deleteAccessory(b, open.sku)); saved('Removed'); } : null} />`}`;
 }
 
 // ---------------------------------------------------------------------------

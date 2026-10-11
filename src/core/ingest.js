@@ -23,7 +23,7 @@ export function emptyBundle() {
   return {
     format: BUNDLE_FORMAT, version: BUNDLE_VERSION, dataVersion: '', generatedAt: '', minAppBuild: BUNDLE_MIN_APP_BUILD,
     source: {}, vocabulary: [], lenses: { single: [], multifocal: [], contact: [] },
-    frameBrands: [], frames: [], inventory: [], extras: [], staff: [], promotions: [], promoLensMap: [],
+    frameBrands: [], frames: [], inventory: [], accessories: [], extras: [], staff: [], promotions: [], promoLensMap: [],
     sets: [], setLenses: [], setPrices: [], discounts: [], store: null, presets: [],
   };
 }
@@ -87,7 +87,7 @@ export function frameSheets(sheets) {
   return Object.entries(sheets).filter(([, t]) => {
     const h = (t.rows[0] ?? []).map(headerKey);
     return h.includes('true sku') && h.includes('price') && h.includes('description');
-  });
+  }).filter(([name]) => name.toLowerCase() !== 'accessories');
 }
 
 /** Which of the picked workbooks is which, by what is inside them. */
@@ -177,6 +177,21 @@ export function readBackend(sheets, report = new Report()) {
     out.inventory = [...by.values()];
   }
 
+  const ac = tab('accessories', ['true sku', 'description', 'price']);
+  if (ac) {
+    const seen = new Set();
+    out.accessories = [];
+    for (const r of ac.rows) {
+      const sku = digits(r['true sku']);
+      const description = cellText(r.description).replace(/\s+/g, ' ').trim();
+      if (!sku && !description) continue;
+      if (sku.length !== TRUE_SKU_DIGITS) { report.error('accessories', `Row ${r._row}: barcode "${cellText(r['true sku'])}" is not ${TRUE_SKU_DIGITS} digits.`); continue; }
+      if (seen.has(sku)) { report.error('accessories', `Row ${r._row}: ${sku} is listed twice.`); continue; }
+      seen.add(sku);
+      out.accessories.push({ sku, product: digits(r.product), description, price: toCents(r.price), collection: cellText(r.collection).trim() });
+    }
+  }
+
   const ex = tab('extras', ['id', 'description']);
   if (ex) {
     out.extras = ex.rows.filter((r) => cellText(r.id).trim()).map((r) => {
@@ -245,6 +260,7 @@ export function readBackend(sheets, report = new Report()) {
       id: cellText(r.promo_id).trim(), name: cellText(r.name).trim(), percent: Number(cellText(r.percent).replace('%', '')) || 0,
       appliesTo: cellText(r.applies_to).trim(), only: cellText(r.only).trim(), except: cellText(r.except).trim(),
       validFrom: sheetDay(r.valid_from), validTo: sheetDay(r.valid_to),
+      ...discountExtras(r),
     }));
   }
   const presetTab = tab('presets', ['preset_id', 'preset', 'tier']);
@@ -265,6 +281,22 @@ export function readBackend(sheets, report = new Report()) {
     for (const r of storeTab.rows) { const k = byLabel.get(fold(cellText(r.field)).trim()); if (k) raw[k] = cellText(r.value); }
     out.store = cleanStore(raw);
   }
+  return out;
+}
+
+/** The optional discount columns: a fixed price, the lens it is for, its upgrades, what the client shows. */
+function discountExtras(r) {
+  const out = {};
+  const price = toCents(r.price);
+  if (price != null && cellText(r.price).trim()) out.price = price;
+  const lens = cellText(r.lens).trim();
+  if (lens) out.lens = lens.toUpperCase();
+  const upgrade = cellText(r.upgrade).trim();
+  if (upgrade) out.upgrade = upgrade.toUpperCase();
+  const up = toCents(r.upgrade_price);
+  if (up != null && cellText(r.upgrade_price).trim()) out.upgradePrice = up;
+  const requires = cellText(r.requires).trim();
+  if (requires) out.requires = requires;
   return out;
 }
 
@@ -332,7 +364,7 @@ export function ingest(workbooks, { now = new Date() } = {}) {
 
 /** What each data domain is called on screen. */
 export const DOMAIN_LABEL = {
-  vocabulary: 'Coatings and names', lenses: 'Lens prices', frameBrands: 'Brand tiers', inventory: 'Stock',
+  vocabulary: 'Coatings and names', lenses: 'Lens prices', frameBrands: 'Brand tiers', inventory: 'Stock', accessories: 'Accessory prices',
   extras: 'Extras', staff: 'Staff', promotions: 'Promotions', promoLensMap: 'Promo lines', frames: 'Frames',
   sets: 'Sets', setLenses: 'Set lens rows', setPrices: 'Set prices', discounts: 'Campaign discounts', store: 'Store', presets: 'Lifestyle presets',
 };

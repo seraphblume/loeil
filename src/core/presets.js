@@ -42,10 +42,13 @@ export function itemsText(items) {
 
 const SOLUTION_WORDS = /SOLUCI|SPRAY|TOALLITA|LIMPIADOR/i;
 
-/** A stock item or an extra that is (or carries) a cleaning liquid. */
+/**
+ * A stock item or an extra that is (or carries) a lens-cleaning liquid. Contact
+ * lens care (product codes 6006: ReNu, Simplus, eye drops) is not one — it
+ * never touches the spectacle lenses, so it is read by its words, not its kind.
+ */
 export function isSolution(catalogue, code, description = '') {
-  const inv = catalogue?.inventoryBySku?.get(String(code));
-  if (inv?.kind === 'solution') return true;
+  const inv = catalogue?.inventoryBySku?.get(String(code)) ?? catalogue?.listedOnlyBySku?.get(String(code));
   return SOLUTION_WORDS.test(description || inv?.description || '');
 }
 
@@ -128,7 +131,7 @@ export function resolvePreset(catalogue, tier, rx) {
     if (sensitive && solution) { skipped.push({ label: spec2.label, why: SOLUTION_WARNING }); continue; }
     const item = known.find((i) => i.stock > 0) ?? null;
     if (!item) { skipped.push({ label: spec2.label, why: known.length ? 'out of stock' : 'not in the stock list' }); continue; }
-    items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution });
+    items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution, price: catalogue.itemPrice?.(item.sku) ?? null });
   }
   return { tier, family, lens, high, sensitive, extras, items, skipped, notes, brands: tier.brands ?? [] };
 }

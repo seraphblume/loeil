@@ -11,7 +11,10 @@
 //   setLenses   the table's rows — "Transitions Crizal Easy" — and which
 //               catalogue lenses each row covers (its match)
 //   setPrices   what each row costs in each set (0 = included)
-//   discounts   campaign percentages applied without asking (30% on contacts)
+//   discounts   percentages applied without asking (30% on contacts), a fixed
+//               lens price (prescription Polarex in a sun frame for $2,099), and
+//               the ones the client claims by showing something (a Sam's Club
+//               card). A line takes one discount, never two.
 //
 // A MATCH reads `family|material|design|filter|colour|coating`. Each part is
 // `*` (anything), a list of codes, or `*GROUP` for every code whose vocabulary
@@ -27,6 +30,9 @@ export const APPLIES_TO = {
   sunglasses: 'Sunglasses frames',
   frames: 'Every frame outside a set',
   lenses: 'Spectacle lenses outside a set',
+  ownframe: 'Spectacle lenses for the client’s own frame',
+  sunlenses: 'Spectacle lenses in a sunglasses frame',
+  all: 'Every line outside a set',
 };
 
 const SEGMENTS = ['family', 'material', 'design', 'filter', 'colour', 'coating'];
@@ -180,28 +186,93 @@ function namesOf(catalogue, line) {
   return p ? [p.code, p.label, p.pos].map(brandKey).filter(Boolean) : [];
 }
 
+/** What a line costs before any discount, for comparing what each discount saves. */
+function listOf(line) {
+  if (line.kind === 'lens') return line.lens?.priceCents ?? 0;
+  return line.priceCents ?? 0;
+}
+
 /**
- * The campaign discount that applies to a line on its own, if any. A
- * sunglasses discount is for the frame sold as it is: with lenses on it, the
- * graduated-sun promotion is the one that applies. `only` and `except` name
- * brands (frames) or products (contact lenses), as the campaign states them.
+ * What one discount does to a line, or null when it does not apply. A percent
+ * (`percent`), a fixed price (`price`), or — for a lens the offer counts as an
+ * upgrade whose price is not known yet — `pending`.
+ *
+ * `ctx.frame` is the frame the lens goes in (null: the client's own frame);
+ * `ctx.claimed` the discounts the client has claimed on this order.
  */
-export function autoDiscountFor(catalogue, line, on = new Date()) {
-  const live = liveDiscounts(catalogue, on);
-  if (!live.length) return null;
-  const isContact = line.kind === 'lens' && line.lens.family === 'CL';
+function discountHit(catalogue, d, line, ctx) {
+  if (d.requires && !ctx.claimed?.has(d.id)) return null;
+  const isContact = line.kind === 'lens' && line.lens?.family === 'CL';
   const isSpectacle = line.kind === 'lens' && !isContact;
   const isFrame = line.kind === 'frame';
-  const sun = isFrame && frameFacts(catalogue, line).category === 'Sunglasses';
-  const names = namesOf(catalogue, line);
-  const listed = (text) => nameList(text).some((alts) => alts.some((k) => names.includes(k)));
-  const fits = (d) => ({
+  const isItem = line.kind === 'extra' && !(Number(line.percent) > 0) && line.priceCents > 1; // a $0.01 gift stays a gift
+  const sunFrame = (f) => Boolean(f) && frameFacts(catalogue, f).category === 'Sunglasses';
+  const fits = ({
     contacts: isContact,
-    sunglasses: sun && !line.set && !line.hasLenses,
+    sunglasses: isFrame && sunFrame(line) && !line.set && !line.hasLenses,
     frames: isFrame && !line.set,
     lenses: isSpectacle && !line.setLens,
-  })[d.appliesTo] && (!String(d.only ?? '').trim() || listed(d.only)) && !listed(d.except);
-  return live.filter(fits).sort((a, b) => b.percent - a.percent)[0] ?? null;
+    ownframe: isSpectacle && 'frame' in ctx && !ctx.frame,
+    sunlenses: isSpectacle && sunFrame(ctx.frame) && !line.setLens,
+    all: (isFrame && !line.set) || (isSpectacle && !line.setLens) || isContact || isItem,
+  })[d.appliesTo];
+  if (!fits) return null;
+  const names = namesOf(catalogue, line);
+  const listed = (text) => nameList(text).some((alts) => alts.some((k) => names.includes(k)));
+  if (String(d.only ?? '').trim() && !listed(d.only)) return null;
+  if (listed(d.except)) return null;
+  const base = { id: d.id, name: d.name };
+  if (d.lens) {
+    // An offer for a particular lens: that lens at its price, an upgrade on top.
+    const facts = isSpectacle ? lensFacts(line.lens) : null;
+    if (!facts) return null;
+    const at = (price) => (price != null ? { ...base, price } : { ...base, percent: d.percent });
+    if (factsMatch(catalogue, d.lens, facts)) return at(d.price);
+    if (!d.upgrade || !factsMatch(catalogue, d.upgrade, facts)) return null;
+    if (d.price == null) return { ...base, percent: d.percent, upgrade: true };
+    return d.upgradePrice != null ? { ...base, price: d.price + d.upgradePrice, upgrade: true } : { ...base, pending: true, upgrade: true };
+  }
+  return d.price != null ? { ...base, price: d.price } : { ...base, percent: d.percent };
+}
+
+/** What a discount takes off a list price; a pending upgrade saves nothing yet. */
+export function savingOf(hit, list) {
+  if (!hit || hit.pending || list == null) return 0;
+  if (hit.price != null) return Math.max(0, list - hit.price);
+  return Math.round((list * (hit.percent ?? 0)) / 100);
+}
+
+/** `30% off`, `$2,099`, `upgrade, price to confirm` — for the screens. */
+export function hitText(hit, money) {
+  if (!hit) return '';
+  if (hit.pending) return 'upgrade, price to confirm';
+  if (hit.price != null) return `${money(hit.price)}${hit.upgrade ? ' with the upgrade' : ''}`;
+  return `${hit.percent}% off`;
+}
+
+/**
+ * The discount that applies to a line, if any. Those that apply on their own
+ * come first — a set, a campaign percentage, a fixed lens price — and a
+ * discount the client claims (a membership card) covers only what they leave.
+ * One per line, never stacked; among equals, the one that saves the client most.
+ *
+ * A sunglasses discount is for the frame sold as it is: with lenses on it, the
+ * prescription-sun offer is the one that applies. `only` and `except` name
+ * brands (frames) or products (contact lenses), as the campaign states them.
+ */
+export function autoDiscountFor(catalogue, line, on = new Date(), ctx = {}) {
+  const live = liveDiscounts(catalogue, on);
+  if (!live.length) return null;
+  const hits = live.map((d) => ({ d, hit: discountHit(catalogue, d, line, ctx) })).filter((x) => x.hit);
+  if (!hits.length) return null;
+  const list = listOf(line);
+  const best = (xs) => xs.sort((a, b) => savingOf(b.hit, list) - savingOf(a.hit, list))[0]?.hit ?? null;
+  return best(hits.filter((x) => !x.d.requires)) ?? best(hits.filter((x) => x.d.requires));
+}
+
+/** The live discounts the client claims by showing something: Sam's Club. */
+export function claimableDiscounts(catalogue, on = new Date()) {
+  return liveDiscounts(catalogue, on).filter((d) => d.requires);
 }
 
 // ---------------------------------------------------------------------------
@@ -219,7 +290,9 @@ export function autoDiscountFor(catalogue, line, on = new Date()) {
 export function resolveOrder(order, catalogue, on = new Date()) {
   const lines = order.lines.map((l) => {
     const c = { ...l };
-    delete c.set; delete c.setLens; delete c.auto; delete c.setAvailable; delete c.hasLenses;
+    delete c.set; delete c.setLens; delete c.auto; delete c.offer; delete c.setAvailable; delete c.hasLenses;
+    // an accessory takes its price from the price list (a saved order keeps the one it had)
+    if (c.kind === 'extra' && !(Number(c.percent) > 0) && c.priceCents === undefined) c.priceCents = catalogue.itemPrice?.(c.code) ?? null;
     return c;
   });
   const frames = lines.filter((l) => l.kind === 'frame');
@@ -240,10 +313,14 @@ export function resolveOrder(order, catalogue, on = new Date()) {
       ? { setId: set.id, setName: set.name, id: hit.def.id, name: hit.def.name, group: hit.def.group, price: hit.entry.price, special: Boolean(hit.entry.special), auto: hit !== chosen }
       : { setId: set.id, setName: set.name, id: null };
   });
+  const claimed = new Set(order.claimed ?? []);
   for (const l of lines) {
-    const manual = typeof l.discount === 'number';
-    const d = manual ? null : autoDiscountFor(catalogue, l, on);
-    if (d) l.auto = { id: d.id, name: d.name, percent: d.percent };
+    const pair = pairs.indexOf(l);
+    const ctx = { claimed, ...(pair >= 0 ? { frame: frames[pair] ?? null } : {}) };
+    const d = autoDiscountFor(catalogue, l, on, ctx);
+    if (!d) continue;
+    l.offer = d; // what applies without the seller — shown even when he chose otherwise
+    if (typeof l.discount !== 'number') l.auto = d;
   }
   return { ...order, lines };
 }

@@ -39,6 +39,8 @@ export function bundleToWorkbooks(b, XLSX) {
   add(backend, 'frame_brands', [['Brand', 'Tier'], ...b.frameBrands.map((x) => [x.brand, x.tier])], [24, 22]);
   add(backend, 'inventory', [['SKU', 'Material (True SKU)', 'Descripción', 'Clasificación', 'Existencia', 'Lote', 'Caducidad'],
     ...b.inventory.map((i) => [i.vendorSku, i.sku, i.description, i.classification, i.stock, '', i.expires])], [18, 18, 46, 14, 10, 8, 12]);
+  add(backend, 'accessories', [['Product', 'Material (True SKU)', 'Description', 'Price', 'Collection'],
+    ...(b.accessories ?? []).map((a) => [a.product ?? '', a.sku, a.description, amount(a.price), a.collection ?? ''])], [16, 18, 46, 10, 14]);
   add(backend, 'extras', [['ID', 'Description', 'Percent'], ...b.extras.map((e) => [e.id, e.description, e.percent ?? ''])], [16, 24, 9]);
   add(backend, 'promotions', [['promo_id', 'kind', 'name', 'description', 'category', 'conditions', 'valid_from', 'valid_to', 'notes'],
     ...b.promotions.map((p) => [p.id, p.kind, p.name, p.description, p.category, p.conditions, p.validFrom, p.validTo, p.notes])], [10, 13, 26, 30, 16, 50, 12, 12, 40]);
@@ -50,8 +52,10 @@ export function bundleToWorkbooks(b, XLSX) {
     ...(b.setLenses ?? []).map((d) => [d.id, d.group, d.name, d.match])], [16, 18, 44, 50]);
   add(backend, 'set_prices', [['set_id', 'lens_id', 'price', 'special'],
     ...(b.setPrices ?? []).map((p) => [p.setId, p.lensId, amount(p.price), p.special ? 'YES' : ''])], [10, 16, 9, 8]);
-  add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to'],
-    ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo])], [10, 30, 8, 12, 40, 50, 11, 11]);
+  add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to', 'price', 'lens', 'upgrade', 'upgrade_price', 'requires'],
+    ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo,
+      d.price != null ? amount(d.price) : '', d.lens ?? '', d.upgrade ?? '', d.upgradePrice != null ? amount(d.upgradePrice) : '', d.requires ?? ''])],
+    [10, 30, 8, 12, 40, 50, 11, 11, 9, 34, 34, 11, 28]);
   add(backend, 'presets', [['preset_id', 'preset', 'blurb', 'tier', 'tier_blurb', 'single_vision', 'progressive', 'extras', 'items', 'brands'],
     ...(b.presets ?? []).map((t) => [t.presetId, t.preset, t.blurb, t.tier, t.tierBlurb, t.sv, t.mf, (t.extras ?? []).join(', '), itemsText(t.items), (t.brands ?? []).join(', ')])], [12, 18, 40, 14, 40, 34, 34, 16, 70, 60]);
   add(backend, 'store', [['field', 'value'], ...STORE_FIELDS.map((f) => [f.key, b.store?.[f.key] ?? ''])], [16, 70]);

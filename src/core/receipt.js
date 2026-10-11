@@ -167,7 +167,7 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
     })) },
     { n: 2, title: 'Treatments', items: lenses.flatMap((r) => registerCodes(r.line, catalogue).map((c, i) => ({
       copy: c.code, qty: c.qty, text: i === 0 ? r.line.lens.displayName : c.label, price: i === 0 ? net(r) : null,
-      note: i === 0 && r.line.setLens?.id ? `${r.line.setLens.setName} · ${r.line.setLens.name}` : i === 0 && r.pending ? 'set row not chosen' : '',
+      note: i === 0 && r.line.setLens?.id ? `${r.line.setLens.setName} · ${r.line.setLens.name}` : i === 0 && r.pending ? (r.line.setLens ? 'set row not chosen' : `${r.line.auto?.id ?? ''} upgrade price to confirm`.trim()) : '',
     }))) },
     { n: 3, title: 'Set / discount', items: [
       ...promos.map((x) => ({ copy: x.id, text: x.name })),

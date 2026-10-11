@@ -104,6 +104,35 @@ discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
 priced from the frame and spectacle lenses on the order after their discounts —
 Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
 
+Cases, cloths, solutions and gifts take their price from the **accessory price
+list** (Catalogue data → Accessory prices, or the `accessories` tab of the Backend
+workbook: product code, true SKU, description, price, collection). A gift is $0.01,
+as the register charges it. An item not on the list goes to the ticket as a code
+and a quantity, and the register prices it.
+
+## Discounts
+
+A line takes one discount, never two. In order:
+
+1. **A set** prices its frame and lenses (below).
+2. **Discounts that apply on their own**, while their dates run: 30% on HydraGlyde
+   contacts (9335), 20% on sunglasses sold as they are (9261), **30% off the lenses
+   when the client brings their own frame** (9027: a pair with no frame on the order),
+   and **prescription Polarex in a sunglass frame bought here** (8922: single vision,
+   polycarbonate, Polarex grey/green/brown with anti-reflective at $2,099 the pair).
+   A Polarex lens beyond that base is an upgrade; until its price is in the data the
+   order shows “price to confirm” (choose No discount on the line to quote the
+   lens at its own price).
+3. **Discounts the client claims**: **Sam's Club members** (461) show their card
+   and the seller switches it on, under the client on the order. It takes 20% off
+   every line nothing above covers — frames, lenses, contacts, accessories — but
+   not Plus Protection, which already follows the glasses, nor a $0.01 gift.
+
+The seller's own 40% or 50% on a line replaces all of these. Every discount is data
+(Catalogue data → Sets → Discounts): a percentage or a fixed price for a lens match,
+what it applies to, an upgrade match and price, what the client shows, and its
+dates — both blank for a standing one, which a new campaign's dates leave alone.
+
 ## Lifestyle presets
 
 **Lifestyle preset** at the top of the order's Add list puts a whole lens on the

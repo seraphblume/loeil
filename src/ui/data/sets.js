@@ -49,7 +49,7 @@ export function SetsAdminScreen() {
         <//>` : html`<div class="pad"><${Empty} title="No sets">Add one with +, or import a workbook with a sets tab.<//></div>`}
         <${Section} title="Shared by every set">
           <${Row} to="#/me/data/setlenses" icon="lens" title="Lens rows" detail="The table's rows, and which lenses each one covers" count=${(bundle.setLenses ?? []).length} chev />
-          <${Row} to="#/me/data/discounts" icon="doc" title="Campaign discounts" detail="Applied on their own: 30% on contacts…" count=${(bundle.discounts ?? []).length} chev />
+          <${Row} to="#/me/data/discounts" icon="doc" title="Discounts" detail="30% on contacts, own frame, prescription sun, Sam’s Club…" count=${(bundle.discounts ?? []).length} chev />
         <//>
       </div>
     <//>
@@ -165,31 +165,49 @@ export function DiscountsScreen() {
   const { bundle } = useWorking();
   const list = bundle.discounts ?? [];
   const [open, setOpen] = useState(null);
+  const amount = (d) => (d.price != null ? money(d.price) : `${d.percent}%`);
+  const when = (d) => (d.validFrom || d.validTo ? `${fmtDate(d.validFrom)} – ${fmtDate(d.validTo)}` : 'Standing');
   return html`
-    <${Bar} backTo="#/me/data/sets" title="Campaign discounts" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ d: { id: '', name: '', percent: null, appliesTo: 'contacts' } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data/sets" title="Discounts" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ d: { id: '', name: '', percent: null, appliesTo: 'contacts' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">Percentages the order applies on its own while their dates run — the seller can still change them on the line.</p>
-        ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${d.id} · ${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${fmtDate(d.validFrom)} – ${fmtDate(d.validTo)}`}
-          sub=${[d.only && `Only ${d.only}`, d.except && `Not ${d.except}`].filter(Boolean).join(' · ') || null}
-          end=${`${d.percent}%`} off=${setStatus(d) === 'Ended'} onClick=${() => setOpen({ d, id: d.id })} />`)}<//>` : html`<div class="pad"><${Empty} title="None">Add one with +.<//></div>`}
+        <p class="para pad">Applied by the order on its own while their dates run — a percentage, or a fixed price for one lens. One that names what the client shows (a membership card) waits for the seller to switch it on. A line takes one discount, never two, and the seller can still change it on the line.</p>
+        ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${d.id} · ${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${when(d)}`}
+          sub=${[d.requires && `Shows: ${d.requires}`, d.lens && `Lens ${d.lens}`, d.upgrade && `Upgrades ${d.upgradePrice != null ? money(d.upgradePrice) + ' more' : 'price to confirm'}`,
+            d.only && `Only ${d.only}`, d.except && `Not ${d.except}`].filter(Boolean).join(' · ') || null}
+          end=${amount(d)} off=${setStatus(d) === 'Ended'} onClick=${() => setOpen({ d, id: d.id })} />`)}<//>` : html`<div class="pad"><${Empty} title="None">Add one with +.<//></div>`}
       </div>
     <//>
     ${open && html`<${FormSheet} title=${open.id ? 'Discount' : 'New discount'} initial=${open.d} onClose=${() => setOpen(null)}
       fields=${[
-        { key: 'id', label: 'Promotion no.', required: true, inputmode: 'numeric' },
-        { key: 'name', label: 'Name', required: true, placeholder: '30% off contact lenses' },
-        { key: 'percent', label: 'Percent', type: 'number', required: true },
-        { key: 'appliesTo', label: 'Applies to', type: 'select', options: Object.entries(APPLIES_TO).map(([value, label]) => ({ value, label })) },
-        { key: 'only', label: 'Only', type: 'textarea', hint: 'Leave blank for all. Otherwise the brands (frames) or products (contact lenses) it is limited to, separated by commas.' },
-        { key: 'except', label: 'Except', type: 'textarea', hint: 'Brands or products it never applies to, separated by commas.' },
-        { key: 'validFrom', label: 'From', type: 'date' },
-        { key: 'validTo', label: 'To', type: 'date' },
+        { key: 'id', label: 'Promotion no.', required: true, inputmode: 'numeric', group: 'Discount' },
+        { key: 'name', label: 'Name', required: true, placeholder: '30% off contact lenses', group: 'Discount' },
+        { key: 'appliesTo', label: 'Applies to', type: 'select', options: Object.entries(APPLIES_TO).map(([value, label]) => ({ value, label })), group: 'Discount' },
+        { key: 'percent', label: 'Percent', type: 'number', group: 'How much', hint: 'Or a fixed price below, for one lens.' },
+        { key: 'price', label: 'Fixed price', type: 'money', group: 'How much', hint: 'The pair of lenses at this price instead of its own — needs the lens below.' },
+        { key: 'lens', label: 'Lens', caps: true, placeholder: 'SV|4300|*|*POLAR|PLG,PLV,PLC|ARC', group: 'Which lens',
+          hint: 'family|material|design|filter|colour|coating, as in the set rows. Blank: any.' },
+        { key: 'upgrade', label: 'Upgrades', caps: true, placeholder: '*|*|*|*POLAR|*|*', group: 'Which lens',
+          hint: 'Lenses that count as an upgrade of the offer: the fixed price plus the upgrade price.' },
+        { key: 'upgradePrice', label: 'Upgrade price', type: 'money', group: 'Which lens', hint: 'On top of the fixed price. Blank: the order shows “price to confirm”.' },
+        { key: 'requires', label: 'The client shows', placeholder: 'e.g. Sam’s Club membership card', group: 'Who', hint: 'Set: the seller switches it on for the order. Blank: it applies on its own.' },
+        { key: 'only', label: 'Only', type: 'textarea', group: 'Who', hint: 'Leave blank for all. Otherwise the brands (frames) or products (contact lenses) it is limited to, separated by commas.' },
+        { key: 'except', label: 'Except', type: 'textarea', group: 'Who', hint: 'Brands or products it never applies to, separated by commas.' },
+        { key: 'validFrom', label: 'From', type: 'date', group: 'When', hint: 'Both blank: standing, and a new campaign’s dates leave it alone.' },
+        { key: 'validTo', label: 'To', type: 'date', group: 'When' },
       ]}
       onSave=${(x) => {
         if (x.id !== open.id && list.some((d) => d.id === x.id)) return `Promotion ${x.id} is already listed.`;
-        if (!(x.percent > 0 && x.percent <= 100)) return 'The percentage must be more than 0 and at most 100.';
-        edit((b) => upsertDiscount(b, x, open.id)); saved();
+        const d = { id: String(x.id).trim(), name: String(x.name).trim(), percent: x.percent ?? 0, appliesTo: x.appliesTo,
+          only: String(x.only ?? '').trim(), except: String(x.except ?? '').trim(), validFrom: x.validFrom || '', validTo: x.validTo || '' };
+        if (x.price != null) d.price = x.price;
+        if (String(x.lens ?? '').trim()) d.lens = String(x.lens).trim().toUpperCase();
+        if (String(x.upgrade ?? '').trim()) d.upgrade = String(x.upgrade).trim().toUpperCase();
+        if (x.upgradePrice != null) d.upgradePrice = x.upgradePrice;
+        if (String(x.requires ?? '').trim()) d.requires = String(x.requires).trim();
+        if (d.price == null && !(d.percent > 0 && d.percent <= 100)) return 'Give a percentage (more than 0, at most 100) or a fixed price.';
+        if (d.price != null && !d.lens) return 'A fixed price needs the lens it is for.';
+        edit((b) => upsertDiscount(b, d, open.id)); saved();
       }}
       onDelete=${open.id ? () => { edit((b) => deleteDiscount(b, open.id)); saved('Removed'); } : null} />`}`;
 }

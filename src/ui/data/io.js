@@ -67,7 +67,7 @@ export async function readFiles(files) {
     const r = readWorkbooks(books);
     report.merge({ errors: r.report.errors, warnings: r.report.warnings, notes: r.report.notes });
     Object.assign(pieces, r.pieces);
-    const names = { vocabulary: 'coatings and names', lenses: 'lens prices', frameBrands: 'brand tiers', inventory: 'stock', extras: 'extras', staff: 'staff', promotions: 'promotions', promoLensMap: 'promo lines', frames: 'frames' };
+    const names = { vocabulary: 'coatings and names', lenses: 'lens prices', frameBrands: 'brand tiers', inventory: 'stock', accessories: 'accessory prices', extras: 'extras', staff: 'staff', promotions: 'promotions', promoLensMap: 'promo lines', frames: 'frames' };
     const got = Object.keys(r.pieces).filter((k) => names[k]).map((k) => names[k]);
     if (got.length) summary.push(`From the workbook${books.length > 1 ? 's' : ''}: ${got.join(', ')}`);
   }

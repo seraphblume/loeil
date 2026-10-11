@@ -151,6 +151,8 @@ export const upsertStock = (b, item, originalSku) => ({ ...b, inventory: upsertB
 export const deleteStock = (b, sku) => ({ ...b, inventory: b.inventory.filter((i) => i.sku !== sku) });
 export const replaceStock = (b, inventory, report) => ({ ...b, inventory, stockReport: report ?? b.stockReport ?? null });
 
+export const upsertAccessory = (b, a, originalSku) => ({ ...b, accessories: upsertBy(b.accessories ?? [], (x) => x.sku, a, originalSku) });
+export const deleteAccessory = (b, sku) => ({ ...b, accessories: (b.accessories ?? []).filter((a) => a.sku !== sku) });
 export const upsertExtra = (b, e, originalId) => ({ ...b, extras: upsertBy(b.extras, (x) => x.id, e, originalId) });
 export const deleteExtra = (b, id) => ({ ...b, extras: b.extras.filter((e) => e.id !== id) });
 
@@ -235,7 +237,8 @@ export function setCampaignDates(b, validFrom, validTo) {
   return {
     ...b,
     sets: L(b, 'sets').map((s) => ({ ...s, validFrom, validTo })),
-    discounts: L(b, 'discounts').map((d) => ({ ...d, validFrom, validTo })),
+    // a standing discount (no dates: own frame, a membership) is not part of the campaign
+    discounts: L(b, 'discounts').map((d) => (d.validFrom || d.validTo ? { ...d, validFrom, validTo } : d)),
   };
 }
 
@@ -256,7 +259,7 @@ export const setStore = (b, store) => ({ ...b, store: cleanStore(store) });
 
 export function applyPieces(b, pieces) {
   const n = { ...b };
-  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts', 'presets']) if (pieces[k]) n[k] = pieces[k];
+  for (const k of ['vocabulary', 'frameBrands', 'frames', 'inventory', 'accessories', 'extras', 'staff', 'promotions', 'promoLensMap', 'sets', 'setLenses', 'setPrices', 'discounts', 'presets']) if (pieces[k]) n[k] = pieces[k];
   if (pieces.lenses) n.lenses = pieces.lenses;
   if (pieces.stockReport) n.stockReport = pieces.stockReport;
   if (pieces.store) n.store = pieces.store;

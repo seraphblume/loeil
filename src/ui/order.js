@@ -6,7 +6,7 @@ import { html, useState } from './html.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import {
   Bar, Screen, Eyebrow, Panel, Figure, Anchor, Secondary, Row, List, Section, Sheet, Empty, Seg,
-  SearchField, Confirm, useCopy, KV, Flag, Dock,
+  SearchField, Confirm, useCopy, KV, Flag, Dock, Toggle,
 } from './kit.js';
 import { Icon } from './icons.js';
 import { go } from './router.js';
@@ -22,15 +22,23 @@ import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
 import { solutionClash } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
-import { promoNumbers, autoDiscountFor, setTable, rowPriceText } from '../core/sets.js';
+import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
 import { stockLabel } from '../core/catalogue.js';
 import { eligibility } from '../core/promotions.js';
 import { guidance, rxIsBlank, newClient } from '../core/crm.js';
 import { fold } from '../core/util.js';
 import {
-  removeLine, clearDraft, setDraftClient, saveDraftTo, addLine, toast, clientById, upsertClient, updateLine, setOrderFrame,
+  removeLine, clearDraft, setDraftClient, saveDraftTo, addLine, toast, clientById, upsertClient, updateLine, setOrderFrame, setDraftClaim,
 } from '../state/app.js';
+
+/** The chip a line's discount shows: `−30% · 9027`, `8922 · $2,099`, `−20% · 461`. */
+function discountChip(r) {
+  const l = r.line;
+  if (r.fixed != null) return `${l.auto.id} · ${money(r.net)}`;
+  if (r.discount) return `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}`;
+  return null;
+}
 
 export function CodesBlock({ order }) {
   const [copied, copy] = useCopy();
@@ -78,14 +86,17 @@ export function LinesPanel({ order, editable }) {
                 ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
               ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row' : 'Row'}</button>`}
+              ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${l.auto.id} upgrade · price to confirm</button>`}
               ${discountable(l) && !r.pending && (editable
-                ? html`<button type="button" class=${'chip' + (r.discount ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${r.discount ? `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}` : 'Discount'}</button>`
-                : r.discount > 0 && html`<span class="chip on">−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}</span>`)}
+                ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? 'Discount'}</button>`
+                : discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`)}
+              ${!discountable(l) && discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`}
+              ${l.kind === 'extra' && !isShare(l) && l.priceCents === 1 && html`<span class="tiny muted">gift</span>`}
             </div>
           </div>
           <div class="money">
-            ${r.discount > 0 && html`<div class="was">${money(r.list)}</div>`}
-            <div class=${'now' + (r.net == null ? ' soft' : '')} key=${r.net}>${r.pending ? 'Row?' : r.net == null ? 'At register' : money(r.net)}</div>
+            ${r.off > 0 && html`<div class="was">${money(r.list)}</div>`}
+            <div class=${'now' + (r.net == null ? ' soft' : '')} key=${r.net}>${r.pending ? (l.setLens ? 'Row?' : 'To confirm') : r.net == null ? 'At register' : money(r.net)}</div>
             ${steps
               ? html`<div class="steps">
                   <button class="icon-btn" aria-label="One fewer" onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
@@ -106,21 +117,23 @@ export function LinesPanel({ order, editable }) {
 
 /** The campaign's discount if one applies, none, or a set percentage — each with what the line comes to. */
 function DiscountSheet({ row, onClose }) {
-  const catalogue = useApp((s) => s.catalogue);
   const l = row.line;
-  const auto = autoDiscountFor(catalogue, { ...l, discount: undefined });
+  const auto = l.offer ?? null; // what applies without the seller, worked out with the order
+  const list = row.list ?? (l.kind === 'lens' ? l.lens.priceCents : l.priceCents) ?? 0;
   const pick = (pct) => { updateLine(l.id, { discount: pct }); onClose(); };
-  const at = (pct) => money(row.list - Math.round((row.list * pct) / 100));
+  const at = (pct) => money(list - Math.round((list * pct) / 100));
   const manual = typeof l.discount === 'number';
+  const autoEnd = auto ? (auto.pending ? 'To confirm' : money(list - savingOf(auto, list))) : '';
   return html`<${Sheet} title="Discount" onClose=${onClose}>
     <div class="stack tight">
       <p class="para pad">${lineText(l)}</p>
       <${List}>
-        ${auto && html`<${Row} title=${auto.name} detail=${`Promotion ${auto.id} · applies on its own while the campaign runs`}
-          end=${html`${at(auto.percent)}${!manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(undefined)} />`}
+        ${auto && html`<${Row} title=${auto.name} detail=${`Promotion ${auto.id} · ${hitText(auto, money)}`}
+          end=${html`${autoEnd}${!manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(undefined)} />`}
         ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? `${pct}% off` : 'No discount'}
           end=${html`${at(pct)}${manual && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
       <//>
+      ${auto?.pending && html`<p class="note pad">The offer prices this lens as an upgrade, and the upgrade’s price is not in the catalogue yet. Confirm it at the register, or choose No discount to quote the lens at its own price.</p>`}
       ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out after the discount.</p>`}
     </div>
   <//>`;
@@ -177,7 +190,8 @@ export function TotalBlock({ order, figure = true }) {
   const rest = p.unpriced;
   if (!figure && !p.pending.length && !p.off && !rest.length) return null;
   return html`<div class="gap-m">
-    ${p.pending.length > 0 && html`<${Flag}>${p.pending.length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
+    ${p.pending.some((l) => l.setLens) && html`<${Flag}>${p.pending.filter((l) => l.setLens).length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
+    ${p.pending.some((l) => !l.setLens) && html`<${Flag}>${p.pending.filter((l) => !l.setLens).map((l) => `${l.auto.id} ${l.auto.name}`)[0]}: this lens is an upgrade, and the upgrade’s price is not known yet. Confirm it at the register.<//>`}
     ${figure && html`<${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />`}
     ${p.off > 0 && html`<${Panel}>
       <${KV} k="Before discounts" v=${money(p.list)} />
@@ -186,7 +200,7 @@ export function TotalBlock({ order, figure = true }) {
     ${rest.length > 0 && html`<div class="gap-s">
       <${Eyebrow}>Priced at the register<//>
       ${rest.map((l) => html`<div style="display:flex;gap:8px;font-size:12px"><span class="mono muted">${lineCode(l)}</span><span class="silver" style="flex:1">${lineText(l)}</span><span class="muted num">×${lineQuantity(l)}</span></div>`)}
-      <p class="note">These carry no price in the catalogue. The register prices them, so they are not in the total above.</p>
+      <p class="note">These are not in the catalogue or the accessory price list. The register prices them, so they are not in the total above.</p>
     </div>`}
   </div>`;
 }
@@ -222,6 +236,8 @@ export function OrderScreen() {
   const aob = needsAob(draft, catalogue);
   const missing = aobMissing(draft, catalogue);
   const clash = solutionClash(draft, catalogue);
+  const claimable = claimableDiscounts(catalogue);
+  const claimed = new Set(draft.claimed ?? []);
 
   return html`
     <${Bar} backTo="#/find" title="Order" trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
@@ -232,6 +248,8 @@ export function OrderScreen() {
           <${Row} icon="eye" title="Prescription" detail=${rxSummary(rx) ?? 'Enter the prescription for this job'} one
             end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
             chev onClick=${() => setSheet('rx')} />
+          ${claimable.map((d) => html`<${Row} key=${d.id} icon="tag" title=${d.name} detail=${`Shows: ${d.requires} · ${d.id}`}
+            end=${html`<${Toggle} on=${claimed.has(d.id)} label=${d.name} onChange=${(on) => { setDraftClaim(d.id, on); toast(on ? `${d.name}: ${d.percent ? `${d.percent}% off` : 'on'} what no set or other discount covers` : `${d.name} off`); }} />`} />`)}
         <//>
         ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
         ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Crizal, Transitions and Polarex and void their warranty. Offer a microfibre cloth instead — keep it only if the customer insists.<//></div>`}
@@ -307,11 +325,13 @@ function AddExtraSheet({ onClose }) {
         ${catalogue.extras.filter((e) => !t || fold(e.description).includes(t)).map((e) => html`<${Row} title=${e.description} detail=${e.id} mono
           end=${e.percent ? `${e.percent}% of the glasses` : null} onClick=${() => add(extraLine(e.id, e.description, 1, null, e.percent))} />`)}
       <//>
-      <p class="note pad">${catalogue.extras.some((e) => e.percent) ? 'An add-on with a percentage is priced from the frame and spectacle lenses on the order, after their discounts. The rest' : 'These'} carry no price: they reach the ticket as a code and a quantity, and the register prices them.</p>
+      <p class="note pad">${catalogue.extras.some((e) => e.percent) ? 'An add-on with a percentage is priced from the frame and spectacle lenses on the order, after their discounts. The rest' : 'These'} are priced by the price list when they are in it, else at the register.</p>
       <${Section} title="Cases, solutions and accessories">
-        ${stock.slice(0, 80).map((i) => html`<${Row} title=${i.description} detail=${i.sku} mono end=${html`<span style=${{ color: i.stock === 0 ? 'var(--platinum)' : 'var(--pewter)' }}>${i.stock === 0 ? 'none' : i.stock}</span>`}
+        ${stock.slice(0, 120).map((i) => html`<${Row} title=${i.description} detail=${`${i.sku} · ${i.stock == null ? 'not in the stock report' : i.stock === 0 ? 'none on hand' : `${i.stock} on hand`}`} mono
+          end=${i.price == null ? html`<span class="muted">Register</span>` : i.price <= 1 ? html`<span class="muted">Gift</span>` : money(i.price)}
           onClick=${() => add(extraLine(i.sku, i.description, 1, i.stock))} />`)}
       <//>
+      <p class="note pad">A gift costs $0.01 at the register.</p>
     </div>
   <//>`;
 }

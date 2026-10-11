@@ -27,8 +27,11 @@ export function SetsScreen() {
             detail=${brandList(s).slice(0, 6).join(', ') + (brandList(s).length > 6 ? '…' : '')}
             sub=${setStatus(s) === 'Live' ? `ID Maestro ${s.id}` : `${setStatus(s)} · ID Maestro ${s.id}`} end=${money(s.price)} chev />`)}
         <//>`}
-        ${discounts.length > 0 && html`<${Section} title="Applied on their own">
-          ${discounts.map((d) => html`<div class="row"><span class="main"><span class="t">${d.name}</span><span class="d">${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · until ${fmtDate(d.validTo)}</span>
+        ${discounts.length > 0 && html`<${Section} title="Discounts" footer="One per line, never two. Those the client claims cover only what no set or other discount does.">
+          ${discounts.map((d) => html`<div class="row"><span class="main"><span class="t">${d.name}</span>
+            <span class="d">${d.price != null ? `${money(d.price)} · ` : d.percent ? `${d.percent}% · ` : ''}${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${d.validTo ? `until ${fmtDate(d.validTo)}` : 'standing'}</span>
+            ${d.requires && html`<span class="d">When the client shows: ${d.requires}</span>`}
+            ${d.upgrade && html`<span class="d">Upgrades: ${d.upgradePrice != null ? `${money(d.upgradePrice)} more` : 'price to confirm'}</span>`}
             ${d.only && html`<span class="d">Only ${d.only}</span>`}${d.except && html`<span class="d">Not ${d.except}</span>`}</span>
             <span class="end mono sel" style="font-size:15px;color:var(--platinum)">${d.id}</span></div>`)}
         <//>`}

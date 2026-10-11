@@ -278,6 +278,14 @@ export async function setDraftRx(rx) {
   await saveDraft();
 }
 
+/** A discount the client claims by showing something (a Sam's Club card), on or off for this order. */
+export async function setDraftClaim(id, on) {
+  const claimed = new Set(state.draft.claimed ?? []);
+  if (on) claimed.add(id); else claimed.delete(id);
+  setState({ draft: { ...state.draft, claimed: [...claimed] } });
+  await saveDraft();
+}
+
 /** AOB per eye, in mm: measured for the job, so it lives on the order, never on the client. */
 export async function setDraftAob(aob) {
   setState({ draft: { ...state.draft, aob } });

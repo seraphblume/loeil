@@ -50,7 +50,7 @@ export function receiptBlocks(r) {
   B.push({ t: 'amount', k: 'Amount', v: amount(r.totals.total) });
   B.push({ t: 'words', text: `** ${r.words} **` });
   if (r.totals.off) B.push({ t: 'fine', text: `Before discounts ${amount(r.totals.list)} · you save ${amount(r.totals.off)}` });
-  if (r.totals.pending) B.push({ t: 'fine', text: 'A lens still needs its row of the set — amount so far' });
+  if (r.totals.pending) B.push({ t: 'fine', text: 'A lens price is not settled yet (its set row or an upgrade) — amount so far' });
   if (r.totals.unpriced) B.push({ t: 'fine', text: `${r.totals.unpriced} item${r.totals.unpriced === 1 ? '' : 's'} priced at the register (reg.)` });
 
   B.push({ t: 'rule' });
@@ -118,7 +118,7 @@ export function quoteBlocks(q) {
     B.push({ t: 'pair', k: 'You save:', v: amount(o.save) });
     B.push({ t: 'amount', k: 'Total to pay', v: fromText + amount(o.total) });
     if (o.from) B.push({ t: 'fine', text: 'Frame quoted by brand, from its lowest price — the final price is the frame you choose.', left: true });
-    if (o.pending) B.push({ t: 'fine', text: 'A lens still needs its row of the set — total so far', left: true });
+    if (o.pending) B.push({ t: 'fine', text: 'A lens price is not settled yet (its set row or an upgrade) — total so far', left: true });
     if (o.unpriced) B.push({ t: 'fine', text: `${o.unpriced} item${o.unpriced === 1 ? '' : 's'} priced at the register`, left: true });
     B.push({ t: 'fine', text: '*Authorised materials and treatments apply.', left: true });
     if (o.validUntil) B.push({ t: 'fine', text: `This quote is valid until: ${day(o.validUntil)}`, left: true });

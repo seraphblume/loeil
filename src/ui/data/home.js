@@ -66,6 +66,7 @@ export function DataHome() {
           <${Row} to="#/me/data/frames" icon="glasses" title="Frames" detail="The frame catalogue: price, brand, size" count=${n(bundle?.frames.length ?? 0)} chev />
           <${Row} to="#/me/data/brands" icon="star" title="Brand tiers" count=${n(new Set((bundle?.frames ?? []).map((f) => f.brand)).size)} chev />
           <${Row} to="#/me/data/stock" icon="box" title="Stock" detail=${bundle?.stockReport?.generated ? `From the report of ${bundle.stockReport.generated}` : 'Import the POS stock report'} count=${n(bundle?.inventory.length ?? 0)} chev />
+          <${Row} to="#/me/data/accessories" icon="tag" title="Accessory prices" detail="Cases, cloths, solutions and gifts" count=${n(bundle?.accessories?.length ?? 0)} chev />
           <${Row} to="#/me/data/extras" icon="box" title="Extras" count=${n(bundle?.extras.length ?? 0)} chev />
         <//>
 

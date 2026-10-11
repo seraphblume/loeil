@@ -46,6 +46,7 @@ export function counts(b) {
     Frames: b.frames.length,
     'Frame brands': new Set(b.frames.map((f) => f.brand)).size,
     'Stock items': b.inventory.length,
+    'Accessory prices': (b.accessories ?? []).length,
     Extras: b.extras.length,
     Staff: b.staff.length,
     Promotions: b.promotions.length,
@@ -152,6 +153,18 @@ export function validateBundle(b, report = new Report()) {
     if (e.percent != null && !(Number(e.percent) > 0 && Number(e.percent) <= 100)) report.error('Extras', `${e.description || e.id}: the percentage must be more than 0 and at most 100.`);
   }
 
+  // --- the accessory price list
+  const accSkus = new Set();
+  for (const a of b.accessories ?? []) {
+    if (!new RegExp(`^\\d{${TRUE_SKU_DIGITS}}$`).test(a.sku)) report.error('Accessory prices', `${a.description || 'An accessory'}: barcode ${a.sku} is not ${TRUE_SKU_DIGITS} digits.`);
+    if (accSkus.has(a.sku)) report.error('Accessory prices', `${a.sku} is listed twice.`);
+    accSkus.add(a.sku);
+    if (!(a.price > 0)) report.error('Accessory prices', `${a.description || a.sku} has no price (a gift is $0.01).`);
+    else if (a.price > 2000000) report.warn('Accessory prices', `${a.description || a.sku}: ${a.price / 100} looks too high for an accessory.`);
+  }
+  const unlisted = b.inventory.filter((i) => ['case', 'solution', 'accessory'].includes(stockKind(i)) && !accSkus.has(i.sku)).length;
+  if ((b.accessories ?? []).length && unlisted) report.note('Accessory prices', `${unlisted} accessor${unlisted > 1 ? 'ies' : 'y'} in stock ${unlisted > 1 ? 'are' : 'is'} not in the price list — the register prices ${unlisted > 1 ? 'those' : 'it'}.`);
+
   // --- staff
   const nums = new Set();
   for (const s of b.staff) {
@@ -252,6 +265,12 @@ function validateSets(b, report) {
     ...b.lenses.multifocal.map((r) => ({ family: parseCodeLabel(r.type).code, material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
   ];
 
+  /** Codes and groups in a match the vocabulary does not know. */
+  const unknownTokens = (match) => parseMatch(match).flatMap((m) => Object.entries(m)
+    .filter(([seg, part]) => seg !== 'extra' && !part.any)
+    .flatMap(([seg, part]) => part.tokens.filter((t) => !(seg === 'family' ? families.has(t)
+      : t.startsWith('*') ? groups.has(KIND[seg] + '|' + t.slice(1)) : vocab.get(KIND[seg])?.has(t)))));
+
   const rowIds = new Set();
   const handPicked = [];
   for (const d of rows) {
@@ -297,7 +316,18 @@ function validateSets(b, report) {
     if (!d.id) report.error('Campaign discounts', `${d.name || 'A discount'} has no promotion number.`);
     if (dIds.has(d.id)) report.error('Campaign discounts', `Promotion ${d.id} is listed twice.`);
     dIds.add(d.id);
-    if (!(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${d.name || d.id}: the percentage must be more than 0 and at most 100.`);
-    if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${d.name || d.id}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
+    const where = d.name || d.id;
+    if (d.price != null) {
+      if (!(d.price > 0)) report.error('Campaign discounts', `${where}: the fixed price must be more than zero.`);
+      if (!d.lens) report.error('Campaign discounts', `${where}: a fixed price needs the lens it is for.`);
+    } else if (!(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${where}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
+    if (d.validFrom && d.validTo && d.validTo < d.validFrom) report.error('Campaign discounts', `${where} ends before it starts.`);
+    for (const [label, match] of [['lens', d.lens], ['upgrade', d.upgrade]]) {
+      if (!match) continue;
+      for (const t of unknownTokens(match)) report.warn('Campaign discounts', `${where}: “${t}” in the ${label} is not something the vocabulary knows.`);
+      if (!facts.some((f) => factsMatch(lookup, match, f))) report.warn('Campaign discounts', `${where}: the ${label} matches no lens in the catalogue.`);
+    }
+    if (d.upgrade && d.upgradePrice == null) report.note('Campaign discounts', `${where}: the upgrade price is not set yet, so an upgraded lens shows “price to confirm”.`);
   }
 }

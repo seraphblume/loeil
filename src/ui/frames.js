@@ -160,9 +160,10 @@ export function FrameScreen({ sku }) {
 /** A stock item: a case, solution, accessory, boxed contact lens — or a frame the catalogue lacks. */
 export function StockScreen({ sku }) {
   const catalogue = useApp((s) => s.catalogue);
-  const item = catalogue.inventoryBySku.get(sku);
+  const item = catalogue.inventoryBySku.get(sku) ?? catalogue.listedOnlyBySku.get(sku);
   const [typed, setTyped] = useState('');
   if (!item) return html`<${Bar} backTo="#/find" title="Stock" /><${Screen}><div class="pad"><${Empty} title="Not in the stock list">Barcode ${sku} is not in the inventory.<//></div><//>`;
+  const listed = catalogue.accessoriesBySku.get(item.sku);
   const isFrame = item.kind === 'frame';
   const set = isFrame ? setForFrame(catalogue, frameFacts(catalogue, { sku: item.sku, description: item.description })) : null;
   const pesos = Number(typed.replace(/[^\d]/g, ''));
@@ -182,7 +183,9 @@ export function StockScreen({ sku }) {
         <${Panel}>
           <${KV} k="Barcode" v=${item.sku} mono />
           <${KV} k="Vendor SKU" v=${item.vendorSku} mono />
-          <${KV} k="Stock" v=${stockLabel(item.stock)} em=${item.stock === 0} />
+          <${KV} k="Stock" v=${item.stock == null ? 'Not in the stock report' : stockLabel(item.stock)} em=${item.stock === 0} />
+          ${listed && html`<${KV} k="Price" v=${money(listed.price)} />`}
+          ${listed?.collection && html`<${KV} k="Collection" v=${listed.collection} />`}
           ${item.classification && item.classification !== 'N/A' && html`<${KV} k="Class" v=${item.classification} />`}
           ${item.expires && html`<${KV} k="Expiry" v=${fmtExpiry(item.expires)} />`}
         <//>
@@ -193,7 +196,8 @@ export function StockScreen({ sku }) {
           <label class="field"><span class="unit">$</span>
             <input inputmode="numeric" placeholder="Read it off the tag" value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
           <p class="note">This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.</p>
-        </section>` : html`<p class="para">Priced at the register. It goes on the ticket as a code and a quantity.</p>`}
+        </section>` : listed ? html`<p class="para">${listed.price <= 1 ? 'A gift: the register charges a cent for it.' : 'Priced from the accessory price list.'} It goes on the ticket with its code.</p>`
+          : html`<p class="para">Not in the accessory price list, so the register prices it. It goes on the ticket as a code and a quantity.</p>`}
       </div>
     <//>
     <${Dock}>

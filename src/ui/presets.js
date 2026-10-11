@@ -30,7 +30,8 @@ function rxBasis(rx) {
 function TierRow({ result, onPick }) {
   const { tier, lens } = result;
   if (!lens) return html`<${Row} title=${tier.tier} detail=${result.why} off />`;
-  const adds = [...result.extras.map((e) => (e.percent ? 'Plus Protection' : e.description)), ...result.items.map((i) => i.label)];
+  const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
+  const adds = [...result.extras.map((e) => (e.percent ? 'Plus Protection' : e.description)), ...result.items.map(itemText)];
   const notes = [...result.notes, ...result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`)];
   return html`<${Row} title=${tier.tier} detail=${lens.displayName}
     sub=${html`${tier.tierBlurb && html`<span class="preset-line">${tier.tierBlurb}</span>`}

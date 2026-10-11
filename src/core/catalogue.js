@@ -60,9 +60,19 @@ export class Catalogue {
     });
     this.tierByBrand = new Map(this.brands.map((b) => [b.key, b.tier]));
 
-    // stock, collapsed by barcode at publish time
-    this.inventory = (bundle?.inventory ?? []).map((i) => ({ ...i, kind: stockKind(i) }));
+    // the accessory price list: cases, cloths, solutions, gifts — by true SKU
+    this.accessories = bundle?.accessories ?? [];
+    this.accessoriesBySku = new Map(this.accessories.map((a) => [a.sku, a]));
+
+    // stock, collapsed by barcode at publish time; an accessory takes its listed price
+    this.inventory = (bundle?.inventory ?? []).map((i) => ({ ...i, kind: stockKind(i), price: this.accessoriesBySku.get(i.sku)?.price ?? null }));
     this.inventoryBySku = new Map(this.inventory.map((i) => [i.sku, i]));
+    // listed accessories the stock report does not carry, as stock items of unknown count
+    this.listedOnly = this.accessories.filter((a) => !this.inventoryBySku.has(a.sku)).map((a) => ({
+      sku: a.sku, vendorSku: a.product ?? '', description: a.description, classification: '', stock: null, batches: 0,
+      kind: stockKind({ sku: a.sku, vendorSku: a.product ?? '' }), price: a.price ?? null, listed: true,
+    }));
+    this.listedOnlyBySku = new Map(this.listedOnly.map((i) => [i.sku, i]));
 
     // frames: the frame catalogue is the source of truth; stock joins on barcode
     this.frames = (bundle?.frames ?? []).map((f) => {
@@ -153,8 +163,9 @@ export class Catalogue {
     if (d.length > 8) {
       const tail = d.slice(-8);
       const tailNoCheck = d.slice(-9, -1);
-      if (this.framesBySku.has(tail) || this.inventoryBySku.has(tail)) return tail;
-      if (this.framesBySku.has(tailNoCheck) || this.inventoryBySku.has(tailNoCheck)) return tailNoCheck;
+      const known = (k) => this.framesBySku.has(k) || this.inventoryBySku.has(k) || this.accessoriesBySku.has(k);
+      if (known(tail)) return tail;
+      if (known(tailNoCheck)) return tailNoCheck;
     }
     return d;
   }
@@ -164,7 +175,7 @@ export class Catalogue {
     const sku = this.normaliseBarcode(raw);
     const frame = this.framesBySku.get(sku) ?? this.framesByProduct.get(String(raw).trim());
     if (frame) return { kind: 'frame', sku: frame.sku, frame, stock: this.inventoryBySku.get(frame.sku) ?? null };
-    const item = this.inventoryBySku.get(sku);
+    const item = this.inventoryBySku.get(sku) ?? this.listedOnlyBySku.get(sku);
     if (item) return { kind: item.kind === 'frame' ? 'stockFrame' : 'stock', sku, item };
     return { kind: 'none', sku };
   }
@@ -198,8 +209,11 @@ export class Catalogue {
     return out;
   }
 
-  /** Cases, solutions and accessories — unpriced, the register prices them. */
-  get consumables() { return this.inventory.filter((i) => i.kind !== 'frame' && i.kind !== 'contact'); }
+  /** Cases, solutions and accessories: in stock, and listed in the price list. */
+  get consumables() { return [...this.inventory.filter((i) => i.kind !== 'frame' && i.kind !== 'contact'), ...this.listedOnly]; }
+
+  /** An accessory's price from the price list; null when the register prices it. */
+  itemPrice(sku) { return this.accessoriesBySku.get(String(sku))?.price ?? null; }
 }
 
 export const STOCK_KIND_LABEL = {
