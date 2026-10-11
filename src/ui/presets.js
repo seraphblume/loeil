@@ -123,7 +123,7 @@ const FIELDS = [
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
   { key: 'extras', label: 'Extras', placeholder: 'e.g. 600500800203', group: 'Adds', hint: 'Extra codes, separated by commas — Plus Protection is one.' },
   { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 61004120/61004121; Cleaning solution*: 61004172', group: 'Adds',
-    hint: 'Label: stock codes in order of preference (the first in stock is added), separated by ;. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
+    hint: 'Label: barcodes in order of preference (the first on hand is added, else the first in the price list), separated by ;. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
   { key: 'brands', label: 'Frame brands', type: 'textarea', placeholder: 'e.g. Versace, Carolina Herrera, Michael Kors', group: 'Frame',
     hint: 'Separated by commas. When set, choosing this tier asks for a frame of one of these brands (unless the option already has one). Blank: any frame.' },
 ];

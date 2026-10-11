@@ -152,7 +152,7 @@ Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 `presets` tab of the workbook): a row per tier with its single vision and
 progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`), the extra
 codes, and the accessories as `Pouch: 61004120/61004121; Cleaning solution*: 61004172`
-— stock codes in order of preference (the first in stock is added), a `*` marking a
+— barcodes in order of preference (the first on hand, else the first in the price list), a `*` marking a
 cleaning solution. A tier can also name its **frame brands** (comma-separated):
 choosing it then asks for a frame of one of them, unless the option already has one.
 

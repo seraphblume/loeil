@@ -20,7 +20,7 @@ import { OrderRxSheet, rxSummary } from './rx.js';
 import { addOrderToQuote } from './quote.js';
 import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
-import { solutionClash } from '../core/presets.js';
+import { solutionClash, clashParts } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
@@ -81,7 +81,7 @@ export function LinesPanel({ order, editable }) {
             <div class="meta">
               <span class="mono">${lineCode(l) || (l.placeholder ? 'frame not chosen' : '')}</span>
               ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">from the tag</span>`}
-              ${l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
+              ${l.kind === 'frame' && l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
               ${inSet && (editable
                 ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
@@ -251,8 +251,16 @@ export function OrderScreen() {
           ${claimable.map((d) => html`<${Row} key=${d.id} icon="tag" title=${d.name} detail=${`Shows: ${d.requires} · ${d.id}`}
             end=${html`<${Toggle} on=${claimed.has(d.id)} label=${d.name} onChange=${(on) => { setDraftClaim(d.id, on); toast(on ? `${d.name}: ${d.percent ? `${d.percent}% off` : 'on'} what no set or other discount covers` : `${d.name} off`); }} />`} />`)}
         <//>
+        ${clash.length > 0 && html`<div class="pad"><div class="caution" role="alert">
+          <${Icon} name="warning" />
+          <div class="caution-main">
+            <div class="caution-t">Voids the ${clashParts(draft, catalogue)} warranty</div>
+            <div class="caution-d">Cleaning solutions damage the coating. Offer a microfibre cloth instead.</div>
+            <div class="caution-items">${clash.map((l) => html`<div class="caution-item" key=${l.id}><span>${l.description}</span>
+              <button type="button" class="caution-btn" onClick=${() => { removeLine(l.id); toast('Removed from the order'); }}>Remove</button></div>`)}</div>
+          </div>
+        </div></div>`}
         ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
-        ${clash.length > 0 && html`<div class="pad"><${Flag}>${clash.map((l) => l.description).join(', ')}: cleaning solutions damage Crizal, Transitions and Polarex and void their warranty. Offer a microfibre cloth instead — keep it only if the customer insists.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has
@@ -312,26 +320,40 @@ function LensFamilySheet({ onClose }) {
   <//>`;
 }
 
+/** The price list's collections in the order a seller reaches for them; gifts last. */
+const COLLECTION_ORDER = (c) => (/gift/i.test(c) ? 2 : /solution/i.test(c) ? 1 : 0);
+
+/**
+ * Add an extra: Plus Protection, then the accessory price list by collection,
+ * each at its price. No stock counts — they drift between imports; a code the
+ * list lacks is scanned instead, and the register prices it.
+ */
 function AddExtraSheet({ onClose }) {
   const catalogue = useApp((s) => s.catalogue);
   const [term, setTerm] = useState('');
-  const t = fold(term);
-  const stock = catalogue.consumables.filter((i) => !t || fold(i.description).includes(t) || i.sku.includes(term));
+  const t = fold(term).trim();
+  const listed = new Set(catalogue.accessories.map((a) => a.sku));
+  // Add-ons are what the price list cannot hold: a percentage of the glasses.
+  const addons = catalogue.extras.filter((e) => e.percent || !listed.has(e.id))
+    .filter((e) => !t || fold(e.description).includes(t) || e.id.includes(term.trim()));
+  const items = catalogue.accessories.filter((a) => !t || fold(`${a.description} ${a.collection}`).includes(t) || a.sku.includes(term.trim()) || (a.product ?? '').includes(term.trim()));
+  const groups = [...new Set(items.map((a) => a.collection || 'Other'))].sort((a, b) => COLLECTION_ORDER(a) - COLLECTION_ORDER(b));
   const add = async (line) => { await addLine(line); toast('Added to the order'); onClose(); };
+  const price = (a) => (a.price <= 1 ? html`<span class="muted">Gift</span>` : money(a.price));
   return html`<${Sheet} title="Add an extra" onClose=${onClose} full>
     <div class="stack tight">
-      <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description or barcode" /></div>
-      <${Section} title="Add-ons">
-        ${catalogue.extras.filter((e) => !t || fold(e.description).includes(t)).map((e) => html`<${Row} title=${e.description} detail=${e.id} mono
-          end=${e.percent ? `${e.percent}% of the glasses` : null} onClick=${() => add(extraLine(e.id, e.description, 1, null, e.percent))} />`)}
-      <//>
-      <p class="note pad">${catalogue.extras.some((e) => e.percent) ? 'An add-on with a percentage is priced from the frame and spectacle lenses on the order, after their discounts. The rest' : 'These'} are priced by the price list when they are in it, else at the register.</p>
-      <${Section} title="Cases, solutions and accessories">
-        ${stock.slice(0, 120).map((i) => html`<${Row} title=${i.description} detail=${`${i.sku} · ${i.stock == null ? 'not in the stock report' : i.stock === 0 ? 'none on hand' : `${i.stock} on hand`}`} mono
-          end=${i.price == null ? html`<span class="muted">Register</span>` : i.price <= 1 ? html`<span class="muted">Gift</span>` : money(i.price)}
-          onClick=${() => add(extraLine(i.sku, i.description, 1, i.stock))} />`)}
-      <//>
-      <p class="note pad">A gift costs $0.01 at the register.</p>
+      <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description, barcode or collection" /></div>
+      ${addons.length > 0 && html`<${Section}>
+        ${addons.map((e) => html`<${Row} key=${e.id} icon=${e.percent ? 'shield' : 'plus'} title=${e.description}
+          detail=${e.percent ? `${e.percent}% of the frame and lenses, after their discounts` : e.id}
+          end=${e.percent ? `${e.percent}%` : null} onClick=${() => add(extraLine(e.id, e.description, 1, null, e.percent))} />`)}
+      <//>`}
+      ${groups.map((g) => html`<${Section} key=${g} title=${g}>
+        ${items.filter((a) => (a.collection || 'Other') === g).map((a) => html`<${Row} key=${a.sku} title=${a.description} detail=${a.sku} mono
+          end=${price(a)} onClick=${() => add(extraLine(a.sku, a.description, 1, null))} />`)}
+      <//>`)}
+      ${!items.length && !addons.length && html`<div class="pad"><${Empty} title="Nothing matches">Try another word, or scan the item’s barcode.<//></div>`}
+      <p class="note pad">Not in the list? Scan its barcode — the register prices it. A gift is $0.01.</p>
     </div>
   <//>`;
 }

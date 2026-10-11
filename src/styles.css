@@ -373,6 +373,19 @@ button.group:disabled { opacity: 1; }
 
 .flag { display: flex; gap: 11px; align-items: flex-start; background: var(--cell); border-radius: 18px; padding: 13px 15px; font-size: 15px; line-height: 1.4; color: var(--label); }
 .flag svg { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--label-2); }
+
+/* A caution the seller must act on: tinted, louder than a flag, with its fix on it. */
+.caution { display: flex; gap: 12px; align-items: flex-start; border-radius: 18px; padding: 14px 15px;
+  background: rgba(255, 123, 114, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 123, 114, 0.36); }
+.caution > svg { width: 22px; height: 22px; flex: none; color: var(--danger); margin-top: 1px; }
+.caution-main { flex: 1; min-width: 0; }
+.caution-t { font: 600 16px/1.3 var(--display); color: #FFB3AD; }
+.caution-d { font-size: 14px; line-height: 1.4; color: var(--label-2); margin-top: 2px; }
+.caution-items { display: grid; gap: 8px; margin-top: 11px; }
+.caution-item { display: flex; align-items: center; gap: 10px; }
+.caution-item > span { flex: 1; min-width: 0; font-size: 13px; color: var(--label); overflow-wrap: anywhere; }
+.caution-btn { flex: none; border: 0; border-radius: 999px; padding: 7px 14px; font: 600 13px var(--sans); color: var(--nocturne); background: var(--danger); cursor: pointer; }
+.caution-btn:active { opacity: .8; }
 .empty { padding: 4px 0; }
 .empty h2 { margin: 0 0 6px; font: 600 20px/1.25 var(--display); }
 .empty p { margin: 0; font-size: 15px; color: var(--label-2); line-height: 1.4; }

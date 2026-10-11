@@ -27,6 +27,7 @@ const P = {
   trash: html`<path d="M5 7h14M10 7V5h4v2M7 7l.8 12h8.4L17 7"/>`,
   share: html`<path d="M12 15V4M8.5 7.5 12 4l3.5 3.5"/><path d="M7 11H6v9h12v-9h-1"/>`,
   camera: html`<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.4"/>`,
+  shield: html`<path d="M12 3.5 19 6.3v5.4c0 4.2-2.9 7.5-7 8.8-4.1-1.3-7-4.6-7-8.8V6.3z"/><path d="m9 12.1 2.1 2.1 3.9-4"/>`,
   warning: html`<path d="M12 4.5 20.5 19h-17z"/><path d="M12 10v4M12 16.6v.2"/>`,
   clock: html`<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>`,
   check: html`<path d="m5.5 12.5 4 4 9-9"/>`,

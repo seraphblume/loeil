@@ -20,7 +20,7 @@ import { HIGH_RX_SPHERE } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Items: `Pouch: 61004120/61004121; Cleaning solution*: 61004172`
-// A label, the SKUs in order of preference (the first in stock is taken), and
+// A label, the SKUs in order of preference (the first on hand is taken, else the first known), and
 // a star when the item is a cleaning solution.
 
 export function parseItems(text) {
@@ -56,19 +56,32 @@ export function isSolution(catalogue, code, description = '') {
 const SENSITIVE_FILTERS = new Set(['TRANS', 'POLAR']);
 export const SOLUTION_WARNING = 'cleaning solutions damage Crizal, Transitions and Polarex and void their warranty';
 
-/** Crizal, Transitions or Polarex: the lenses a solution damages. */
-export function solutionSensitive(catalogue, lens) {
-  if (!lens || lens.family === 'CL') return false;
+const SENSITIVE_NAMES = { TRANS: 'Transitions', POLAR: 'Polarex' };
+
+/** What on a lens a solution damages: `['Transitions', 'Crizal']`, or none. */
+export function sensitiveParts(catalogue, lens) {
+  if (!lens || lens.family === 'CL') return [];
   const a = Object.fromEntries((lens.attributes ?? []).map((x) => [x.key, x.code]));
-  const filter = SENSITIVE_FILTERS.has(catalogue?.meta('category', a.category)?.group);
-  const crizal = catalogue?.codesInGroup('treatment', 'CRIZAL').has(a.treatment);
-  return Boolean(filter || crizal);
+  const group = catalogue?.meta('category', a.category)?.group;
+  const out = [];
+  if (SENSITIVE_FILTERS.has(group)) out.push(SENSITIVE_NAMES[group]);
+  if (catalogue?.codesInGroup('treatment', 'CRIZAL').has(a.treatment)) out.push('Crizal');
+  return out;
 }
+
+/** Crizal, Transitions or Polarex: the lenses a solution damages. */
+export const solutionSensitive = (catalogue, lens) => sensitiveParts(catalogue, lens).length > 0;
 
 /** The solution lines on an order that also carries Crizal, Transitions or Polarex — empty when there is no clash. */
 export function solutionClash(order, catalogue) {
   if (!order.lines.some((l) => isPair(l) && solutionSensitive(catalogue, l.lens))) return [];
   return order.lines.filter((l) => l.kind === 'extra' && isSolution(catalogue, l.code, l.description));
+}
+
+/** The names a clash is about, once each: `Transitions and Crizal`. */
+export function clashParts(order, catalogue) {
+  const names = [...new Set(order.lines.filter(isPair).flatMap((l) => sensitiveParts(catalogue, l.lens)))];
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? '';
 }
 
 // ---------------------------------------------------------------------------
@@ -126,11 +139,13 @@ export function resolvePreset(catalogue, tier, rx) {
   }
   const items = [];
   for (const spec2 of tier.items ?? []) {
-    const known = spec2.skus.map((s) => catalogue.inventoryBySku.get(s)).filter(Boolean);
+    // Stock counts drift between imports, so a count never drops an item: the
+    // first code on hand wins, else the first code the price list or stock knows.
+    const known = spec2.skus.map((s) => catalogue.inventoryBySku.get(s) ?? catalogue.listedOnlyBySku?.get(s)).filter(Boolean);
     const solution = spec2.solution || known.some((i) => isSolution(catalogue, i.sku, i.description));
     if (sensitive && solution) { skipped.push({ label: spec2.label, why: SOLUTION_WARNING }); continue; }
-    const item = known.find((i) => i.stock > 0) ?? null;
-    if (!item) { skipped.push({ label: spec2.label, why: known.length ? 'out of stock' : 'not in the stock list' }); continue; }
+    const item = known.find((i) => i.stock > 0) ?? known[0] ?? null;
+    if (!item) { skipped.push({ label: spec2.label, why: 'not in the price list' }); continue; }
     items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution, price: catalogue.itemPrice?.(item.sku) ?? null });
   }
   return { tier, family, lens, high, sensitive, extras, items, skipped, notes, brands: tier.brands ?? [] };

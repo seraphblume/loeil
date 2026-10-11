@@ -209,9 +209,6 @@ export class Catalogue {
     return out;
   }
 
-  /** Cases, solutions and accessories: in stock, and listed in the price list. */
-  get consumables() { return [...this.inventory.filter((i) => i.kind !== 'frame' && i.kind !== 'contact'), ...this.listedOnly]; }
-
   /** An accessory's price from the price list; null when the register prices it. */
   itemPrice(sku) { return this.accessoriesBySku.get(String(sku))?.price ?? null; }
 }
