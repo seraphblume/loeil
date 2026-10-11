@@ -7,7 +7,7 @@ import { useApp } from './hooks.js';
 import { Bar, Screen, Eyebrow, Empty, Anchor, Row, List, SearchField } from './kit.js';
 import { BarcodeCamera } from './camera.js';
 import { go } from './router.js';
-import { stockLabel } from '../core/catalogue.js';
+import { stockLabel, showsStock, STOCK_KIND_LABEL } from '../core/catalogue.js';
 
 export function ScanScreen() {
   const catalogue = useApp((s) => s.catalogue);
@@ -30,7 +30,7 @@ export function ScanScreen() {
   const digits = typed.replace(/\D/g, '');
   const matches = digits.length >= 4
     ? [...catalogue.frames.filter((f) => f.sku.includes(digits)).slice(0, 6).map((f) => ({ sku: f.sku, title: f.description, detail: f.sku + ' · frame', to: '#/find/frame/' + f.sku })),
-       ...catalogue.inventory.filter((i) => !i.inCatalogue && i.sku.includes(digits)).slice(0, 6).map((i) => ({ sku: i.sku, title: i.description, detail: `${i.sku} · ${stockLabel(i.stock)}`, to: '#/find/stock/' + i.sku }))]
+       ...catalogue.inventory.filter((i) => !i.inCatalogue && i.sku.includes(digits)).slice(0, 6).map((i) => ({ sku: i.sku, title: i.description, detail: `${i.sku} · ${showsStock(i.kind) ? stockLabel(i.stock) : (STOCK_KIND_LABEL[i.kind] ?? 'stock item').toLowerCase()}`, to: '#/find/stock/' + i.sku }))]
     : [];
 
   return html`

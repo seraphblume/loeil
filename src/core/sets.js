@@ -205,7 +205,8 @@ function discountHit(catalogue, d, line, ctx) {
   const isContact = line.kind === 'lens' && line.lens?.family === 'CL';
   const isSpectacle = line.kind === 'lens' && !isContact;
   const isFrame = line.kind === 'frame';
-  const isItem = line.kind === 'extra' && !(Number(line.percent) > 0) && line.priceCents > 1; // a $0.01 gift stays a gift
+  const isShare = line.kind === 'extra' && Number(line.percent) > 0; // Plus Protection, priced from the list
+  const isItem = line.kind === 'extra' && !isShare && line.priceCents > 1; // a $0.01 gift stays a gift
   const sunFrame = (f) => Boolean(f) && frameFacts(catalogue, f).category === 'Sunglasses';
   const fits = ({
     contacts: isContact,
@@ -214,7 +215,7 @@ function discountHit(catalogue, d, line, ctx) {
     lenses: isSpectacle && !line.setLens,
     ownframe: isSpectacle && 'frame' in ctx && !ctx.frame,
     sunlenses: isSpectacle && sunFrame(ctx.frame) && !line.setLens,
-    all: (isFrame && !line.set) || (isSpectacle && !line.setLens) || isContact || isItem,
+    all: (isFrame && !line.set) || (isSpectacle && !line.setLens) || isContact || isItem || isShare,
   })[d.appliesTo];
   if (!fits) return null;
   const names = namesOf(catalogue, line);

@@ -10,7 +10,6 @@ import { brandOptions, brandFrame, setFrame } from '../core/quote.js';
 import { frameLine } from '../core/orders.js';
 import { liveSets } from '../core/sets.js';
 import { fold, brandKey } from '../core/util.js';
-import { stockLabel } from '../core/catalogue.js';
 
 const MODES = [{ value: 'frame', label: 'Frame' }, { value: 'brand', label: 'Brand' }, { value: 'set', label: 'Set' }];
 
@@ -39,13 +38,13 @@ export function FramePicker({ onPick, start = 'brand', only = null, modes = MODE
     ${mode === 'frame' && html`<div class="list">
       ${!t.trim() ? html`<div class="row"><span class="main"><span class="d">Search the catalogue by brand, model or the barcode on the tag.</span></span></div>`
         : frames.length === 0 ? html`<div class="row"><span class="main"><span class="d">No frame matches.</span></span></div>`
-          : frames.map((fr) => html`<${Row} key=${fr.sku} title=${fr.description} detail=${`${fr.sku} · ${stockLabel(fr.stock).toLowerCase()}`} one
+          : frames.map((fr) => html`<${Row} key=${fr.sku} title=${fr.description} detail=${[fr.sku, fr.category, fr.size ? `${fr.size} mm` : null].filter(Boolean).join(' · ')} one
               end=${money(fr.price)} onClick=${() => onPick(frameLine(fr, fr.price, 'catalogue'))} />`)}
     </div>`}
     ${mode === 'brand' && html`<div class="list">
       ${brands.filter((b) => !f || fold(b.brand).includes(f)).map((b) => html`<${Row} key=${b.key} title=${b.brand}
         detail=${b.set ? `${b.set.name} · ID Maestro ${b.set.id}` : `From ${money(b.from)} · not in a set`}
-        sub=${[b.tier && `${b.tier} tier`, b.count ? `${b.count} in the catalogue` : null, b.stock ? `${b.stock} on hand` : null].filter(Boolean).join(' · ') || null}
+        sub=${[b.tier && `${b.tier} tier`, b.count ? `${b.count} in the catalogue` : null].filter(Boolean).join(' · ') || null}
         end=${money(b.set ? b.set.price : b.from)} onClick=${() => onPick(brandFrame(b))} />`)}
     </div>`}
     ${mode === 'set' && html`<div class="list">

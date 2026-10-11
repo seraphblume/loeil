@@ -262,7 +262,7 @@ export function ExtrasScreen() {
     <${Bar} backTo="#/me/data" title="Extras" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ e: { id: '', description: '' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order, after discounts. The rest take their price from the accessory price list when they are in it, else the register prices them.</p>
+        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order at their list prices, before discounts. The rest take their price from the accessory price list when they are in it, else the register prices them.</p>
         <${List}>${bundle.extras.map((e) => html`<${Row} title=${e.description} detail=${e.id} mono end=${e.percent ? `${e.percent}%` : null} onClick=${() => setOpen({ e, id: e.id })} />`)}<//>
       </div>
     <//>
@@ -270,7 +270,7 @@ export function ExtrasScreen() {
       fields=${[
         { key: 'id', label: 'Code', required: true, inputmode: 'numeric' },
         { key: 'description', label: 'Description', required: true },
-        { key: 'percent', label: 'Percent', type: 'number', placeholder: 'No price', hint: 'Leave blank for an add-on the register prices. A number prices it as that share of the frame and spectacle lenses on the order, after discounts — 10 for Plus Protection.' },
+        { key: 'percent', label: 'Percent', type: 'number', placeholder: 'No price', hint: 'Leave blank for an add-on the register prices. A number prices it as that share of the frame and spectacle lenses on the order at list price, before discounts — 10 for Plus Protection.' },
       ]}
       onSave=${(x) => {
         if (x.id !== open.id && bundle.extras.some((e) => e.id === x.id)) return `${x.id} is already listed.`;
@@ -289,7 +289,6 @@ export function AccessoriesScreen() {
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState(null);
   const all = bundle.accessories ?? [];
-  const stock = new Map((bundle.inventory ?? []).map((i) => [i.sku, i]));
   const t = fold(term);
   const list = all.filter((a) => !t || fold(`${a.description} ${a.collection}`).includes(t) || a.sku.includes(term) || (a.product ?? '').includes(term));
   const groups = [...new Set(list.map((a) => a.collection || 'Other'))];
@@ -301,7 +300,7 @@ export function AccessoriesScreen() {
         <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description, barcode or collection" /></div>
         ${groups.map((g) => html`<section class="section"><div class="section-head"><div class="eyebrow">${g}</div></div>
           <${List}>${list.filter((a) => (a.collection || 'Other') === g).map((a) => html`<${Row} key=${a.sku} title=${a.description}
-            detail=${`${a.sku}${stock.has(a.sku) ? ` · ${stockLabel(stock.get(a.sku).stock).toLowerCase()}` : ''}`} mono
+            detail=${a.sku} mono
             end=${a.price === 1 ? 'Gift' : money(a.price)} onClick=${() => setOpen({ a, sku: a.sku })} />`)}<//>
         </section>`)}
         ${!list.length && html`<div class="pad"><${Empty} title=${all.length ? 'No match' : 'No prices yet'}>${all.length ? 'Try another word.' : 'Add them with +, or import a Backend workbook with an accessories tab.'}<//></div>`}

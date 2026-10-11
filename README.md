@@ -101,8 +101,10 @@ Spectacle lenses go on an order as the pair, at the catalogue's pair price; the
 register still takes the lens code ×2, one per eye. Contact lenses go on one eye
 at a time (OD or OS), priced per box. Any frame or lens line can take a 40% or 50%
 discount (`LINE_DISCOUNTS` in `src/config.js`). An add-on with a percentage is
-priced from the frame and spectacle lenses on the order after their discounts —
-Plus Protection on a $6,439 frame comes to $643.90, as the register prints it.
+priced from the frame and spectacle lenses on the order at their **list prices,
+before any discount** (the register's *precio de lista*; a set's price is its list
+price) — **Plus Protection** on a $6,439 frame comes to $643.90 whatever discount
+the frame then takes.
 
 Cases, cloths, solutions and gifts take their price from the **accessory price
 list** (Catalogue data → Accessory prices, or the `accessories` tab of the Backend
@@ -125,8 +127,9 @@ A line takes one discount, never two. In order:
    lens at its own price).
 3. **Discounts the client claims**: **Sam's Club members** (461) show their card
    and the seller switches it on, under the client on the order. It takes 20% off
-   every line nothing above covers — frames, lenses, contacts, accessories — but
-   not Plus Protection, which already follows the glasses, nor a $0.01 gift.
+   every line nothing above covers — frames, lenses, contacts, accessories and
+   Plus Protection (after it is worked out on the list prices) — but not a $0.01
+   gift.
 
 The seller's own 40% or 50% on a line replaces all of these. Every discount is data
 (Catalogue data → Sets → Discounts): a percentage or a fixed price for a lens match,

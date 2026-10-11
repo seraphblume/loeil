@@ -24,7 +24,6 @@ import { solutionClash, clashParts } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
-import { stockLabel } from '../core/catalogue.js';
 import { eligibility } from '../core/promotions.js';
 import { guidance, rxIsBlank, newClient } from '../core/crm.js';
 import { fold } from '../core/util.js';
@@ -72,7 +71,7 @@ export function LinesPanel({ order, editable }) {
           : l.placeholder && l.set ? `${l.set.name} · any frame of the set, with single vision lenses`
           : l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
           : l.set ? `${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}`
-            : isShare(l) ? `${l.percent}% of ${money(r.base)}`
+            : isShare(l) ? `${l.percent}% of ${money(r.base)} at list price`
               : isPair(l) ? [l.presetName, l.quantity === 2 ? 'The pair' : `${l.eye} only`].filter(Boolean).join(' · ') : null;
         return html`<div class="ol" key=${l.id}>
           <div class="what">
@@ -81,7 +80,6 @@ export function LinesPanel({ order, editable }) {
             <div class="meta">
               <span class="mono">${lineCode(l) || (l.placeholder ? 'frame not chosen' : '')}</span>
               ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">from the tag</span>`}
-              ${l.kind === 'frame' && l.stock != null && html`<span class=${'tiny ' + (l.stock === 0 ? '' : 'muted')}>${stockLabel(l.stock).toLowerCase()}</span>`}
               ${inSet && (editable
                 ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
@@ -134,7 +132,7 @@ function DiscountSheet({ row, onClose }) {
           end=${html`${at(pct)}${manual && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
       <//>
       ${auto?.pending && html`<p class="note pad">The offer prices this lens as an upgrade, and the upgrade’s price is not in the catalogue yet. Confirm it at the register, or choose No discount to quote the lens at its own price.</p>`}
-      ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out after the discount.</p>`}
+      ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out on the list price, before the discount.</p>`}
     </div>
   <//>`;
 }
@@ -345,7 +343,7 @@ function AddExtraSheet({ onClose }) {
       <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description, barcode or collection" /></div>
       ${addons.length > 0 && html`<${Section}>
         ${addons.map((e) => html`<${Row} key=${e.id} icon=${e.percent ? 'shield' : 'plus'} title=${e.description}
-          detail=${e.percent ? `${e.percent}% of the frame and lenses, after their discounts` : e.id}
+          detail=${e.percent ? `${e.percent}% of the frame and lenses at list price, before discounts` : e.id}
           end=${e.percent ? `${e.percent}%` : null} onClick=${() => add(extraLine(e.id, e.description, 1, null, e.percent))} />`)}
       <//>`}
       ${groups.map((g) => html`<${Section} key=${g} title=${g}>

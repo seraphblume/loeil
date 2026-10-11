@@ -217,6 +217,13 @@ export const STOCK_KIND_LABEL = {
   frame: 'Frame', contact: 'Contact lens', case: 'Case', solution: 'Solution', accessory: 'Accessory',
 };
 
+/**
+ * Whether the app shows a stock count for this kind of item. Frames and
+ * accessories do not: what the client sees is on the display, and the counts
+ * drift between imports. Boxed contact lenses keep theirs (and their expiry).
+ */
+export const showsStock = (kind) => kind === 'contact';
+
 export function stockLabel(n) {
   if (n === null || n === undefined) return 'Not in the stock list';
   if (n === 0) return 'None on hand';

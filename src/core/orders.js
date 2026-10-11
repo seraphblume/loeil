@@ -14,7 +14,10 @@
 // or, when he has not chosen, the one that applies — a campaign percentage, a
 // fixed lens price, or one the client claimed (core/sets.js). An add-on with a
 // percentage, like Plus Protection, is priced from the glasses it covers — the
-// frame and the spectacle lenses, after their discounts.
+// frame and the spectacle lenses at their list prices, before any discount
+// (the register's "precio de lista"; a set's price is its list price). A
+// discount the client claims for the whole ticket (Sam's Club) then takes its
+// share off that line too.
 //
 // Cases, cloths and solutions take their price from the accessory price list
 // (a gift is $0.01, as the register charges it). One the list lacks carries no
@@ -120,7 +123,7 @@ function listCents(line) {
 
 /** The percentage off a line: the seller's choice, else the one that applies. */
 export function discountOf(line) {
-  if (isShare(line) || line.kind === 'history') return 0;
+  if (line.kind === 'history') return 0;
   if (typeof line.discount === 'number') return discountable(line) ? line.discount : 0;
   return line.auto?.percent ?? 0;
 }
@@ -147,12 +150,16 @@ export function priceOrder(order) {
     const auto = off > 0 && typeof line.discount !== 'number';
     return { line, list, discount, fixed, auto, off, net: list == null ? null : list - off, pending: isPending(line) };
   });
-  const covered = rows.filter((r) => r.net != null && isGlasses(r.line)).reduce((s, r) => s + r.net, 0);
+  // Plus Protection: a share of the glasses' list prices, before their discounts.
+  const covered = rows.filter((r) => r.list != null && isGlasses(r.line)).reduce((s, r) => s + r.list, 0);
   for (const r of rows) {
     if (!isShare(r.line)) continue;
     r.base = covered;
     r.list = Math.round((covered * Number(r.line.percent)) / 100) * r.line.quantity;
-    r.net = r.list;
+    r.discount = typeof r.line.discount === 'number' ? 0 : discountOf(r.line);
+    r.off = Math.round((r.list * r.discount) / 100);
+    r.auto = r.off > 0;
+    r.net = r.list - r.off;
   }
   const priced = rows.filter((r) => r.net != null);
   return {
@@ -214,7 +221,7 @@ export function ticketText(order, clientName) {
     out.push(`  ${lineText(line)}`);
     if (line.set) out.push(`  ${line.set.name} (${line.set.id})`);
     if (line.setLens?.id) out.push(`  ${line.setLens.setName}: ${line.setLens.name}`);
-    if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)}: ${money(r.net)}`);
+    if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)} list${r.discount ? `, less ${r.discount}% (${line.auto.id})` : ''}: ${money(r.net)}`);
     else if (r.fixed != null && r.off) out.push(`  ${money(r.list)}, with ${line.auto.id} ${line.auto.name}: ${money(r.net)}`);
     else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%${r.auto ? ` (${line.auto.id})` : ''}: ${money(r.net)}`);
     else out.push(`  ${money(r.net)}`);

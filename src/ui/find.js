@@ -10,7 +10,7 @@ import { useApp, useDebounced, useResolvedDraft } from './hooks.js';
 import { Bar, Screen, Wordmark, SearchField, Section, Row, Empty, Anchor, Eyebrow } from './kit.js';
 import { go, href } from './router.js';
 import { FAMILIES, searchLenses } from '../core/lens.js';
-import { STOCK_KIND_LABEL, stockLabel } from '../core/catalogue.js';
+import { STOCK_KIND_LABEL, stockLabel, showsStock } from '../core/catalogue.js';
 import { money } from '../core/money.js';
 import { orderTotal, composition, orderTitle } from '../core/orders.js';
 import { dueForRecall, warningIcon, eyeText, rxIsBlank } from '../core/crm.js';
@@ -94,10 +94,10 @@ function Results({ term }) {
     <//>`}
     ${frameHits.total > 0 && html`<${Section} title=${frameHits.total > 8 ? `Frames · ${frameHits.total}` : 'Frames'}
         action=${frameHits.total > 8 ? html`<a class="textbtn small" href=${href(['find', 'frames'], { q: t })} onClick=${(e) => { e.preventDefault(); go(href(['find', 'frames'], { q: t })); }}>All</a>` : null}>
-      ${frameHits.items.map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} detail=${`${f.sku} · ${stockLabel(f.stock)}`} end=${money(f.price)} one mono />`)}
+      ${frameHits.items.map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} detail=${[f.sku, f.category].filter(Boolean).join(' · ')} end=${money(f.price)} one mono />`)}
     <//>`}
-    ${stockHits.length > 0 && html`<${Section} title="In stock">
-      ${stockHits.map((i) => html`<${Row} to=${'#/find/stock/' + i.sku} title=${i.description} detail=${`${i.sku} · ${stockLabel(i.stock)}`} end=${STOCK_KIND_LABEL[i.kind]} one mono />`)}
+    ${stockHits.length > 0 && html`<${Section} title="Accessories and stock items">
+      ${stockHits.map((i) => html`<${Row} to=${'#/find/stock/' + i.sku} title=${i.description} detail=${showsStock(i.kind) ? `${i.sku} · ${stockLabel(i.stock)}` : i.sku} end=${STOCK_KIND_LABEL[i.kind]} one mono />`)}
     <//>`}
     ${lensHits.length > 0 && html`<${Section} title="Lenses">
       ${lensHits.map((l) => html`<${Row} to=${'#/find/lens/' + encodeURIComponent(l.rowId)} title=${l.displayName}

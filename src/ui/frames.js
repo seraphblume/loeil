@@ -12,7 +12,7 @@ import {
 import { go, href } from './router.js';
 import { Icon } from './icons.js';
 import { money } from '../core/money.js';
-import { stockLabel, STOCK_KIND_LABEL } from '../core/catalogue.js';
+import { stockLabel, STOCK_KIND_LABEL, showsStock } from '../core/catalogue.js';
 import { frameLine, extraLine } from '../core/orders.js';
 import { addLine, toast } from '../state/app.js';
 import { livePromotions } from '../core/promotions.js';
@@ -54,10 +54,9 @@ export function FramesScreen({ query }) {
   const [picking, setPicking] = useState(null);
   const filters = {};
   for (const f of FILTERS) { const v = query.get(f.key); if (v) filters[f.key] = f.num ? Number(v) : v; }
-  if (query.get('stock') === '1') filters.inStock = true;
 
   const set = (patch) => {
-    const next = { q: term, ...Object.fromEntries(FILTERS.map((f) => [f.key, query.get(f.key)])), stock: query.get('stock'), ...patch };
+    const next = { q: term, ...Object.fromEntries(FILTERS.map((f) => [f.key, query.get(f.key)])), ...patch };
     go(href(['find', 'frames'], next), { replace: true });
   };
 
@@ -78,7 +77,6 @@ export function FramesScreen({ query }) {
       <div class="stack tight">
         <div class="pad"><${SearchField} value=${term} onInput=${(v) => set({ q: v })} placeholder="Brand, model, colour or barcode" /></div>
         <div class="chips" role="toolbar" aria-label="Filters">
-          <button type="button" class=${'chip' + (filters.inStock ? ' on' : '')} aria-pressed=${Boolean(filters.inStock)} onClick=${() => set({ stock: filters.inStock ? null : '1' })}>In stock</button>
           ${FILTERS.map((f) => {
             const v = filters[f.key];
             return html`<button type="button" class=${'chip' + (v != null ? ' on' : '')} onClick=${() => setPicking(f)}>
@@ -92,7 +90,7 @@ export function FramesScreen({ query }) {
         ${result.total === 0 ? html`<div class="pad"><${Empty} title="No frames match">Loosen a filter, or search by the eight barcode digits.<//></div>` : html`
         <${List}>
           ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one
-            detail=${[f.sku, f.category, f.size ? `${f.size} mm` : null, f.stock != null ? stockLabel(f.stock) : null].filter(Boolean).join(' · ')}
+            detail=${[f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
             end=${money(f.price)} />`)}
         <//>
         ${result.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 100)}>Show more (${(result.total - limit).toLocaleString('en')} left)<//></div>`}`}
@@ -127,7 +125,6 @@ export function FrameScreen({ sku }) {
     <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
-        ${frame.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
         <${Figure} value=${money(frame.price)} caption="Tag price" size=${38} />
         <${CampaignPanel} frame=${frame} set=${set} sun=${sun} />
         <${Panel}>
@@ -139,7 +136,6 @@ export function FrameScreen({ sku }) {
           ${frame.frameType && html`<${KV} k="Frame type" v=${frame.frameType} />`}
           ${frame.material && html`<${KV} k="Material" v=${frame.material} />`}
           ${frame.size && html`<${KV} k="Eye size" v=${`${frame.size} mm`} />`}
-          <${KV} k="Stock" v=${stockLabel(frame.stock)} em=${frame.stock === 0} />
           ${frame.classification && html`<${KV} k="Class" v=${frame.classification} />`}
         <//>
         ${promos.length > 0 && html`<section class="gap-s">
@@ -179,17 +175,17 @@ export function StockScreen({ sku }) {
     <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${STOCK_KIND_LABEL[item.kind]} title=${item.description} />
-        ${item.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
+        ${showsStock(item.kind) && item.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
         <${Panel}>
           <${KV} k="Barcode" v=${item.sku} mono />
           <${KV} k="Vendor SKU" v=${item.vendorSku} mono />
-          <${KV} k="Stock" v=${item.stock == null ? 'Not in the stock report' : stockLabel(item.stock)} em=${item.stock === 0} />
+          ${showsStock(item.kind) && html`<${KV} k="Stock" v=${stockLabel(item.stock)} em=${item.stock === 0} />`}
           ${listed && html`<${KV} k="Price" v=${money(listed.price)} />`}
           ${listed?.collection && html`<${KV} k="Collection" v=${listed.collection} />`}
           ${item.classification && item.classification !== 'N/A' && html`<${KV} k="Class" v=${item.classification} />`}
           ${item.expires && html`<${KV} k="Expiry" v=${fmtExpiry(item.expires)} />`}
         <//>
-        ${item.batches > 1 && html`<p class="note">${item.batches} batches, earliest expiry shown.</p>`}
+        ${showsStock(item.kind) && item.batches > 1 && html`<p class="note">${item.batches} batches, earliest expiry shown.</p>`}
         ${set && html`<${CampaignPanel} frame=${item} set=${set} />`}
         ${isFrame ? html`<section class="gap-s">
           <${Eyebrow}>${set ? 'Tag price, if it goes outside the set' : 'Price from the tag'}<//>
