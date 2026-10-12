@@ -1,14 +1,15 @@
 // The shell: four tabs, the gates in front of them, and the router between.
 //
 // ADAPTIVE: a phone gets the floating tab bar and one screen at a time. An iPad
-// or a computer (768 px and wider) gets a sidebar, and Clients and Orders open
-// as a list beside the record — the way Mail and Notes do it.
+// or a computer (768 px and wider) gets a pill of sections at the top centre,
+// and Clients and Orders open as a list beside the record — the way Mail and
+// Notes do it.
 
 import { html, useState, useEffect } from './html.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import { staffMember } from '../state/app.js';
 import { money } from '../core/money.js';
-import { orderTotal, composition } from '../core/orders.js';
+import { orderTotal } from '../core/orders.js';
 import { useRoute, tabHref, linkProps } from './router.js';
 import { Icon } from './icons.js';
 import { Wordmark } from './kit.js';
@@ -55,32 +56,41 @@ function TabBar({ route }) {
   </nav>`;
 }
 
-/** The iPad and computer navigation: the sections, the order in progress, who is selling. */
-function Sidebar({ route }) {
+/**
+ * The iPad and computer navigation: a pill of section icons at the top centre,
+ * the wordmark on the left, and on the right the order in progress and who is
+ * selling — one tap to either.
+ */
+function TopNav({ route }) {
   const draft = useResolvedDraft();
   const seller = useApp((s) => staffMember(s));
   const clients = useApp((s) => s.clients.length);
   const open = useApp((s) => s.orders.filter((o) => o.status === 'draft' || o.status === 'presented').length);
   const quoted = useApp((s) => s.quote.options.length);
-  const counts = { clients, orders: open || null, quote: quoted || null };
   const onOrder = route.parts[0] === 'find' && (route.parts[1] === 'order' || route.parts[1] === 'checkout');
-  return html`<nav class="sidebar" aria-label="Sections">
-    <div class="side-head"><${Wordmark} size=${30} /></div>
-    <div class="side-list">
-      ${TAB_ITEMS.map((t) => html`<a ...${linkProps(tabHref(t.id, route))} class=${'side-item' + (route.tab === t.id && !onOrder ? ' on' : '')} aria-current=${route.tab === t.id ? 'page' : null}>
-        <${Icon} name=${t.icon} /><span>${t.label}</span>${counts[t.id] ? html`<span class="n">${counts[t.id]}</span>` : null}
+  const hint = { quote: quoted ? `${quoted} on the quote` : null, orders: open ? `${open} open` : null, clients: clients ? `${clients}` : null };
+  const i = TAB_ITEMS.findIndex((t) => t.id === route.tab);
+  const initials = (seller?.name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  return html`<header class="topnav">
+    <a ...${linkProps(tabHref('find', route))} class="tn-brand" aria-label="L’Œil, home"><${Wordmark} size=${26} /></a>
+    <nav class="tn-pill" aria-label="Sections" style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
+      <i class="tn-thumb" aria-hidden="true"></i>
+      ${TAB_ITEMS.map((t) => html`<a ...${linkProps(tabHref(t.id, route))} class=${route.tab === t.id ? 'on' : ''} aria-current=${route.tab === t.id ? 'page' : null}
+          aria-label=${hint[t.id] ? `${t.label}, ${hint[t.id]}` : t.label} title=${t.label}>
+        <${Icon} name=${t.icon} />
+        ${t.id === 'quote' && quoted > 0 && route.tab !== 'quote' && html`<i class="dot"></i>`}
       </a>`)}
+    </nav>
+    <div class="tn-end">
+      ${draft.lines.length > 0 && html`<a ...${linkProps('#/find/order')} class=${'tn-order' + (onOrder ? ' on' : '')} aria-label="Order in progress">
+        <span class="k">Order</span><span class="v">${money(orderTotal(draft))}</span>
+      </a>`}
+      ${seller && html`<a ...${linkProps(tabHref('me', route))} class="tn-me" title=${`${seller.name} · ${seller.employeeNumber}`} aria-label=${seller.name}>${initials || 'Me'}</a>`}
     </div>
-    ${draft.lines.length > 0 && html`<a ...${linkProps('#/find/order')} class=${'side-order' + (onOrder ? ' on' : '')}>
-      <span class="k">Order in progress</span>
-      <span class="v">${money(orderTotal(draft))}</span>
-      <span class="d">${composition(draft)}</span>
-    </a>`}
-    <div class="side-foot">${seller ? html`<span>${seller.name}</span><span class="muted">${seller.employeeNumber}</span>` : null}</div>
-  </nav>`;
+  </header>`;
 }
 
-/** 768 px and wider: sidebar and side-by-side panes. */
+/** 768 px and wider: the top pill and side-by-side panes. */
 export function useWide() {
   const q = '(min-width: 768px)';
   const [wide, setWide] = useState(() => Boolean(window.matchMedia?.(q).matches));
@@ -191,7 +201,7 @@ export function App() {
 
   if (wide) {
     return html`<div class="shell">
-      <${Sidebar} route=${route} />
+      <${TopNav} route=${route} />
       <div class="panes">${catalogue.isEmpty ? html`<div class="pane main-pane">${screenFor(route)}</div>` : html`<${Panes} route=${route} />`}</div>
     </div>
     <${Toast} />`;

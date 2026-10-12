@@ -1,6 +1,6 @@
-// GinAile components, in the shape of iOS: inset grouped lists, large titles
-// that hand over to the bar as they scroll away, glass for the navigation
-// layer only, one indigo action per screen.
+// Components in the shape of iOS, in paper and ink: inset grouped lists, large
+// titles that hand over to the bar as they scroll away, glass for the
+// navigation layer only, one strong action per screen in the opposite tone.
 
 import { html, useState, useEffect, useRef, useLayoutEffect } from './html.js';
 import { Icon } from './icons.js';

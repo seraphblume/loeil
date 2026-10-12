@@ -11,8 +11,15 @@ codes the register needs, says which promotions apply, keeps client records with
 their glasses and contact lens prescriptions, and prints the register's ticket.
 
 On a phone it has a floating tab bar and one screen at a time. On an iPad or a
-computer (768 px and wider) it has a sidebar, and Clients and Orders open as a
-list beside the record; in iPad portrait the sidebar folds to a rail of icons.
+computer (768 px and wider) the sections sit in a pill of icons at the top centre,
+with the order in progress beside it, and Clients and Orders open as a list beside
+the record. **Find** is a dashboard: the order in progress and what it still needs
+before checkout (or the day's sales), shortcuts, the lens and frame catalogues as
+tiles, and the latest orders — beside them on an iPad.
+
+It is drawn in six colours — ink #111111, graphite #333333, stone #777777, sand
+#BEB8AD, linen #E6E1D7, paper #F6F4EE — as paper by day and ink by night,
+following the device's appearance.
 
 ## Install on a phone
 

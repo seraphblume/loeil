@@ -1,5 +1,5 @@
 // Me: what he sold, who is waiting, the catalogue's state, and the way out of
-// the phone. The grid is 26 weeks of sales in four opacity steps of platinum —
+// the phone. The grid is 26 weeks of sales in four opacity steps of ink —
 // there is no green in this palette.
 
 import { html, useState, useRef } from './html.js';

@@ -59,8 +59,8 @@ export function LensPricesScreen({ family }) {
 export function Chip({ on, onClick, children }) {
   return html`<button type="button" onClick=${onClick} style=${{
     flex: 'none', padding: '6px 12px', borderRadius: '999px', fontSize: '13px', whiteSpace: 'nowrap',
-    background: on ? 'rgba(185,191,201,.16)' : 'rgba(185,191,201,.05)', color: on ? 'var(--platinum)' : 'var(--silver)',
-    boxShadow: 'inset 0 0 0 1px rgba(185,191,201,.1)',
+    background: on ? 'var(--fill-2)' : 'var(--fill)', color: on ? 'var(--platinum)' : 'var(--silver)',
+    boxShadow: 'inset 0 0 0 1px var(--sep)',
   }}>${children}</button>`;
 }
 

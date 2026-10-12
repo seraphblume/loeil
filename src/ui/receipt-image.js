@@ -10,7 +10,7 @@ const PAD = 22;           // background around the paper
 const INK = '#14161B';
 const SOFT = '#6B717C';
 const PAPER = '#F6F6F3';
-const NIGHT = '#0B0D13';
+const NIGHT = '#111111';
 const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, "Roboto Mono", monospace';
 const SANS = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, Inter, "Segoe UI", Roboto, sans-serif';
 
