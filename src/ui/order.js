@@ -68,7 +68,9 @@ export function LinesPanel({ order, editable }) {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
         const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
-        const via = l.placeholder && !l.set ? 'Quoted by brand · from its lowest catalogue price'
+        const via = l.setExcluded ? `${l.setExcluded.name} doesn’t include these lenses · ${l.placeholder ? 'from its lowest catalogue price' : 'frame at its full price'}`
+          : l.outsideSet ? `Not in ${l.outsideSet.setName}’s table · its own price`
+          : l.placeholder && !l.set ? 'Quoted by brand · from its lowest catalogue price'
           : l.placeholder && l.set ? `${l.set.name} · any frame of the set, with single vision lenses`
           : l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
           : l.kind === 'lens' && l.auto?.price != null && typeof l.discount !== 'number' ? `${l.auto.name} · instead of ${money(l.lens.priceCents)}`
@@ -83,9 +85,10 @@ export function LinesPanel({ order, editable }) {
               <span class="mono">${lineCode(l) || (l.placeholder ? 'frame not chosen' : '')}</span>
               ${l.kind === 'frame' && l.priceSource === 'tag' && !l.set && html`<span class="tiny muted">from the tag</span>`}
               ${inSet && (editable
-                ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
+                ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : l.setExcluded ? 'Not in the set' : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
               ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row' : 'Row'}</button>`}
+              ${l.outsideSet && editable && html`<button type="button" class="chip" onClick=${() => setOpen({ kind: 'row', r })}>Price in the set</button>`}
               ${lineFit(l, catalogue) && (editable
                 ? html`<button type="button" class=${'chip' + (fitComplete(lineFit(l, catalogue), l.measures) ? '' : ' warn')} onClick=${() => setOpen({ kind: 'fit', r })}>${fitComplete(lineFit(l, catalogue), l.measures) ? 'Fitting' : 'Add the fitting'}</button>`
                 : !fitComplete(lineFit(l, catalogue), l.measures) && html`<span class="chip warn">Fitting missing</span>`)}
@@ -174,7 +177,8 @@ function SetFrameSheet({ line, onClose }) {
         ${line.priceCents != null && html`<${KV} k="Tag price" v=${money(line.priceCents)} />`}
       <//>
       <p class="para">The frame with single vision lenses${included.length ? ` — ${included.join(', ').toLowerCase()} included` : ''}. Better lenses add their row of the set’s table.</p>
-      ${line.set
+      ${line.setExcluded ? html`<p class="para">The lenses on this order are not in the set’s table, so neither is the frame: it goes at its full price and the lenses at their own. For a lens the register prices on a row anyway (a tint), choose it with “Price in the set” on the lens.</p>`
+        : line.set
         ? html`<${Secondary} onClick=${() => toggle(true)}>Price outside the set<//>
           <p class="note">The frame goes back to its tag price and the lenses to their catalogue price.</p>`
         : html`<${Anchor} onClick=${() => toggle(false)}>Use ${info.name}<//>`}
@@ -186,7 +190,8 @@ function SetFrameSheet({ line, onClose }) {
 /** The lens's row in the set's table. Matched on its own where it can be; his choice wins. */
 function SetRowSheet({ line, onClose }) {
   const catalogue = useApp((s) => s.catalogue);
-  const set = catalogue.setsById.get(line.setLens.setId);
+  const setId = line.setLens?.setId ?? line.outsideSet?.setId;
+  const set = catalogue.setsById.get(setId);
   if (!set) return null;
   const rows = setTable(catalogue, set);
   const groups = [...new Set(rows.map((r) => r.def.group))];
@@ -194,11 +199,11 @@ function SetRowSheet({ line, onClose }) {
   return html`<${Sheet} title=${`${set.name} · lens row`} onClose=${onClose} full>
     <div class="stack tight">
       <p class="para pad">${line.lens.displayName}</p>
-      ${line.setLens.id && line.setLens.auto && html`<p class="note pad">Matched on its own to “${line.setLens.name}”. Choose another row if the lens on the register is a different one.</p>`}
-      ${!line.setLens.id && html`<p class="note pad">This lens is not one the set’s table names, so it has no row of its own. Pick the row the register will take, or price the frame outside the set.</p>`}
+      ${line.setLens?.id && line.setLens.auto && html`<p class="note pad">Matched on its own to “${line.setLens.name}”. Choose another row if the lens on the register is a different one.</p>`}
+      ${!line.setLens?.id && html`<p class="note pad">This lens is not one the set’s table names, so the frame and lens go at their full prices. Pick a row only if the register prices this lens on one (a tint).</p>`}
       ${groups.map((g) => html`<${Section} title=${g}>
         ${rows.filter((r) => r.def.group === g).map((r) => html`<${Row} title=${r.def.name}
-          end=${html`${rowPriceText(r.entry, money)}${line.setLens.id === r.def.id ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(r.def.id)} />`)}
+          end=${html`${rowPriceText(r.entry, money)}${line.setLens?.id === r.def.id ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(r.def.id)} />`)}
       <//>`)}
       ${line.setLensId && html`<div class="pad"><button class="btn quiet" onClick=${() => pick(undefined)}>Match it on its own again</button></div>`}
     </div>

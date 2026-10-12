@@ -256,6 +256,12 @@ brand exactly; a frame known only from stock on the brand its description
 starts with. Each row's match (`family|material|design|filter|colour|coating`)
 lives in the data, as does every price, so a new campaign is a data edit.
 
+**A lens the set's table doesn't name takes the frame out of the set**: no plan at
+all — the frame at its full tag price and the lens at its own catalogue price, with
+no ID Maestro on the ticket (a high-index lens on a Set $4,999 frame, say). For a
+lens the register does price on a row (a tint), **Price in the set** on the lens
+picks the row by hand and puts both back in the set.
+
 ## The passcode
 
 Set when publishing (Me → Publish data → Use a new passcode). Phones that have

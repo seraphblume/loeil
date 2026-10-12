@@ -308,7 +308,7 @@ export function claimableDiscounts(catalogue, on = new Date()) {
 export function resolveOrder(order, catalogue, on = new Date()) {
   const lines = order.lines.map((l) => {
     const c = { ...l };
-    delete c.set; delete c.setLens; delete c.auto; delete c.offer; delete c.setAvailable; delete c.hasLenses;
+    delete c.set; delete c.setLens; delete c.auto; delete c.offer; delete c.setAvailable; delete c.hasLenses; delete c.setExcluded; delete c.outsideSet;
     // an accessory takes its price from the price list (a saved order keeps the one it had)
     if (c.kind === 'extra' && !(Number(c.percent) > 0) && c.priceCents === undefined) c.priceCents = catalogue.itemPrice?.(c.code) ?? null;
     return c;
@@ -323,13 +323,18 @@ export function resolveOrder(order, catalogue, on = new Date()) {
     if (!set) return;
     f.setAvailable = { id: set.id, name: set.name, price: set.price };
     if (f.noSet) return;
-    f.set = f.setAvailable;
-    if (!lens) return;
+    if (!lens) { f.set = f.setAvailable; return; }
     const chosen = lens.setLensId ? { def: catalogue.setLensesById.get(lens.setLensId), entry: priceIn(catalogue, set.id, lens.setLensId) } : null;
     const hit = chosen?.def && chosen.entry ? chosen : setLensFor(catalogue, set, lens.lens);
-    lens.setLens = hit
-      ? { setId: set.id, setName: set.name, id: hit.def.id, name: hit.def.name, group: hit.def.group, price: hit.entry.price, special: Boolean(hit.entry.special), auto: hit !== chosen }
-      : { setId: set.id, setName: set.name, id: null };
+    if (!hit) {
+      // A lens the set's table does not name: no plan at all — the frame at its
+      // full price and the lens at its own. A row can still be chosen by hand (a tint).
+      f.setExcluded = { id: set.id, name: set.name, price: set.price };
+      lens.outsideSet = { setId: set.id, setName: set.name };
+      return;
+    }
+    f.set = f.setAvailable;
+    lens.setLens = { setId: set.id, setName: set.name, id: hit.def.id, name: hit.def.name, group: hit.def.group, price: hit.entry.price, special: Boolean(hit.entry.special), auto: hit !== chosen };
   });
   const claimed = new Set(order.claimed ?? []);
   for (const l of lines) {

@@ -60,9 +60,9 @@ export const pairLine = (lens) => ({ id: uid(), kind: 'lens', lens, eye: 'OU', p
  * from. `priceSource` 'from' is the brand's lowest catalogue price; a set
  * prices it at the set's price. It stands in until the real frame is scanned.
  */
-export const placeholderFrame = ({ brand = '', description, priceCents, priceSource, setId = null }) => ({
+export const placeholderFrame = ({ brand = '', description, priceCents, priceSource, setId = null, fromCents = null }) => ({
   id: uid(), kind: 'frame', sku: '', product: '', description, brand, category: 'Ophthalmic', priceCents, priceSource,
-  stock: null, placeholder: true, ...(setId ? { setId } : {}),
+  stock: null, placeholder: true, ...(setId ? { setId } : {}), ...(fromCents != null ? { fromCents } : {}),
 });
 export const isPlaceholder = (line) => line.kind === 'frame' && Boolean(line.placeholder);
 
@@ -119,7 +119,12 @@ function listCents(line) {
     if (unit == null) return null;
     return isPair(line) ? Math.round((unit * line.quantity) / 2) : unit * line.quantity;
   }
-  if (line.kind === 'frame') return line.set ? line.set.price : line.priceCents;
+  if (line.kind === 'frame') {
+    if (line.set) return line.set.price;
+    // Out of its set because of its lenses: a brand quoted at the set's price goes back to its from-price.
+    if (line.setExcluded && line.placeholder && line.priceSource === 'set') return line.fromCents ?? null;
+    return line.priceCents;
+  }
   if (line.kind === 'history') return line.priceCents ?? null;
   if (line.kind === 'extra' && !isShare(line) && line.priceCents != null) return line.priceCents * (line.quantity || 1);
   return null;

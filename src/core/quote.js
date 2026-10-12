@@ -66,7 +66,7 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
   let from = false;
   for (const r of byKind('frame')) {
     const l = r.line;
-    const isFrom = l.placeholder && l.priceSource === 'from' && !l.set;
+    const isFrom = l.placeholder && !l.set && (l.priceSource === 'from' || (l.setExcluded && l.fromCents != null));
     if (isFrom) from = true;
     rows.push({ label: 'Frame', desc: upper(l.brand || l.description), qty: 1, price: r.list, from: isFrom });
     if (l.set) rows.push({ label: 'Set', desc: upper(`${l.set.name} · ID Maestro ${l.set.id}`) });
@@ -135,7 +135,7 @@ export function brandOptions(catalogue, on = new Date()) {
 export function brandFrame(option) {
   return placeholderFrame({
     brand: option.brand, description: option.brand.toUpperCase(),
-    priceCents: option.set ? option.set.price : option.from, priceSource: option.set ? 'set' : 'from',
+    priceCents: option.set ? option.set.price : option.from, priceSource: option.set ? 'set' : 'from', fromCents: option.from,
   });
 }
 
