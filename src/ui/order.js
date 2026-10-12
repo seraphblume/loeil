@@ -34,7 +34,7 @@ import {
 /** The chip a line's discount shows: `−30% · 9027`, `8922 · $2,099`, `−20% · 461`. */
 function discountChip(r) {
   const l = r.line;
-  if (r.fixed != null) return `${l.auto.id} · ${money(r.net)}`;
+  if (l.auto?.price != null && typeof l.discount !== 'number') return `${l.auto.id} · ${money(l.auto.price)}`;
   if (r.discount) return `−${r.discount}%${r.auto ? ` · ${l.auto.id}` : ''}`;
   return null;
 }
@@ -70,6 +70,7 @@ export function LinesPanel({ order, editable }) {
         const via = l.placeholder && !l.set ? 'Quoted by brand · from its lowest catalogue price'
           : l.placeholder && l.set ? `${l.set.name} · any frame of the set, with single vision lenses`
           : l.setLens?.id ? `${l.setLens.setName} · ${l.setLens.name}`
+          : l.kind === 'lens' && l.auto?.price != null && typeof l.discount !== 'number' ? `${l.auto.name} · instead of ${money(l.lens.priceCents)}`
           : l.set ? `${l.set.name} · frame and single vision lenses${l.priceCents != null && l.priceCents !== l.set.price ? ` · tag ${money(l.priceCents)}` : ''}`
             : isShare(l) ? `${l.percent}% of ${money(r.base)} at list price`
               : isPair(l) ? [l.presetName, l.quantity === 2 ? 'The pair' : `${l.eye} only`].filter(Boolean).join(' · ') : null;
@@ -84,7 +85,7 @@ export function LinesPanel({ order, editable }) {
                 ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
               ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row' : 'Row'}</button>`}
-              ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${l.auto.id} upgrade · price to confirm</button>`}
+              ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${l.auto.id} · price to confirm</button>`}
               ${discountable(l) && !r.pending && (editable
                 ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? 'Discount'}</button>`
                 : discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`)}
@@ -117,11 +118,12 @@ export function LinesPanel({ order, editable }) {
 function DiscountSheet({ row, onClose }) {
   const l = row.line;
   const auto = l.offer ?? null; // what applies without the seller, worked out with the order
-  const list = row.list ?? (l.kind === 'lens' ? l.lens.priceCents : l.priceCents) ?? 0;
+  // The line's own price: a lens an offer reprices goes back to its catalogue price without it.
+  const list = l.kind === 'lens' && !l.setLens ? l.lens.priceCents : row.list ?? l.priceCents ?? 0;
   const pick = (pct) => { updateLine(l.id, { discount: pct }); onClose(); };
   const at = (pct) => money(list - Math.round((list * pct) / 100));
   const manual = typeof l.discount === 'number';
-  const autoEnd = auto ? (auto.pending ? 'To confirm' : money(list - savingOf(auto, list))) : '';
+  const autoEnd = auto ? (auto.pending ? 'To confirm' : auto.price != null ? money(auto.price) : money(list - savingOf(auto, list))) : '';
   return html`<${Sheet} title="Discount" onClose=${onClose}>
     <div class="stack tight">
       <p class="para pad">${lineText(l)}</p>
@@ -131,7 +133,7 @@ function DiscountSheet({ row, onClose }) {
         ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? `${pct}% off` : 'No discount'}
           end=${html`${at(pct)}${manual && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}
       <//>
-      ${auto?.pending && html`<p class="note pad">The offer prices this lens as an upgrade, and the upgrade’s price is not in the catalogue yet. Confirm it at the register, or choose No discount to quote the lens at its own price.</p>`}
+      ${auto?.pending && html`<p class="note pad">The offer covers this lens, but its price under the offer is not in the catalogue yet. Confirm it at the register, or choose No discount to quote the lens at its own price.</p>`}
       ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out on the list price, before the discount.</p>`}
     </div>
   <//>`;
@@ -189,7 +191,7 @@ export function TotalBlock({ order, figure = true }) {
   if (!figure && !p.pending.length && !p.off && !rest.length) return null;
   return html`<div class="gap-m">
     ${p.pending.some((l) => l.setLens) && html`<${Flag}>${p.pending.filter((l) => l.setLens).length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
-    ${p.pending.some((l) => !l.setLens) && html`<${Flag}>${p.pending.filter((l) => !l.setLens).map((l) => `${l.auto.id} ${l.auto.name}`)[0]}: this lens is an upgrade, and the upgrade’s price is not known yet. Confirm it at the register.<//>`}
+    ${p.pending.some((l) => !l.setLens) && html`<${Flag}>${p.pending.filter((l) => !l.setLens).map((l) => `${l.auto.id} ${l.auto.name}`)[0]}: this lens’s price under the offer is not known yet. Confirm it at the register.<//>`}
     ${figure && html`<${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />`}
     ${p.off > 0 && html`<${Panel}>
       <${KV} k="Before discounts" v=${money(p.list)} />

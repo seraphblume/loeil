@@ -16,7 +16,7 @@ import { resolve } from '../../core/lens.js';
 import {
   upsertSet, deleteSet, setSetPrice, upsertSetLens, deleteSetLens, upsertDiscount, deleteDiscount, setCampaignDates,
 } from '../../core/edits.js';
-import { SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount } from '../../core/sets.js';
+import { SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount, parsePriceTable, priceTableText } from '../../core/sets.js';
 
 const saved = (m = 'Saved to the working copy') => toast(m);
 
@@ -165,31 +165,28 @@ export function DiscountsScreen() {
   const { bundle } = useWorking();
   const list = bundle.discounts ?? [];
   const [open, setOpen] = useState(null);
-  const amount = (d) => (d.price != null ? money(d.price) : `${d.percent}%`);
+  const lowest = (d) => Math.min(...(d.prices ?? []).filter((r) => r.price != null).map((r) => r.price));
+  const amount = (d) => (d.prices?.length ? `from ${money(lowest(d))}` : `${d.percent}%`);
   const when = (d) => (d.validFrom || d.validTo ? `${fmtDate(d.validFrom)} – ${fmtDate(d.validTo)}` : 'Standing');
   return html`
     <${Bar} backTo="#/me/data/sets" title="Discounts" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ d: { id: '', name: '', percent: null, appliesTo: 'contacts' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">Applied by the order on its own while their dates run — a percentage, or a fixed price for one lens. One that names what the client shows (a membership card) waits for the seller to switch it on. A line takes one discount, never two, and the seller can still change it on the line.</p>
+        <p class="para pad">Applied by the order on its own while their dates run — a percentage, or a table of lens prices. One that names what the client shows (a membership card) waits for the seller to switch it on. A line takes one discount, never two, and the seller can still change it on the line.</p>
         ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${d.id} · ${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${when(d)}`}
-          sub=${[d.requires && `Shows: ${d.requires}`, d.lens && `Lens ${d.lens}`, d.upgrade && `Upgrades ${d.upgradePrice != null ? money(d.upgradePrice) + ' more' : 'price to confirm'}`,
+          sub=${[d.requires && `Shows: ${d.requires}`, d.prices?.length && `${d.prices.length} lens prices${d.prices.some((r) => r.price == null) ? ', some to confirm' : ''}`,
             d.only && `Only ${d.only}`, d.except && `Not ${d.except}`].filter(Boolean).join(' · ') || null}
           end=${amount(d)} off=${setStatus(d) === 'Ended'} onClick=${() => setOpen({ d, id: d.id })} />`)}<//>` : html`<div class="pad"><${Empty} title="None">Add one with +.<//></div>`}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.id ? 'Discount' : 'New discount'} initial=${open.d} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.id ? 'Discount' : 'New discount'} initial=${{ ...open.d, pricesText: priceTableText(open.d.prices) }} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'id', label: 'Promotion no.', required: true, inputmode: 'numeric', group: 'Discount' },
         { key: 'name', label: 'Name', required: true, placeholder: '30% off contact lenses', group: 'Discount' },
         { key: 'appliesTo', label: 'Applies to', type: 'select', options: Object.entries(APPLIES_TO).map(([value, label]) => ({ value, label })), group: 'Discount' },
-        { key: 'percent', label: 'Percent', type: 'number', group: 'How much', hint: 'Or a fixed price below, for one lens.' },
-        { key: 'price', label: 'Fixed price', type: 'money', group: 'How much', hint: 'The pair of lenses at this price instead of its own — needs the lens below.' },
-        { key: 'lens', label: 'Lens', caps: true, placeholder: 'SV|4300|*|*POLAR|PLG,PLV,PLC|ARC', group: 'Which lens',
-          hint: 'family|material|design|filter|colour|coating, as in the set rows. Blank: any.' },
-        { key: 'upgrade', label: 'Upgrades', caps: true, placeholder: '*|*|*|*POLAR|*|*', group: 'Which lens',
-          hint: 'Lenses that count as an upgrade of the offer: the fixed price plus the upgrade price.' },
-        { key: 'upgradePrice', label: 'Upgrade price', type: 'money', group: 'Which lens', hint: 'On top of the fixed price. Blank: the order shows “price to confirm”.' },
+        { key: 'percent', label: 'Percent', type: 'number', group: 'How much', hint: 'Or lens prices below instead.' },
+        { key: 'pricesText', label: 'Lens prices', type: 'textarea', group: 'How much', placeholder: 'SV|*POLY|*|*POLAR|PLG,PLV,PLC|ARC = 3999',
+          hint: 'One lens per line: family|material|design|filter|colour|coating, as in the set rows, then = the pair’s price. “= ?” for a lens the offer covers at a price not known yet. The first line that matches wins, and the price replaces the lens’s own, as the register prints it.' },
         { key: 'requires', label: 'The client shows', placeholder: 'e.g. Sam’s Club membership card', group: 'Who', hint: 'Set: the seller switches it on for the order. Blank: it applies on its own.' },
         { key: 'only', label: 'Only', type: 'textarea', group: 'Who', hint: 'Leave blank for all. Otherwise the brands (frames) or products (contact lenses) it is limited to, separated by commas.' },
         { key: 'except', label: 'Except', type: 'textarea', group: 'Who', hint: 'Brands or products it never applies to, separated by commas.' },
@@ -200,13 +197,10 @@ export function DiscountsScreen() {
         if (x.id !== open.id && list.some((d) => d.id === x.id)) return `Promotion ${x.id} is already listed.`;
         const d = { id: String(x.id).trim(), name: String(x.name).trim(), percent: x.percent ?? 0, appliesTo: x.appliesTo,
           only: String(x.only ?? '').trim(), except: String(x.except ?? '').trim(), validFrom: x.validFrom || '', validTo: x.validTo || '' };
-        if (x.price != null) d.price = x.price;
-        if (String(x.lens ?? '').trim()) d.lens = String(x.lens).trim().toUpperCase();
-        if (String(x.upgrade ?? '').trim()) d.upgrade = String(x.upgrade).trim().toUpperCase();
-        if (x.upgradePrice != null) d.upgradePrice = x.upgradePrice;
+        const prices = parsePriceTable(x.pricesText);
+        if (prices.length) d.prices = prices;
         if (String(x.requires ?? '').trim()) d.requires = String(x.requires).trim();
-        if (d.price == null && !(d.percent > 0 && d.percent <= 100)) return 'Give a percentage (more than 0, at most 100) or a fixed price.';
-        if (d.price != null && !d.lens) return 'A fixed price needs the lens it is for.';
+        if (!prices.length && !(d.percent > 0 && d.percent <= 100)) return 'Give a percentage (more than 0, at most 100) or lens prices.';
         edit((b) => upsertDiscount(b, d, open.id)); saved();
       }}
       onDelete=${open.id ? () => { edit((b) => deleteDiscount(b, open.id)); saved('Removed'); } : null} />`}`;

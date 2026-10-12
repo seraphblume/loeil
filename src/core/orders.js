@@ -102,8 +102,8 @@ export function lineText(line) {
 export const lineQuantity = (line) => (line.kind === 'frame' ? 1 : line.quantity);
 
 /**
- * No price yet: a lens in a set whose row is not settled, or an upgrade whose
- * price the offer does not give yet (prescription Polarex beyond the base lens).
+ * No price yet: a lens in a set whose row is not settled, or a lens an offer
+ * covers at a price its table does not give yet (a Polarex progressive).
  */
 export const isPending = (line) => (Boolean(line.setLens) && !line.setLens.id) || Boolean(line.auto?.pending && typeof line.discount !== 'number');
 
@@ -111,7 +111,9 @@ export const isPending = (line) => (Boolean(line.setLens) && !line.setLens.id) |
 function listCents(line) {
   if (line.kind === 'lens') {
     // Per pair for spectacles: a pair is two lenses. An older one-eye line is half.
-    const unit = line.setLens ? line.setLens.price : line.lens.priceCents;
+    // A lens an offer reprices (8922) takes that price as its list price, as the register does.
+    const offer = line.auto?.price != null && typeof line.discount !== 'number' ? line.auto.price : null;
+    const unit = line.setLens ? line.setLens.price : offer ?? line.lens.priceCents;
     if (unit == null) return null;
     return isPair(line) ? Math.round((unit * line.quantity) / 2) : unit * line.quantity;
   }
@@ -128,11 +130,6 @@ export function discountOf(line) {
   return line.auto?.percent ?? 0;
 }
 
-/** A fixed price the line takes instead of its list price (an offer for that lens), per pair. */
-function fixedOf(line) {
-  if (typeof line.discount === 'number' || line.auto?.price == null) return null;
-  return isPair(line) ? Math.round((line.auto.price * line.quantity) / 2) : line.auto.price * lineQuantity(line);
-}
 
 const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] ?? 0), 0);
 
@@ -144,11 +141,10 @@ const sum = (rows, k) => rows.reduce((s, r) => s + (r[k] ?? 0), 0);
 export function priceOrder(order) {
   const rows = order.lines.map((line) => {
     const list = isPending(line) ? null : listCents(line);
-    const fixed = list != null ? fixedOf(line) : null;
-    const discount = list != null && fixed == null ? discountOf(line) : 0;
-    const off = fixed != null ? Math.max(0, list - fixed) : Math.round((list ?? 0) * discount / 100);
+    const discount = list != null ? discountOf(line) : 0;
+    const off = Math.round((list ?? 0) * discount / 100);
     const auto = off > 0 && typeof line.discount !== 'number';
-    return { line, list, discount, fixed, auto, off, net: list == null ? null : list - off, pending: isPending(line) };
+    return { line, list, discount, auto, off, net: list == null ? null : list - off, pending: isPending(line) };
   });
   // Plus Protection: a share of the glasses' list prices, before their discounts.
   const covered = rows.filter((r) => r.list != null && isGlasses(r.line)).reduce((s, r) => s + r.list, 0);
@@ -222,7 +218,7 @@ export function ticketText(order, clientName) {
     if (line.set) out.push(`  ${line.set.name} (${line.set.id})`);
     if (line.setLens?.id) out.push(`  ${line.setLens.setName}: ${line.setLens.name}`);
     if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)} list${r.discount ? `, less ${r.discount}% (${line.auto.id})` : ''}: ${money(r.net)}`);
-    else if (r.fixed != null && r.off) out.push(`  ${money(r.list)}, with ${line.auto.id} ${line.auto.name}: ${money(r.net)}`);
+    else if (line.kind === 'lens' && line.auto?.price != null && typeof line.discount !== 'number') out.push(`  ${line.auto.id} ${line.auto.name} (instead of ${money(line.lens.priceCents)}): ${money(r.net)}`);
     else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%${r.auto ? ` (${line.auto.id})` : ''}: ${money(r.net)}`);
     else out.push(`  ${money(r.net)}`);
   }

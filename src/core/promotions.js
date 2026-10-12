@@ -20,6 +20,7 @@
 // customer a discount; a line of text costs him one second to read.
 
 import { dayToDate, startOfDay } from './util.js';
+import { designCodeOf } from './lens.js';
 
 export const ANY = '*ANY';
 
@@ -32,7 +33,7 @@ export function promoKeyFor(catalogue, row) {
   return {
     family: row.family === 'SV' ? 'SV' : row.type.code,
     materialFamily: material,
-    design: row.design.code,
+    design: designCodeOf(row),
     colourFamily: colour,
     coating: row.treatment.code,
   };

@@ -317,17 +317,15 @@ function validateSets(b, report) {
     if (dIds.has(d.id)) report.error('Campaign discounts', `Promotion ${d.id} is listed twice.`);
     dIds.add(d.id);
     const where = d.name || d.id;
-    if (d.price != null) {
-      if (!(d.price > 0)) report.error('Campaign discounts', `${where}: the fixed price must be more than zero.`);
-      if (!d.lens) report.error('Campaign discounts', `${where}: a fixed price needs the lens it is for.`);
-    } else if (!(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    if (!d.prices?.length && !(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
     if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${where}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
     if (d.validFrom && d.validTo && d.validTo < d.validFrom) report.error('Campaign discounts', `${where} ends before it starts.`);
-    for (const [label, match] of [['lens', d.lens], ['upgrade', d.upgrade]]) {
-      if (!match) continue;
-      for (const t of unknownTokens(match)) report.warn('Campaign discounts', `${where}: “${t}” in the ${label} is not something the vocabulary knows.`);
-      if (!facts.some((f) => factsMatch(lookup, match, f))) report.warn('Campaign discounts', `${where}: the ${label} matches no lens in the catalogue.`);
+    for (const [i, row] of (d.prices ?? []).entries()) {
+      for (const t of unknownTokens(row.match)) report.warn('Campaign discounts', `${where}, price row ${i + 1}: “${t}” is not something the vocabulary knows.`);
+      if (!facts.some((f) => factsMatch(lookup, row.match, f))) report.warn('Campaign discounts', `${where}, price row ${i + 1} (${row.match}) matches no lens in the catalogue.`);
+      if (row.price != null && !(row.price > 0)) report.error('Campaign discounts', `${where}, price row ${i + 1}: the price must be more than zero.`);
     }
-    if (d.upgrade && d.upgradePrice == null) report.note('Campaign discounts', `${where}: the upgrade price is not set yet, so an upgraded lens shows “price to confirm”.`);
+    const toConfirm = (d.prices ?? []).filter((r) => r.price == null).length;
+    if (toConfirm) report.note('Campaign discounts', `${where}: ${toConfirm} price row${toConfirm > 1 ? 's are' : ' is'} still “?”, so those lenses show “price to confirm”.`);
   }
 }

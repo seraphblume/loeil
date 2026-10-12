@@ -110,16 +110,24 @@ export function clearFrom(familyId, chosen, stepKey) {
 // The POS product code
 
 /**
+ * A single vision lens's design as the register knows it. The price list
+ * leaves some single vision rows without one (Polarex, some photochromics);
+ * the register calls them Non Design: `4300SVNDPLG1`, `4300SVNDPMI1`.
+ */
+export function designCodeOf(row) {
+  return row.family === 'SV' && (!row.design.code || row.design.code === 'N/A') ? 'ND' : row.design.code;
+}
+
+/**
  * The register wants the attribute codes run together. Observed: material
- * `4300`, lens type `SV`, design `ES`, colour `TSI` prints as `4300SVESTSI1`.
- * The trailing `1` and the omission of `N/A` segments are inferred from that
- * single example — confirm against a second printed code before relying on it
- * for a lens whose design or colour is N/A.
+ * `4300`, lens type `SV`, design `ES`, colour `TSI` prints as `4300SVESTSI1`;
+ * a Polarex lens with no design in the price list prints `4300SVNDPLG1`. Other
+ * `N/A` segments are left out.
  */
 export function posCode(row) {
   if (row.family === 'CL') return '';
   const segs = row.family === 'SV'
-    ? [row.material.code, 'SV', row.design.code, row.colour.code]
+    ? [row.material.code, 'SV', designCodeOf(row), row.colour.code]
     : [row.material.code, row.type.code, row.design.code, row.colour.code];
   return segs.filter((s) => s && s !== 'N/A').join('') + '1';
 }

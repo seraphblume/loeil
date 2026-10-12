@@ -120,11 +120,12 @@ A line takes one discount, never two. In order:
 2. **Discounts that apply on their own**, while their dates run: 30% on HydraGlyde
    contacts (9335), 20% on sunglasses sold as they are (9261), **30% off the lenses
    when the client brings their own frame** (9027: a pair with no frame on the order),
-   and **prescription Polarex in a sunglass frame bought here** (8922: single vision,
-   polycarbonate, Polarex grey/green/brown with anti-reflective at $2,099 the pair).
-   A Polarex lens beyond that base is an upgrade; until its price is in the data the
-   order shows “price to confirm” (choose No discount on the line to quote the
-   lens at its own price).
+   and **prescription Polarex in a sunglass frame bought here** (8922, *Polariza tu
+   Solar*). 8922 reprices the single vision polycarbonate Polarex lens itself, as the
+   register does, and the frame keeps its own price: $2,099.02 with anti-scratch,
+   $3,999 anti-reflective, $3,599 anti-reflective HD, $6,149 Crizal, $2,649 mirror. Any
+   other Polarex lens (a progressive) shows “price to confirm” until its row has a
+   price (choose No discount on the line to quote it at its own price).
 3. **Discounts the client claims**: **Sam's Club members** (461) show their card
    and the seller switches it on, under the client on the order. It takes 20% off
    every line nothing above covers — frames, lenses, contacts, accessories and
@@ -132,9 +133,10 @@ A line takes one discount, never two. In order:
    gift.
 
 The seller's own 40% or 50% on a line replaces all of these. Every discount is data
-(Catalogue data → Sets → Discounts): a percentage or a fixed price for a lens match,
-what it applies to, an upgrade match and price, what the client shows, and its
-dates — both blank for a standing one, which a new campaign's dates leave alone.
+(Catalogue data → Sets → Discounts): a percentage, or a table of lens prices (one
+`match = price` per line, `= ?` for a price not known yet; the first match wins),
+what it applies to, what the client shows, and its dates — both blank for a
+standing one, which a new campaign's dates leave alone.
 
 ## Lifestyle presets
 

@@ -10,6 +10,7 @@ import { Report, validateBundle, VOCAB_KINDS } from './validate.js';
 import { TRUE_SKU_DIGITS } from '../config.js';
 import { STORE_FIELDS, cleanStore } from './store.js';
 import { parseItems } from './presets.js';
+import { parsePriceTable } from './sets.js';
 
 export { stockKind } from './stock.js';
 export { VOCAB_KINDS, parseCodeLabel };
@@ -284,17 +285,11 @@ export function readBackend(sheets, report = new Report()) {
   return out;
 }
 
-/** The optional discount columns: a fixed price, the lens it is for, its upgrades, what the client shows. */
+/** The optional discount columns: its lens price table, and what the client shows. */
 function discountExtras(r) {
   const out = {};
-  const price = toCents(r.price);
-  if (price != null && cellText(r.price).trim()) out.price = price;
-  const lens = cellText(r.lens).trim();
-  if (lens) out.lens = lens.toUpperCase();
-  const upgrade = cellText(r.upgrade).trim();
-  if (upgrade) out.upgrade = upgrade.toUpperCase();
-  const up = toCents(r.upgrade_price);
-  if (up != null && cellText(r.upgrade_price).trim()) out.upgradePrice = up;
+  const prices = parsePriceTable(cellText(r.prices));
+  if (prices.length) out.prices = prices;
   const requires = cellText(r.requires).trim();
   if (requires) out.requires = requires;
   return out;

@@ -11,10 +11,11 @@
 //   setLenses   the table's rows — "Transitions Crizal Easy" — and which
 //               catalogue lenses each row covers (its match)
 //   setPrices   what each row costs in each set (0 = included)
-//   discounts   percentages applied without asking (30% on contacts), a fixed
-//               lens price (prescription Polarex in a sun frame for $2,099), and
-//               the ones the client claims by showing something (a Sam's Club
-//               card). A line takes one discount, never two.
+//   discounts   percentages applied without asking (30% on contacts), a table
+//               of lens prices (prescription Polarex in a sun frame: $2,099
+//               with anti-scratch, $3,999 with anti-reflective…), and the ones
+//               the client claims by showing something (a Sam's Club card). A
+//               line takes one discount, never two.
 //
 // A MATCH reads `family|material|design|filter|colour|coating`. Each part is
 // `*` (anything), a list of codes, or `*GROUP` for every code whose vocabulary
@@ -192,10 +193,29 @@ function listOf(line) {
   return line.priceCents ?? 0;
 }
 
+// ---------------------------------------------------------------------------
+// A discount's lens price table, one row per line: `MATCH = 2099`, or
+// `MATCH = ?` for a lens the offer covers at a price not known yet. The first
+// row that matches the lens wins.
+
+export function parsePriceTable(text) {
+  return String(text ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const at = l.lastIndexOf('=');
+    const match = (at >= 0 ? l.slice(0, at) : l).trim().toUpperCase();
+    const raw = at >= 0 ? l.slice(at + 1).trim() : '?';
+    const n = Number(raw.replace(/[^0-9.]/g, ''));
+    return { match, price: raw === '?' || raw === '' || !Number.isFinite(n) ? null : Math.round(n * 100) };
+  }).filter((r) => r.match);
+}
+
+export function priceTableText(rows) {
+  return (rows ?? []).map((r) => `${r.match} = ${r.price == null ? '?' : (r.price / 100).toFixed(2).replace(/\.00$/, '')}`).join('\n');
+}
+
 /**
  * What one discount does to a line, or null when it does not apply. A percent
- * (`percent`), a fixed price (`price`), or — for a lens the offer counts as an
- * upgrade whose price is not known yet — `pending`.
+ * (`percent`), or — from its lens price table — the lens's price under the
+ * offer (`price`), or `pending` when the offer covers it at a price not known.
  *
  * `ctx.frame` is the frame the lens goes in (null: the client's own frame);
  * `ctx.claimed` the discounts the client has claimed on this order.
@@ -223,31 +243,28 @@ function discountHit(catalogue, d, line, ctx) {
   if (String(d.only ?? '').trim() && !listed(d.only)) return null;
   if (listed(d.except)) return null;
   const base = { id: d.id, name: d.name };
-  if (d.lens) {
-    // An offer for a particular lens: that lens at its price, an upgrade on top.
+  if (d.prices?.length) {
+    // An offer priced lens by lens: the register reprices the lens line itself.
     const facts = isSpectacle ? lensFacts(line.lens) : null;
-    if (!facts) return null;
-    const at = (price) => (price != null ? { ...base, price } : { ...base, percent: d.percent });
-    if (factsMatch(catalogue, d.lens, facts)) return at(d.price);
-    if (!d.upgrade || !factsMatch(catalogue, d.upgrade, facts)) return null;
-    if (d.price == null) return { ...base, percent: d.percent, upgrade: true };
-    return d.upgradePrice != null ? { ...base, price: d.price + d.upgradePrice, upgrade: true } : { ...base, pending: true, upgrade: true };
+    const row = facts ? d.prices.find((p) => factsMatch(catalogue, p.match, facts)) : null;
+    if (!row) return null;
+    return row.price != null ? { ...base, price: row.price } : { ...base, pending: true };
   }
-  return d.price != null ? { ...base, price: d.price } : { ...base, percent: d.percent };
+  return { ...base, percent: d.percent };
 }
 
-/** What a discount takes off a list price; a pending upgrade saves nothing yet. */
+/** What a discount takes off a list price; a price still to confirm saves nothing yet. */
 export function savingOf(hit, list) {
   if (!hit || hit.pending || list == null) return 0;
   if (hit.price != null) return Math.max(0, list - hit.price);
   return Math.round((list * (hit.percent ?? 0)) / 100);
 }
 
-/** `30% off`, `$2,099`, `upgrade, price to confirm` — for the screens. */
+/** `30% off`, `$3,999 the pair`, `price to confirm` — for the screens. */
 export function hitText(hit, money) {
   if (!hit) return '';
-  if (hit.pending) return 'upgrade, price to confirm';
-  if (hit.price != null) return `${money(hit.price)}${hit.upgrade ? ' with the upgrade' : ''}`;
+  if (hit.pending) return 'price to confirm';
+  if (hit.price != null) return `${money(hit.price)} the pair`;
   return `${hit.percent}% off`;
 }
 

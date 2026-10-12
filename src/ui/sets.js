@@ -29,9 +29,9 @@ export function SetsScreen() {
         <//>`}
         ${discounts.length > 0 && html`<${Section} title="Discounts" footer="One per line, never two. Those the client claims cover only what no set or other discount does.">
           ${discounts.map((d) => html`<div class="row"><span class="main"><span class="t">${d.name}</span>
-            <span class="d">${d.price != null ? `${money(d.price)} · ` : d.percent ? `${d.percent}% · ` : ''}${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${d.validTo ? `until ${fmtDate(d.validTo)}` : 'standing'}</span>
+            <span class="d">${d.prices?.length ? `from ${money(Math.min(...d.prices.filter((x) => x.price != null).map((x) => x.price)))} the pair · ` : d.percent ? `${d.percent}% · ` : ''}${APPLIES_TO[d.appliesTo] ?? d.appliesTo} · ${d.validTo ? `until ${fmtDate(d.validTo)}` : 'standing'}</span>
             ${d.requires && html`<span class="d">When the client shows: ${d.requires}</span>`}
-            ${d.upgrade && html`<span class="d">Upgrades: ${d.upgradePrice != null ? `${money(d.upgradePrice)} more` : 'price to confirm'}</span>`}
+            ${d.prices?.some((x) => x.price == null) && html`<span class="d">Some lenses: price to confirm</span>`}
             ${d.only && html`<span class="d">Only ${d.only}</span>`}${d.except && html`<span class="d">Not ${d.except}</span>`}</span>
             <span class="end mono sel" style="font-size:15px;color:var(--platinum)">${d.id}</span></div>`)}
         <//>`}
