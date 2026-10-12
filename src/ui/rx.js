@@ -10,7 +10,7 @@ import { Eyebrow, Toggle, Seg, Sheet, Anchor, Quiet, fmtDate } from './kit.js';
 import { Icon } from './icons.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import {
-  RX_LIMITS, PRISM_BASES, snap, monoPd, hasPrism, blankRx, blankEye, blankContactRx, rxIsBlank, contactIsBlank,
+  RX_LIMITS, PRISM_BASES, snap, monoPd, hasPrism, blankRx, blankEye, blankContactRx, rxIsBlank, contactIsBlank, GP_FIELDS,
   validity, VALIDITY_LABEL, warningIcon, expiresOn, issuedDate, needsAddition, pd,
 } from '../core/crm.js';
 import { aobLenses, lineText } from '../core/orders.js';
@@ -31,16 +31,25 @@ export const FORMAT = {
   addition: (v) => (Number(v) === 0 ? '0.00' : '+' + Math.abs(v).toFixed(2)),
   prism: (v) => Number(v).toFixed(2),
   aob: (v) => String(Math.round(v)),
+  gpSphere: (v) => (Number(v) === 0 ? '0.00' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(2)),
+  k: (v) => Number(v).toFixed(2),
+  rc: (v) => Number(v).toFixed(2),
+  dia: (v) => Number(v).toFixed(1),
 };
+
+/** Figures that start empty and must be given: a blank field stays blank. */
+const OPTIONAL = new Set(['pd', 'aob', 'gpSphere', 'k', 'rc', 'dia']);
+const SIGNED = new Set(['sphere', 'gpSphere']);
 
 /** What he typed → the value. A sphere typed without a sign keeps the sign shown. */
 function parse(kind, text, current) {
   const t = String(text).trim().replace(',', '.').replace('−', '-');
-  if (t === '') return kind === 'pd' || kind === 'aob' ? null : 0;
+  if (t === '') return OPTIONAL.has(kind) ? null : 0;
   const n = Number(t);
   if (!Number.isFinite(n)) return current;
   let v = n;
-  if (kind === 'sphere' && !/^[+-]/.test(t)) v = (Number(current) > 0 ? 1 : -1) * Math.abs(n);
+  if (SIGNED.has(kind) && !/^[+-]/.test(t)) v = (Number(current) > 0 ? 1 : -1) * Math.abs(n);
+  if (kind === 'k' || kind === 'rc' || kind === 'dia') v = Math.abs(n);
   if (kind === 'cylinder') v = -Math.abs(n);
   if (kind === 'addition' || kind === 'prism') v = Math.abs(n);
   return snap(v, RX_LIMITS[kind]);
@@ -63,11 +72,12 @@ export function RxSlider({ kind, label, value, onChange, eye, unit }) {
   const commit = () => { if (text !== null) { onChange(parse(kind, text, value)); setText(null); } };
   const flip = () => onChange(snap(-Number(value || 0), L));
   const id = `${eye}-${kind}`;
+  const sideName = /(^|-)od(-|$)/.test(eye) ? 'right' : /(^|-)os(-|$)/.test(eye) ? 'left' : 'both';
   return html`<div class=${'rxs' + (empty ? ' empty' : '')}>
     <label class="rxs-k" for=${id}>${label}</label>
     <div class="rxs-track">
       <input type="range" min=${L.min} max=${L.max} step=${L.step} value=${v}
-        aria-label=${`${eye === 'od' ? 'Right' : 'Left'} eye ${label}`}
+        aria-label=${`${sideName === 'both' ? 'Both eyes' : sideName === 'right' ? 'Right eye' : 'Left eye'} ${label}`}
         style=${{ '--a': a, '--b': b }}
         onInput=${(e) => onChange(snap(e.currentTarget.value, L))} />
       <div class="rxs-scale" aria-hidden="true">
@@ -81,7 +91,7 @@ export function RxSlider({ kind, label, value, onChange, eye, unit }) {
         onBlur=${commit}
         onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} />
       ${unit && html`<span class="rxs-unit">${unit}</span>`}
-      ${kind === 'sphere' && html`<button type="button" class="rxs-sign" aria-label=${`Flip the sign of the ${eye === 'od' ? 'right' : 'left'} sphere`} onClick=${flip}>±</button>`}
+      ${SIGNED.has(kind) && html`<button type="button" class="rxs-sign" aria-label=${`Flip the sign of the ${sideName} sphere`} onClick=${flip}>±</button>`}
     </div>
   </div>`;
 }
@@ -155,6 +165,21 @@ export function RxEntry({ rx, onChange, dated, addition = true }) {
 // ---------------------------------------------------------------------------
 // Contact lenses
 
+/** One eye of a gas-permeable fitting: SPH, K1, K2, RC, DIA. */
+export function GpEye({ side, m, onChange, prefix = 'gp' }) {
+  return html`<section class="rx-eye">
+    <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
+    <div class="rx-eye-body">
+      ${GP_FIELDS.map((f) => html`<${RxSlider} key=${f.key} kind=${f.kind} label=${f.label} eye=${`${prefix}-${side}-${f.key}`} unit=${f.unit}
+        value=${m?.[f.key] ?? null} onChange=${(v) => onChange({ ...m, [f.key]: v })} />`)}
+    </div>
+  </section>`;
+}
+
+export const GP_NOTE = 'K1 and K2 are the keratometries, RC the lens’s base curve, DIA its diameter.';
+
+const LENS_KINDS = [{ value: 'soft', label: 'Soft' }, { value: 'gp', label: 'Gas permeable' }];
+
 const MODALITIES = [{ value: 'Daily', label: 'Daily' }, { value: 'Monthly', label: 'Monthly' }, { value: 'Annual', label: 'Annual' }];
 
 export function ContactRxEntry({ cl, onChange, brands = [] }) {
@@ -171,8 +196,14 @@ export function ContactRxEntry({ cl, onChange, brands = [] }) {
       <label class="cell"><span class="k">Issued</span>
         <input type="date" value=${cl.issuedOn ?? ''} max=${isoDay(new Date())} onInput=${(e) => onChange({ ...cl, issuedOn: e.currentTarget.value || null })} />
       </label>
+      <div class="cell"><span class="k">Lens</span>
+        <${Seg} small label="Lens" value=${cl.gp ? 'gp' : 'soft'} options=${LENS_KINDS} onChange=${(k) => onChange({ ...cl, gp: k === 'gp' })} />
+      </div>
     </div>
-    <div class="rx-eyes">
+    ${cl.gp ? html`<div class="rx-eyes">
+      ${['od', 'os'].map((side) => html`<${GpEye} key=${side} side=${side} prefix="clgp" m=${cl[side]} onChange=${(m) => onChange({ ...cl, [side]: { ...cl[side], ...m } })} />`)}
+    </div>
+    <p class="note pad-in">${GP_NOTE}</p>` : html`<div class="rx-eyes">
       ${['od', 'os'].map((side) => html`<section class="rx-eye" key=${side}>
         <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
         <div class="rx-eye-body">
@@ -184,7 +215,7 @@ export function ContactRxEntry({ cl, onChange, brands = [] }) {
     </div>
     <div class="group">
       <div class="cell cell-slider"><${RxSlider} kind="addition" label="ADD" eye="cl" value=${cl.addition} onChange=${(v) => onChange({ ...cl, addition: v })} /></div>
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -233,15 +264,17 @@ export function RxCard({ rx, onEdit, title = 'Glasses' }) {
 
 export function ContactRxCard({ cl, onEdit }) {
   if (contactIsBlank(cl)) return null;
-  const row = (side) => [SIDE[side].short, FORMAT.sphere(Number(cl[side].sphere)),
+  const soft = (side) => [SIDE[side].short, FORMAT.sphere(Number(cl[side].sphere)),
     Number(cl[side].cylinder) ? FORMAT.cylinder(Number(cl[side].cylinder)) : '—', Number(cl[side].cylinder) ? FORMAT.axis(Number(cl[side].axis)) + '°' : '—'];
+  const gp = (side) => [SIDE[side].short, ...GP_FIELDS.map((f) => (cl[side][f.key] == null ? '—' : FORMAT[f.kind](Number(cl[side][f.key]))))];
+  const row = cl.gp ? gp : soft;
   return html`<section class="gap-s">
     <div class="group-head"><${Eyebrow}>Contact lenses<//></div>
     <button type="button" class="group rx-card" onClick=${onEdit} disabled=${!onEdit}>
       <div class="rx-card-in">
         ${(cl.brand || cl.modality) && html`<div class="rx-brand">${cl.brand || 'Brand not set'}${cl.modality && html`<span class="muted"> · ${cl.modality}</span>`}</div>`}
-        <${RxTable} cols=${['SPH', 'CYL', 'AXIS']} rows=${[row('od'), row('os')]} />
-        <div class="rx-foot">${[Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : null, cl.issuedOn && `Issued ${fmtDate(cl.issuedOn)}`].filter(Boolean).join(' · ')}</div>
+        <${RxTable} cols=${cl.gp ? GP_FIELDS.map((f) => f.label) : ['SPH', 'CYL', 'AXIS']} rows=${[row('od'), row('os')]} />
+        <div class="rx-foot">${[cl.gp ? 'Gas permeable' : null, !cl.gp && Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : null, cl.issuedOn && `Issued ${fmtDate(cl.issuedOn)}`].filter(Boolean).join(' · ')}</div>
       </div>
     </button>
   </section>`;

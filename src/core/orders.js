@@ -47,8 +47,10 @@ export function newOrder() {
   };
 }
 
-/** Contact lenses: one eye, a box count. */
-export const lensLine = (lens, eye, power, quantity) => ({ id: uid(), kind: 'lens', lens, eye, power: power ?? '', quantity });
+/** Contact lenses: one eye, a box count; a gas-permeable lens also its fitting's figures. */
+export const lensLine = (lens, eye, power, quantity, measures = null) => ({
+  id: uid(), kind: 'lens', lens, eye, power: power ?? '', quantity, ...(measures ? { measures } : {}),
+});
 
 /** Spectacle lenses: the pair. */
 export const pairLine = (lens) => ({ id: uid(), kind: 'lens', lens, eye: 'OU', power: '', quantity: 2 });
@@ -199,6 +201,10 @@ const ATTR_KIND = { type: 'lens_type' };
 export function aobLenses(order, catalogue) {
   return order.lines.filter((l) => isPair(l) && (l.lens.attributes ?? []).some((a) => a.key && catalogue?.meta(ATTR_KIND[a.key] ?? a.key, a.code)?.aob));
 }
+/** A gas-permeable contact lens: the vocabulary flags its material. */
+export const isGasPermeable = (lens, catalogue) => lens?.family === 'CL'
+  && (lens.attributes ?? []).some((a) => a.key === 'material' && catalogue?.meta('contact_material', a.code)?.gp);
+
 export const needsAob = (order, catalogue) => aobLenses(order, catalogue).length > 0;
 export const aobMissing = (order, catalogue) => needsAob(order, catalogue) && !(order.aob?.od && order.aob?.os);
 export const framesOf = (o) => o.lines.filter((l) => l.kind === 'frame');

@@ -136,6 +136,7 @@ export function readBackend(sheets, report = new Report()) {
         sameAs: cellText(r.same_as).trim(), highRx: isYes(r.high_rx),
         ...(cellText(r.print_as).trim() ? { printAs: cellText(r.print_as).trim() } : {}),
         ...(isYes(r.needs_aob) ? { aob: true } : {}),
+        ...(isYes(r.gas_permeable) ? { gp: true } : {}),
       });
     }
   }

@@ -10,8 +10,9 @@ import { html, useState, useRef, useMemo } from './html.js';
 import { useApp } from './hooks.js';
 import {
   Bar, Screen, ScreenTitle, Row, List, Eyebrow, Panel, Figure, Flag, Anchor, Sheet, Seg, Stepper, KV,
-  SearchField, Empty, useCopy, Dock,
+  SearchField, Empty, useCopy, Dock, Toggle,
 } from './kit.js';
+import { GpEye, GP_NOTE } from './rx.js';
 import { Icon } from './icons.js';
 import { go, href } from './router.js';
 import {
@@ -20,10 +21,10 @@ import {
 import { eligibility } from '../core/promotions.js';
 import { money, moneyDelta } from '../core/money.js';
 import { fold, signed } from '../core/util.js';
-import { guidance, rxIsBlank } from '../core/crm.js';
-import { lensLine, pairLine } from '../core/orders.js';
+import { guidance, rxIsBlank, GP_FIELDS, blankGp, gpComplete, gpText, blankContactRx } from '../core/crm.js';
+import { lensLine, pairLine, isGasPermeable } from '../core/orders.js';
 import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
-import { addLine, toast, clientById } from '../state/app.js';
+import { addLine, toast, clientById, upsertClient } from '../state/app.js';
 
 function chosenFrom(family, query) {
   const out = {};
@@ -190,12 +191,69 @@ function ConfigureSheet({ row, onClose }) {
   <//>`;
 }
 
+/** A contact lens onto the order: a gas-permeable one asks for the fitting's figures. */
+export function LineEditorSheet({ lens, onClose, onAdded }) {
+  const catalogue = useApp((s) => s.catalogue);
+  return isGasPermeable(lens, catalogue)
+    ? html`<${GpLineSheet} lens=${lens} onClose=${onClose} onAdded=${onAdded} />`
+    : html`<${SoftLineSheet} lens=${lens} onClose=${onClose} onAdded=${onAdded} />`;
+}
+
+const EYE_CHOICES = [{ value: 'both', label: 'Both eyes' }, { value: 'od', label: 'OD' }, { value: 'os', label: 'OS' }];
+const pickGp = (e) => Object.fromEntries(GP_FIELDS.map((f) => [f.key, e?.[f.key] ?? null]));
+
+/**
+ * A gas-permeable lens (GP, scleral): per eye the sphere, the two
+ * keratometries, the base curve (RC) and the diameter — the figures the lab
+ * makes it to. Both eyes at once, from the client's record when it has them.
+ */
+function GpLineSheet({ lens, onClose, onAdded }) {
+  const client = useApp((s) => clientById(s.draft.clientId, s));
+  const cl = client?.contactRx ?? null;
+  const fromRecord = (side) => (cl?.gp ? pickGp(cl[side]) : blankGp());
+  const [eyes, setEyes] = useState('both');
+  const [m, setM] = useState(() => ({ od: fromRecord('od'), os: fromRecord('os') }));
+  const [qty, setQty] = useState(1);
+  const [toClient, setToClient] = useState(Boolean(client));
+  const sides = eyes === 'both' ? ['od', 'os'] : [eyes];
+  const ready = sides.every((s) => gpComplete(m[s]));
+  const add = async () => {
+    for (const s of sides) await addLine(lensLine(lens, s.toUpperCase(), gpText(m[s]), qty, { ...m[s] }));
+    if (toClient && client) {
+      const base = cl ?? blankContactRx();
+      await upsertClient({ ...client, contactRx: { ...base, gp: true, ...Object.fromEntries(sides.map((s) => [s, { ...base[s], ...m[s] }])) } });
+    }
+    toast(sides.length === 2 ? 'OD and OS lines added' : `${sides[0].toUpperCase()} line added`);
+    onAdded?.();
+  };
+  return html`<${Sheet} title="Add line" onClose=${onClose} full>
+    <div class="pad stack tight">
+      <${ScreenTitle} eyebrow="Gas permeable" title=${lens.displayName} />
+      <${Seg} label="Eyes" value=${eyes} onChange=${setEyes} options=${EYE_CHOICES} />
+      <div class="rx-entry"><div class="rx-eyes">
+        ${sides.map((s) => html`<${GpEye} key=${s} side=${s} prefix="line" m=${m[s]} onChange=${(v) => setM({ ...m, [s]: v })} />`)}
+      </div></div>
+      <p class="note">${GP_NOTE}${cl?.gp ? ' Filled in from the client’s record.' : ''}</p>
+      <div class="gap-s"><${Eyebrow}>Per eye<//>
+        <${Stepper} value=${qty} min=${1} max=${12} onChange=${setQty} label="Lenses per eye" />
+      </div>
+      <${Panel}>
+        <${KV} k="Each" v=${money(lens.priceCents)} />
+        <${KV} k=${sides.length === 2 ? 'Both lines' : 'Line total'} v=${money(lens.priceCents * qty * sides.length)} em />
+      <//>
+      ${client && html`<div class="group"><div class="cell"><span class="k">Save to ${client.name.split(' ')[0]}’s record</span><${Toggle} on=${toClient} onChange=${setToClient} label="Save to the client" /></div></div>`}
+      ${!ready && html`<p class="note">Give all five figures${sides.length === 2 ? ' for each eye' : ''} to add the line.</p>`}
+      <${Anchor} disabled=${!ready} onClick=${add}>${sides.length === 2 ? 'Add both lines' : 'Add line'}<//>
+    </div>
+  <//>`;
+}
+
 /**
  * Eye, power and box count for one contact lens line — one eye at a time,
  * because the two eyes routinely take different powers and often different
  * products. Spectacle lenses never come here: they go on as the pair.
  */
-export function LineEditorSheet({ lens, onClose, onAdded }) {
+function SoftLineSheet({ lens, onClose, onAdded }) {
   const rx = useApp((s) => s.draftRx);
   const cl = useApp((s) => clientById(s.draft.clientId, s)?.contactRx ?? null);
   const [eye, setEye] = useState('OD');

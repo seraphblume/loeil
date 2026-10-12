@@ -14,9 +14,9 @@ import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
   lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
-  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder,
+  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder, isGasPermeable,
 } from '../core/orders.js';
-import { OrderRxSheet, rxSummary } from './rx.js';
+import { OrderRxSheet, rxSummary, GpEye, GP_NOTE } from './rx.js';
 import { addOrderToQuote } from './quote.js';
 import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
@@ -25,7 +25,7 @@ import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
 import { eligibility } from '../core/promotions.js';
-import { guidance, rxIsBlank, newClient } from '../core/crm.js';
+import { guidance, rxIsBlank, newClient, gpComplete, gpText, blankGp } from '../core/crm.js';
 import { fold } from '../core/util.js';
 import {
   removeLine, clearDraft, setDraftClient, saveDraftTo, addLine, toast, clientById, upsertClient, updateLine, setOrderFrame, setDraftClaim,
@@ -59,6 +59,7 @@ export function CodesBlock({ order }) {
 
 export function LinesPanel({ order, editable }) {
   const [open, setOpen] = useState(null);
+  const catalogue = useApp((s) => s.catalogue);
   const p = priceOrder(order);
   return html`<section class="gap-s">
     <${Eyebrow}>${p.rows.length === 1 ? '1 line' : `${p.rows.length} lines`}<//>
@@ -85,6 +86,9 @@ export function LinesPanel({ order, editable }) {
                 ? html`<button type="button" class=${'chip' + (l.set ? ' on' : '')} onClick=${() => setOpen({ kind: 'set', r })}>${l.set ? `Set ${l.set.id}` : 'Outside the set'}</button>`
                 : l.set && html`<span class="chip on">Set ${l.set.id}</span>`)}
               ${l.setLens && editable && html`<button type="button" class=${'chip' + (r.pending ? ' warn' : '')} onClick=${() => setOpen({ kind: 'row', r })}>${r.pending ? 'Choose its row' : 'Row'}</button>`}
+              ${l.kind === 'lens' && (l.measures || isGasPermeable(l.lens, catalogue)) && (editable
+                ? html`<button type="button" class=${'chip' + (gpComplete(l.measures) ? '' : ' warn')} onClick=${() => setOpen({ kind: 'gp', r })}>${gpComplete(l.measures) ? 'Fitting' : 'Add the fitting'}</button>`
+                : !gpComplete(l.measures) && html`<span class="chip warn">Fitting missing</span>`)}
               ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${l.auto.id} · price to confirm</button>`}
               ${discountable(l) && !r.pending && (editable
                 ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? 'Discount'}</button>`
@@ -111,6 +115,7 @@ export function LinesPanel({ order, editable }) {
     ${open?.kind === 'discount' && html`<${DiscountSheet} row=${open.r} onClose=${() => setOpen(null)} />`}
     ${open?.kind === 'set' && html`<${SetFrameSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
     ${open?.kind === 'row' && html`<${SetRowSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
+    ${open?.kind === 'gp' && html`<${GpFitSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
   </section>`;
 }
 
@@ -135,6 +140,21 @@ function DiscountSheet({ row, onClose }) {
       <//>
       ${auto?.pending && html`<p class="note pad">The offer covers this lens, but its price under the offer is not in the catalogue yet. Confirm it at the register, or choose No discount to quote the lens at its own price.</p>`}
       ${isGlasses(l) && html`<p class="note pad">${isPair(l) ? 'On the pair. ' : ''}Plus Protection is worked out on the list price, before the discount.</p>`}
+    </div>
+  <//>`;
+}
+
+/** A gas-permeable line's fitting: SPH, K1, K2, RC and DIA of its eye. */
+function GpFitSheet({ line, onClose }) {
+  const side = line.eye === 'OS' ? 'os' : 'od';
+  const [m, setM] = useState(() => ({ ...blankGp(), ...(line.measures ?? {}) }));
+  const save = () => { updateLine(line.id, { measures: m, power: gpText(m) }); toast('Fitting saved'); onClose(); };
+  return html`<${Sheet} title="Fitting" onClose=${onClose}>
+    <div class="pad stack tight">
+      <p class="para">${line.lens.displayName}</p>
+      <div class="rx-entry"><div class="rx-eyes"><${GpEye} side=${side} prefix="fit" m=${m} onChange=${setM} /></div></div>
+      <p class="note">${GP_NOTE}</p>
+      <${Anchor} disabled=${!gpComplete(m)} onClick=${save}>Save the fitting<//>
     </div>
   <//>`;
 }
@@ -236,6 +256,7 @@ export function OrderScreen() {
   const aob = needsAob(draft, catalogue);
   const missing = aobMissing(draft, catalogue);
   const clash = solutionClash(draft, catalogue);
+  const noFit = draft.lines.filter((l) => l.kind === 'lens' && isGasPermeable(l.lens, catalogue) && !gpComplete(l.measures));
   const claimable = claimableDiscounts(catalogue);
   const claimed = new Set(draft.claimed ?? []);
 
@@ -261,6 +282,7 @@ export function OrderScreen() {
           </div>
         </div></div>`}
         ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
+        ${noFit.length > 0 && html`<div class="pad"><${Flag}>${noFit.length === 1 ? 'The gas-permeable lens needs its' : 'Gas-permeable lenses need their'} fitting: SPH, K1, K2, RC and DIA. Tap “Add the fitting” on the line.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has

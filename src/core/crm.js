@@ -24,6 +24,11 @@ export const RX_LIMITS = {
   addition: { min: 0, max: 4, step: 0.25 },
   prism: { min: 0, max: 10, step: 0.25 },
   aob: { min: 15, max: 30, step: 1, ticks: [15, 19, 23, 26, 30] },
+  // Gas-permeable contact lenses: the fitting's own figures.
+  gpSphere: { min: -30, max: 30, step: 0.25 },
+  k: { min: 35, max: 52, step: 0.25 },          // keratometry, dioptres
+  rc: { min: 6.5, max: 9.5, step: 0.05 },        // radius of curvature (base curve), mm
+  dia: { min: 8, max: 24, step: 0.1, ticks: [8, 12, 16, 20, 24] }, // diameter, mm (scleral up to 24)
 };
 
 export const PRISM_BASES = [
@@ -57,12 +62,35 @@ export const blankRx = () => ({
   ticketNumber: null, site: null, expiryOverride: null,
 });
 
-/** Contact lenses: powers per eye, and the lens the fitting settled on. */
-export const blankContactEye = () => ({ sphere: 0, cylinder: 0, axis: 0 });
+/**
+ * Contact lenses: powers per eye, and the lens the fitting settled on. A
+ * gas-permeable fitting (`gp`) is written as sphere, the two keratometries
+ * (K1, K2), the lens's radius of curvature — its base curve (RC) — and its
+ * diameter (DIA), per eye.
+ */
+export const blankContactEye = () => ({ sphere: 0, cylinder: 0, axis: 0, k1: null, k2: null, rc: null, dia: null });
 export const blankContactRx = () => ({
-  od: blankContactEye(), os: blankContactEye(), addition: 0, brand: '', modality: '', issuedOn: null,
+  od: blankContactEye(), os: blankContactEye(), addition: 0, brand: '', modality: '', issuedOn: null, gp: false,
 });
-export const contactIsBlank = (cl) => !cl || (!cl.brand && ['od', 'os'].every((e) => !Number(cl[e]?.sphere) && !Number(cl[e]?.cylinder)));
+const hasGp = (e) => ['k1', 'k2', 'rc', 'dia'].some((k) => e?.[k] != null);
+export const contactIsBlank = (cl) => !cl || (!cl.brand && ['od', 'os'].every((e) => !Number(cl[e]?.sphere) && !Number(cl[e]?.cylinder) && !hasGp(cl[e])));
+
+/** The five figures of one eye of a gas-permeable fitting. */
+export const GP_FIELDS = [
+  { key: 'sphere', label: 'SPH', kind: 'gpSphere' },
+  { key: 'k1', label: 'K1', kind: 'k', unit: 'D' },
+  { key: 'k2', label: 'K2', kind: 'k', unit: 'D' },
+  { key: 'rc', label: 'RC', kind: 'rc', unit: 'mm' },
+  { key: 'dia', label: 'DIA', kind: 'dia', unit: 'mm' },
+];
+export const blankGp = () => ({ sphere: null, k1: null, k2: null, rc: null, dia: null });
+export const gpComplete = (m) => Boolean(m) && GP_FIELDS.every((f) => m[f.key] != null);
+const gpFigure = { sphere: (v) => (Number(v) === 0 ? '0.00' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(2)), k1: (v) => Number(v).toFixed(2), k2: (v) => Number(v).toFixed(2), rc: (v) => Number(v).toFixed(2), dia: (v) => Number(v).toFixed(1) };
+/** `SPH −3.25 · K1 42.50 · K2 43.75 · RC 7.85 · DIA 9.6` — the line's power, as the lab reads it. */
+export function gpText(m) {
+  if (!m) return '';
+  return GP_FIELDS.filter((f) => m[f.key] != null).map((f) => `${f.label} ${gpFigure[f.key](Number(m[f.key]))}`).join(' · ');
+}
 
 export function newClient(name = '') {
   return {
