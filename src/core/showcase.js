@@ -1,6 +1,6 @@
 // The showcase client: one made-up client on every phone and for every seller,
-// to show the app with — glasses with an ADD and the PD, a multifocal contact
-// lens prescription, a note. She is put back exactly as she is here each time
+// to show the app with — single vision glasses with the PD, a monthly contact
+// lens prescription, a note, and (a quirk) a Tokyo mobile and a loeil.com address. She is put back exactly as she is here each time
 // the app opens, cannot be deleted, is never due a visit, and the orders made
 // for her are left out of the sales figures. Nothing about her is real.
 
@@ -15,14 +15,14 @@ export const isShowcaseOrder = (order) => order?.clientId === SHOWCASE_ID;
 export function showcaseClient(now = new Date()) {
   const issuedOn = isoDay(addDays(now, -30));
   return {
-    id: SHOWCASE_ID, showcase: true, name: 'Valeria Luxe', phone: '5500000000', email: 'valeria.luxe@example.com',
+    id: SHOWCASE_ID, showcase: true, name: 'Valeria Luxe', phone: '+81 90-7895-6779', email: 'valeria.luxe@loeil.com',
     prescription: {
       ...blankRx(), issuedOn,
-      od: { ...blankEye(), sphere: -1.75, cylinder: -0.5, axis: 175, addition: 1.75, pdFar: 31.5 },
-      os: { ...blankEye(), sphere: -2.25, cylinder: -0.75, axis: 10, addition: 1.75, pdFar: 32 },
+      od: { ...blankEye(), sphere: -1.75, cylinder: -0.5, axis: 175, pdFar: 31.5 },
+      os: { ...blankEye(), sphere: -2.25, cylinder: -0.75, axis: 10, pdFar: 32 },
     },
     contactRx: {
-      ...blankContactRx(), issuedOn, brand: 'Air Optix Plus HydraGlyde Multifocal', modality: 'Monthly', addition: 1.75,
+      ...blankContactRx(), issuedOn, brand: 'Air Optix Plus HydraGlyde', modality: 'Monthly',
       od: { ...blankContactEye(), sphere: -1.5 }, os: { ...blankContactEye(), sphere: -2 },
     },
     notes: 'Showcase client — on every phone, for demonstrations. Changes to her record are undone the next time the app opens.',
