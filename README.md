@@ -23,8 +23,8 @@ following the device's appearance. The icon is the eye in ink on paper with a
 sand iris (the browser tab's icon turns to paper on ink at night).
 
 **Valeria Luxe** is the showcase client: made up, on every phone and for every
-seller, with single vision glasses (−1.75/−2.25 with the PD per eye), a monthly
-contact lens prescription, a Tokyo mobile and a loeil.com address. She is put back as she is each time the app
+seller, with single vision glasses (−1.75/−2.25 with the PD per eye), Biofinity
+Toric contact lenses (monthly), a Tokyo mobile and a loeil.com address. She is put back as she is each time the app
 opens, cannot be deleted, is never due a visit, stays out of backups, and orders
 made for her are left out of the sales figures.
 

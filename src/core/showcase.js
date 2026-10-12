@@ -1,6 +1,6 @@
 // The showcase client: one made-up client on every phone and for every seller,
-// to show the app with — single vision glasses with the PD, a monthly contact
-// lens prescription, a note, and (a quirk) a Tokyo mobile and a loeil.com address. She is put back exactly as she is here each time
+// to show the app with — single vision glasses with the PD, a monthly toric
+// contact lens prescription, a note, and (a quirk) a Tokyo mobile and a loeil.com address. She is put back exactly as she is here each time
 // the app opens, cannot be deleted, is never due a visit, and the orders made
 // for her are left out of the sales figures. Nothing about her is real.
 
@@ -22,8 +22,9 @@ export function showcaseClient(now = new Date()) {
       os: { ...blankEye(), sphere: -2.25, cylinder: -0.75, axis: 10, pdFar: 32 },
     },
     contactRx: {
-      ...blankContactRx(), issuedOn, brand: 'Air Optix Plus HydraGlyde', modality: 'Monthly',
-      od: { ...blankContactEye(), sphere: -1.5 }, os: { ...blankContactEye(), sphere: -2 },
+      ...blankContactRx(), issuedOn, brand: 'Biofinity Toric', modality: 'Monthly',
+      od: { ...blankContactEye(), sphere: -1.5, cylinder: -0.75, axis: 180 },
+      os: { ...blankContactEye(), sphere: -2.25, cylinder: -0.75, axis: 10 },
     },
     notes: 'Showcase client — on every phone, for demonstrations. Changes to her record are undone the next time the app opens.',
     isFavourite: true, createdOn: '2026-10-11T00:00:00.000Z',
