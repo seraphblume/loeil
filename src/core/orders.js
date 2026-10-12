@@ -47,9 +47,9 @@ export function newOrder() {
   };
 }
 
-/** Contact lenses: one eye, a box count; a gas-permeable lens also its fitting's figures. */
-export const lensLine = (lens, eye, power, quantity, measures = null) => ({
-  id: uid(), kind: 'lens', lens, eye, power: power ?? '', quantity, ...(measures ? { measures } : {}),
+/** Contact lenses: one eye, a box count; a lens that needs a fitting (GP, multifocal) also its figures. */
+export const lensLine = (lens, eye, power, quantity, measures = null, fit = null) => ({
+  id: uid(), kind: 'lens', lens, eye, power: power ?? '', quantity, ...(measures ? { measures } : {}), ...(fit ? { fit } : {}),
 });
 
 /** Spectacle lenses: the pair. */
@@ -201,9 +201,15 @@ const ATTR_KIND = { type: 'lens_type' };
 export function aobLenses(order, catalogue) {
   return order.lines.filter((l) => isPair(l) && (l.lens.attributes ?? []).some((a) => a.key && catalogue?.meta(ATTR_KIND[a.key] ?? a.key, a.code)?.aob));
 }
-/** A gas-permeable contact lens: the vocabulary flags its material. */
-export const isGasPermeable = (lens, catalogue) => lens?.family === 'CL'
-  && (lens.attributes ?? []).some((a) => a.key === 'material' && catalogue?.meta('contact_material', a.code)?.gp);
+/** The fitting a contact lens asks for — 'gp', 'mf' or null — as the vocabulary marks its material. */
+export function contactFit(lens, catalogue) {
+  if (lens?.family !== 'CL') return null;
+  const code = (lens.attributes ?? []).find((a) => a.key === 'material')?.code;
+  const v = code ? catalogue?.meta('contact_material', code) : null;
+  return v?.fit ?? (v?.gp ? 'gp' : null);
+}
+/** A line's fitting kind: the one it was added with, else its lens's. */
+export const lineFit = (line, catalogue) => (line.kind === 'lens' ? line.fit ?? contactFit(line.lens, catalogue) : null);
 
 export const needsAob = (order, catalogue) => aobLenses(order, catalogue).length > 0;
 export const aobMissing = (order, catalogue) => needsAob(order, catalogue) && !(order.aob?.od && order.aob?.os);

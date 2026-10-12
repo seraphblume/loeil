@@ -12,7 +12,7 @@ import {
   Bar, Screen, ScreenTitle, Row, List, Eyebrow, Panel, Figure, Flag, Anchor, Sheet, Seg, Stepper, KV,
   SearchField, Empty, useCopy, Dock, Toggle,
 } from './kit.js';
-import { GpEye, GP_NOTE } from './rx.js';
+import { FitEye } from './rx.js';
 import { Icon } from './icons.js';
 import { go, href } from './router.js';
 import {
@@ -21,8 +21,8 @@ import {
 import { eligibility } from '../core/promotions.js';
 import { money, moneyDelta } from '../core/money.js';
 import { fold, signed } from '../core/util.js';
-import { guidance, rxIsBlank, GP_FIELDS, blankGp, gpComplete, gpText, blankContactRx } from '../core/crm.js';
-import { lensLine, pairLine, isGasPermeable } from '../core/orders.js';
+import { guidance, rxIsBlank, CL_FITS, blankFit, fitComplete, fitText, blankContactRx, contactIsBlank, sphericalEquivalent } from '../core/crm.js';
+import { lensLine, pairLine, contactFit } from '../core/orders.js';
 import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
 import { addLine, toast, clientById, upsertClient } from '../state/app.js';
 
@@ -191,35 +191,55 @@ function ConfigureSheet({ row, onClose }) {
   <//>`;
 }
 
-/** A contact lens onto the order: a gas-permeable one asks for the fitting's figures. */
+/** A contact lens onto the order: one that needs a fitting (GP, multifocal) asks for its figures. */
 export function LineEditorSheet({ lens, onClose, onAdded }) {
   const catalogue = useApp((s) => s.catalogue);
-  return isGasPermeable(lens, catalogue)
-    ? html`<${GpLineSheet} lens=${lens} onClose=${onClose} onAdded=${onAdded} />`
+  const fit = contactFit(lens, catalogue);
+  return fit
+    ? html`<${FitLineSheet} lens=${lens} fit=${fit} onClose=${onClose} onAdded=${onAdded} />`
     : html`<${SoftLineSheet} lens=${lens} onClose=${onClose} onAdded=${onAdded} />`;
 }
 
 const EYE_CHOICES = [{ value: 'both', label: 'Both eyes' }, { value: 'od', label: 'OD' }, { value: 'os', label: 'OS' }];
-const pickGp = (e) => Object.fromEntries(GP_FIELDS.map((f) => [f.key, e?.[f.key] ?? null]));
+const quarter = (v) => (v == null || v === '' ? null : Math.round(Number(v) * 4) / 4);
 
 /**
- * A gas-permeable lens (GP, scleral): per eye the sphere, the two
- * keratometries, the base curve (RC) and the diameter — the figures the lab
- * makes it to. Both eyes at once, from the client's record when it has them.
+ * Where a fitting starts. Gas permeable: the client's GP record. Multifocal:
+ * SE and ADD from the contact lens prescription, else the glasses one.
  */
-function GpLineSheet({ lens, onClose, onAdded }) {
+function startingFit(fit, side, cl, rx) {
+  const blank = blankFit(fit);
+  if (fit === 'gp') return cl?.gp ? Object.fromEntries(Object.keys(blank).map((k) => [k, cl[side]?.[k] ?? null])) : blank;
+  if (cl && !cl.gp && !contactIsBlank(cl)) {
+    return { se: sphericalEquivalent(cl[side].sphere, cl[side].cylinder), addition: Number(cl.addition) ? quarter(cl.addition) : null };
+  }
+  if (rx && !rxIsBlank(rx)) {
+    return { se: sphericalEquivalent(rx[side].sphere, rx[side].cylinder), addition: Number(rx[side].addition) ? quarter(rx[side].addition) : null };
+  }
+  return blank;
+}
+
+/**
+ * A contact lens fitted per eye — gas permeable (SPH, K1, K2, RC, DIA) or
+ * multifocal (SE, ADD): the figures the register asks for. Both eyes at once.
+ */
+function FitLineSheet({ lens, fit, onClose, onAdded }) {
   const client = useApp((s) => clientById(s.draft.clientId, s));
+  const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
   const cl = client?.contactRx ?? null;
-  const fromRecord = (side) => (cl?.gp ? pickGp(cl[side]) : blankGp());
+  const spec = CL_FITS[fit];
   const [eyes, setEyes] = useState('both');
-  const [m, setM] = useState(() => ({ od: fromRecord('od'), os: fromRecord('os') }));
+  const [m, setM] = useState(() => ({ od: startingFit(fit, 'od', cl, rx), os: startingFit(fit, 'os', cl, rx) }));
   const [qty, setQty] = useState(1);
-  const [toClient, setToClient] = useState(Boolean(client));
+  const [toClient, setToClient] = useState(Boolean(client) && fit === 'gp');
   const sides = eyes === 'both' ? ['od', 'os'] : [eyes];
-  const ready = sides.every((s) => gpComplete(m[s]));
+  const ready = sides.every((s) => fitComplete(fit, m[s]));
+  const source = fit === 'gp' ? (cl?.gp ? 'Filled in from the client’s record.' : '')
+    : cl && !cl.gp && !contactIsBlank(cl) ? 'Filled in from the contact lens prescription.'
+      : rx && !rxIsBlank(rx) ? 'Filled in from the glasses prescription.' : '';
   const add = async () => {
-    for (const s of sides) await addLine(lensLine(lens, s.toUpperCase(), gpText(m[s]), qty, { ...m[s] }));
-    if (toClient && client) {
+    for (const s of sides) await addLine(lensLine(lens, s.toUpperCase(), fitText(fit, m[s]), qty, { ...m[s] }, fit));
+    if (fit === 'gp' && toClient && client) {
       const base = cl ?? blankContactRx();
       await upsertClient({ ...client, contactRx: { ...base, gp: true, ...Object.fromEntries(sides.map((s) => [s, { ...base[s], ...m[s] }])) } });
     }
@@ -228,21 +248,21 @@ function GpLineSheet({ lens, onClose, onAdded }) {
   };
   return html`<${Sheet} title="Add line" onClose=${onClose} full>
     <div class="pad stack tight">
-      <${ScreenTitle} eyebrow="Gas permeable" title=${lens.displayName} />
+      <${ScreenTitle} eyebrow=${spec.label} title=${lens.displayName} />
       <${Seg} label="Eyes" value=${eyes} onChange=${setEyes} options=${EYE_CHOICES} />
       <div class="rx-entry"><div class="rx-eyes">
-        ${sides.map((s) => html`<${GpEye} key=${s} side=${s} prefix="line" m=${m[s]} onChange=${(v) => setM({ ...m, [s]: v })} />`)}
+        ${sides.map((s) => html`<${FitEye} key=${s} fit=${fit} side=${s} prefix="line" m=${m[s]} onChange=${(v) => setM({ ...m, [s]: v })} />`)}
       </div></div>
-      <p class="note">${GP_NOTE}${cl?.gp ? ' Filled in from the client’s record.' : ''}</p>
+      <p class="note">${[spec.note, source].filter(Boolean).join(' ')}</p>
       <div class="gap-s"><${Eyebrow}>Per eye<//>
-        <${Stepper} value=${qty} min=${1} max=${12} onChange=${setQty} label="Lenses per eye" />
+        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label="Per eye" />
       </div>
       <${Panel}>
         <${KV} k="Each" v=${money(lens.priceCents)} />
         <${KV} k=${sides.length === 2 ? 'Both lines' : 'Line total'} v=${money(lens.priceCents * qty * sides.length)} em />
       <//>
-      ${client && html`<div class="group"><div class="cell"><span class="k">Save to ${client.name.split(' ')[0]}’s record</span><${Toggle} on=${toClient} onChange=${setToClient} label="Save to the client" /></div></div>`}
-      ${!ready && html`<p class="note">Give all five figures${sides.length === 2 ? ' for each eye' : ''} to add the line.</p>`}
+      ${client && fit === 'gp' && html`<div class="group"><div class="cell"><span class="k">Save to ${client.name.split(' ')[0]}’s record</span><${Toggle} on=${toClient} onChange=${setToClient} label="Save to the client" /></div></div>`}
+      ${!ready && html`<p class="note">Give ${spec.fields.map((f) => f.label).join(', ').replace(/, ([^,]*)$/, ' and $1')}${sides.length === 2 ? ' for each eye' : ''} to add the line.</p>`}
       <${Anchor} disabled=${!ready} onClick=${add}>${sides.length === 2 ? 'Add both lines' : 'Add line'}<//>
     </div>
   <//>`;

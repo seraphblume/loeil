@@ -136,7 +136,7 @@ export function readBackend(sheets, report = new Report()) {
         sameAs: cellText(r.same_as).trim(), highRx: isYes(r.high_rx),
         ...(cellText(r.print_as).trim() ? { printAs: cellText(r.print_as).trim() } : {}),
         ...(isYes(r.needs_aob) ? { aob: true } : {}),
-        ...(isYes(r.gas_permeable) ? { gp: true } : {}),
+        ...(contactFitCell(r) ? { fit: contactFitCell(r) } : {}),
       });
     }
   }
@@ -284,6 +284,14 @@ export function readBackend(sheets, report = new Report()) {
     out.store = cleanStore(raw);
   }
   return out;
+}
+
+/** A contact material's fitting: `GP` (gas permeable) or `MF` (multifocal). */
+function contactFitCell(r) {
+  const t = fold(cellText(r.contact_fit)).trim();
+  if (t === 'gp' || t.startsWith('gas')) return 'gp';
+  if (t === 'mf' || t.startsWith('multi')) return 'mf';
+  return isYes(r.gas_permeable) ? 'gp' : null;
 }
 
 /** The optional discount columns: its lens price table, and what the client shows. */

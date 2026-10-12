@@ -9,7 +9,7 @@ import { itemsText } from './presets.js';
 import { priceTableText } from './sets.js';
 
 const lensLabel = (list) => (r) => LENS_FIELDS[list].map(([f]) => parseCodeLabel(r[f]).code).filter((c) => c && c !== 'N/A').join(' · ');
-const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), gp: (v) => (v ? 'gas permeable' : 'not gas permeable'), active: (v) => (v ? 'active' : 'inactive') };
+const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), fit: (v) => ({ gp: 'gas-permeable fitting', mf: 'multifocal fitting' })[v] ?? 'no fitting', active: (v) => (v ? 'active' : 'inactive') };
 const show = (field, v) => (fmt[field] ? fmt[field](v) : v === null || v === undefined || v === '' ? '—' : String(v));
 
 const lensSpec = (list) => ({
@@ -22,7 +22,7 @@ const lensSpec = (list) => ({
 
 export const SPECS = [
   lensSpec('single'), lensSpec('multifocal'), lensSpec('contact'),
-  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx', 'printAs', 'aob', 'gp'] },
+  { title: 'Coatings and names', get: (b) => b.vocabulary, key: (v) => `${v.kind}|${v.code}`, label: (v) => `${v.kind} ${v.code}`, fields: ['english', 'blurb', 'rank', 'group', 'sameAs', 'highRx', 'printAs', 'aob', 'fit'] },
   { title: 'Frames', get: (b) => b.frames, key: (f) => f.sku, label: (f) => f.description || f.sku, fields: ['price', 'description', 'brand', 'category', 'frameType', 'material', 'size', 'product'] },
   { title: 'Brand tiers', get: (b) => b.frameBrands, key: (x) => brandKey(x.brand), label: (x) => x.brand, fields: ['tier'] },
   { title: 'Stock', get: (b) => b.inventory, key: (i) => i.sku, label: (i) => i.description || i.sku, fields: ['stock', 'description', 'classification', 'expires'] },

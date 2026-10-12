@@ -10,7 +10,7 @@ import { Eyebrow, Toggle, Seg, Sheet, Anchor, Quiet, fmtDate } from './kit.js';
 import { Icon } from './icons.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import {
-  RX_LIMITS, PRISM_BASES, snap, monoPd, hasPrism, blankRx, blankEye, blankContactRx, rxIsBlank, contactIsBlank, GP_FIELDS,
+  RX_LIMITS, PRISM_BASES, snap, monoPd, hasPrism, blankRx, blankEye, blankContactRx, rxIsBlank, contactIsBlank, GP_FIELDS, CL_FITS,
   validity, VALIDITY_LABEL, warningIcon, expiresOn, issuedDate, needsAddition, pd,
 } from '../core/crm.js';
 import { aobLenses, lineText } from '../core/orders.js';
@@ -31,15 +31,16 @@ export const FORMAT = {
   addition: (v) => (Number(v) === 0 ? '0.00' : '+' + Math.abs(v).toFixed(2)),
   prism: (v) => Number(v).toFixed(2),
   aob: (v) => String(Math.round(v)),
-  gpSphere: (v) => (Number(v) === 0 ? '0.00' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(2)),
+  clSphere: (v) => (Number(v) === 0 ? '0.00' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(2)),
+  clAdd: (v) => (Number(v) === 0 ? '0.00' : '+' + Math.abs(v).toFixed(2)),
   k: (v) => Number(v).toFixed(2),
   rc: (v) => Number(v).toFixed(2),
   dia: (v) => Number(v).toFixed(1),
 };
 
 /** Figures that start empty and must be given: a blank field stays blank. */
-const OPTIONAL = new Set(['pd', 'aob', 'gpSphere', 'k', 'rc', 'dia']);
-const SIGNED = new Set(['sphere', 'gpSphere']);
+const OPTIONAL = new Set(['pd', 'aob', 'clSphere', 'clAdd', 'k', 'rc', 'dia']);
+const SIGNED = new Set(['sphere', 'clSphere']);
 
 /** What he typed → the value. A sphere typed without a sign keeps the sign shown. */
 function parse(kind, text, current) {
@@ -49,7 +50,7 @@ function parse(kind, text, current) {
   if (!Number.isFinite(n)) return current;
   let v = n;
   if (SIGNED.has(kind) && !/^[+-]/.test(t)) v = (Number(current) > 0 ? 1 : -1) * Math.abs(n);
-  if (kind === 'k' || kind === 'rc' || kind === 'dia') v = Math.abs(n);
+  if (kind === 'k' || kind === 'rc' || kind === 'dia' || kind === 'clAdd') v = Math.abs(n);
   if (kind === 'cylinder') v = -Math.abs(n);
   if (kind === 'addition' || kind === 'prism') v = Math.abs(n);
   return snap(v, RX_LIMITS[kind]);
@@ -165,18 +166,17 @@ export function RxEntry({ rx, onChange, dated, addition = true }) {
 // ---------------------------------------------------------------------------
 // Contact lenses
 
-/** One eye of a gas-permeable fitting: SPH, K1, K2, RC, DIA. */
-export function GpEye({ side, m, onChange, prefix = 'gp' }) {
+/** One eye of a contact lens fitting: SPH K1 K2 RC DIA (gas permeable), or SE ADD (multifocal). */
+export function FitEye({ fit = 'gp', side, m, onChange, prefix = 'fit' }) {
   return html`<section class="rx-eye">
     <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
     <div class="rx-eye-body">
-      ${GP_FIELDS.map((f) => html`<${RxSlider} key=${f.key} kind=${f.kind} label=${f.label} eye=${`${prefix}-${side}-${f.key}`} unit=${f.unit}
+      ${(CL_FITS[fit]?.fields ?? []).map((f) => html`<${RxSlider} key=${f.key} kind=${f.kind} label=${f.label} eye=${`${prefix}-${side}-${f.key}`} unit=${f.unit}
         value=${m?.[f.key] ?? null} onChange=${(v) => onChange({ ...m, [f.key]: v })} />`)}
     </div>
   </section>`;
 }
 
-export const GP_NOTE = 'K1 and K2 are the keratometries, RC the lens’s base curve, DIA its diameter.';
 
 const LENS_KINDS = [{ value: 'soft', label: 'Soft' }, { value: 'gp', label: 'Gas permeable' }];
 
@@ -201,9 +201,9 @@ export function ContactRxEntry({ cl, onChange, brands = [] }) {
       </div>
     </div>
     ${cl.gp ? html`<div class="rx-eyes">
-      ${['od', 'os'].map((side) => html`<${GpEye} key=${side} side=${side} prefix="clgp" m=${cl[side]} onChange=${(m) => onChange({ ...cl, [side]: { ...cl[side], ...m } })} />`)}
+      ${['od', 'os'].map((side) => html`<${FitEye} key=${side} fit="gp" side=${side} prefix="clgp" m=${cl[side]} onChange=${(m) => onChange({ ...cl, [side]: { ...cl[side], ...m } })} />`)}
     </div>
-    <p class="note pad-in">${GP_NOTE}</p>` : html`<div class="rx-eyes">
+    <p class="note pad-in">${CL_FITS.gp.note}</p>` : html`<div class="rx-eyes">
       ${['od', 'os'].map((side) => html`<section class="rx-eye" key=${side}>
         <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
         <div class="rx-eye-body">

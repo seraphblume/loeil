@@ -206,14 +206,19 @@ power from it. The order carries the prescription the job is made to (it starts
 as the client's and can be saved back to them), and, when its lenses need it, the
 **AOB** of each eye (15–30 mm) — measured for the job, so it stays on the order.
 
-A **gas-permeable** contact lens (GP, scleral — the vocabulary marks its material
-*Gas permeable*) is fitted, not just powered: adding one asks, per eye, for **SPH**
-(−30 to +30), **K1** and **K2** (the keratometries, 35–52 D), **RC** (the lens's base
-curve, 6.50–9.50 mm) and **DIA** (its diameter, 8–24 mm). Both eyes go on at once,
-filled in from the client's record when it has a GP fitting, and saved back to it.
-The figures travel on the line, the ticket and the receipt
-(`OD · SPH −3.25 · K1 42.50 · K2 43.75 · RC 7.85 · DIA 9.6`); **Fitting** on the
-line edits them, and the order flags a GP line without them.
+Some contact lenses are **fitted**, not just powered — the vocabulary marks their
+material's *Fitting* — and adding one asks, per eye, for what the register asks:
+
+- **Gas permeable** (GP, scleral): **SPH** (−30 to +30), **K1** and **K2** (the
+  keratometries, 35–52 D), **RC** (the lens's base curve, 6.50–9.50 mm) and **DIA**
+  (its diameter, 8–24 mm) — filled in from the client's GP record and saved back to it.
+- **Multifocal**: only **SE** (the spherical equivalent: sphere plus half the
+  cylinder) and **ADD** — filled in from the contact lens prescription, else the
+  glasses one.
+
+Both eyes go on at once. The figures travel on the line, the ticket and the receipt
+(`OD · SE −2.25 · ADD +2.00`); **Fitting** on the line edits them, and the order
+flags a fitted lens without them.
 
 ## Checkout and the receipt
 
