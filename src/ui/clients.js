@@ -21,6 +21,7 @@ import {
 } from '../state/app.js';
 import { OrderRow } from './orders.js';
 import { RxCard, ContactRxCard, ClientRxSheet } from './rx.js';
+import { isShowcase } from '../core/showcase.js';
 
 export function ClientsScreen({ selected }) {
   const clients = useApp((s) => s.clients);
@@ -35,6 +36,7 @@ export function ClientsScreen({ selected }) {
   const digits = term.replace(/\D/g, '');
   const results = clients.filter((c) => !dueIds.has(c.id) && (!term || fold(c.name).includes(t) || (digits && c.phone.replace(/\D/g, '').includes(digits))));
   const ordersFor = (id) => orders.filter((o) => o.clientId === id).length;
+  const askDelete = (c) => (isShowcase(c) ? toast('Valeria stays: she is the showcase client on every phone') : setPending(c));
 
   return html`
     <${Bar} title="Clients" large trail=${html`<button class="bar-btn round" aria-label="New client" onClick=${() => setAdding(true)}><${Icon} name="plus" /></button>`} />
@@ -43,14 +45,14 @@ export function ClientsScreen({ selected }) {
         <${LargeTitle} detail=${clients.length ? `${clients.length} on this device` : null}>Clients<//>
         <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Name or phone" /></div>
         ${due.length > 0 && html`<${Section} title="Due for a visit">
-          ${due.map(({ client, due: when }) => html`<${ClientRow} client=${client} on=${client.id === selected} note=${when <= new Date() ? 'Overdue' : 'Due ' + fmtDayMonth(when)} onDelete=${setPending} />`)}
+          ${due.map(({ client, due: when }) => html`<${ClientRow} client=${client} on=${client.id === selected} note=${when <= new Date() ? 'Overdue' : 'Due ' + fmtDayMonth(when)} onDelete=${askDelete} />`)}
         <//>`}
         ${clients.length === 0
           ? html`<div class="pad"><${Empty} title="Add your first client">Save a prescription once and the finder already knows which lenses fit — and a sale becomes their history rather than a note.<//></div>`
           : results.length === 0 && due.length === 0
             ? html`<p class="para pad">Nobody by that name.</p>`
             : results.length > 0 && html`<${Section} title=${term ? 'Results' : 'All'}>
-                ${results.map((c) => html`<${ClientRow} client=${c} on=${c.id === selected} onDelete=${setPending} />`)}
+                ${results.map((c) => html`<${ClientRow} client=${c} on=${c.id === selected} onDelete=${askDelete} />`)}
               <//>`}
         ${clients.length > 0 && html`<p class="note pad">Swipe right to favourite, left to delete.</p>`}
       </div>
@@ -66,7 +68,7 @@ function ClientRow({ client, note, onDelete, on }) {
   const row = html`<a class=${'row' + (on ? ' on' : '')} ...${linkProps('#/clients/' + client.id)} aria-current=${on ? 'true' : null}>
     <span class="avatar">${initials(client.name) || '·'}</span>
     <span class="main">
-      <span class="t one">${client.name}${client.isFavourite && html` <span class="inline-ico"><${Icon} name="starFill" /></span>`}</span>
+      <span class="t one">${client.name}${client.isFavourite && html` <span class="inline-ico"><${Icon} name="starFill" /></span>`}${isShowcase(client) && html` <span class="tag">Showcase</span>`}</span>
       <span class="d one num">${note ?? (rxIsBlank(client.prescription) ? 'No Rx' : eyeText(client.prescription.od))}</span>
     </span>
     ${icon && html`<span class="end"><${Icon} name=${icon} size=${13} /></span>`}

@@ -19,7 +19,14 @@ tiles, and the latest orders — beside them on an iPad.
 
 It is drawn in six colours — ink #111111, graphite #333333, stone #777777, sand
 #BEB8AD, linen #E6E1D7, paper #F6F4EE — as paper by day and ink by night,
-following the device's appearance.
+following the device's appearance. The icon is the eye in ink on paper with a
+sand iris (the browser tab's icon turns to paper on ink at night).
+
+**Valeria Luxe** is the showcase client: made up, on every phone and for every
+seller, with glasses (−1.75/−2.25 with an ADD of +1.75 and the PD) and a monthly
+multifocal contact lens prescription. She is put back as she is each time the app
+opens, cannot be deleted, is never due a visit, stays out of backups, and orders
+made for her are left out of the sales figures.
 
 ## Install on a phone
 

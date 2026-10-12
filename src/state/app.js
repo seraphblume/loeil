@@ -12,6 +12,7 @@ import { APP_BUILD, DATA_PATH, FETCH_TIMEOUT_MS } from '../config.js';
 import { newOrder, pairLine, extraLine, isPair } from '../core/orders.js';
 import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
+import { withShowcase, isShowcase, SHOWCASE_ID } from '../core/showcase.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
 import { readAlpha, mergeAlpha } from '../core/alpha.js';
 import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
@@ -62,7 +63,7 @@ export async function boot() {
     booted: true,
     catalogue: new Catalogue(bundle ?? null),
     passcode: passcode ?? null,
-    clients: sortClients(store?.clients ?? []),
+    clients: sortClients(withShowcase(store?.clients ?? [])), // the showcase client, put back as she is
     orders: sortOrders(store?.orders ?? []),
     identity: identity ?? null,
     draft: draft?.order ?? newOrder(),
@@ -178,8 +179,9 @@ export async function upsertClient(client) {
   await saveStore();
 }
 
-/** Cascades to orders, and there is no undo — the caller confirms first. */
+/** Cascades to orders, and there is no undo — the caller confirms first. The showcase client stays. */
 export async function deleteClient(id) {
+  if (id === SHOWCASE_ID) return false;
   setState({ clients: state.clients.filter((c) => c.id !== id), orders: state.orders.filter((o) => o.clientId !== id) });
   await saveStore();
 }
@@ -357,7 +359,7 @@ export async function clearQuote() {
 // Backups
 
 export function backupJSON() {
-  return JSON.stringify(exportBackup({ clients: state.clients, orders: state.orders }), null, 2);
+  return JSON.stringify(exportBackup({ clients: state.clients.filter((c) => !isShowcase(c)), orders: state.orders }), null, 2);
 }
 
 export function previewBackup(text) { return readBackup(text); }
@@ -365,7 +367,7 @@ export function previewBackup(text) { return readBackup(text); }
 export async function restoreBackup(parsed, mode) {
   const next = mode === 'replace' ? { clients: parsed.clients, orders: parsed.orders, added: { clients: parsed.clients.length, orders: parsed.orders.length } }
     : mergeBackup({ clients: state.clients, orders: state.orders }, parsed);
-  setState({ clients: sortClients(next.clients), orders: sortOrders(next.orders) });
+  setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
   await saveStore();
   return next.added;
 }
@@ -379,7 +381,7 @@ export function previewAlpha(rows) {
 
 export async function importAlpha(alpha) {
   const next = mergeAlpha({ clients: state.clients, orders: state.orders }, alpha);
-  setState({ clients: sortClients(next.clients), orders: sortOrders(next.orders) });
+  setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
   await saveStore();
   return next.counts;
 }

@@ -229,7 +229,7 @@ export function isDue(client, orders, now = new Date()) {
 
 export function dueForRecall(clients, orders, now = new Date()) {
   return clients
-    .filter((c) => isDue(c, orders, now))
+    .filter((c) => !c.showcase && isDue(c, orders, now))
     .map((c) => ({ client: c, due: recallDate(c, orders) }))
     .sort((a, b) => a.due - b.due);
 }

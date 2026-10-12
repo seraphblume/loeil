@@ -23,6 +23,7 @@ import { loadXLSX } from './data/io.js';
 import { plural } from '../core/util.js';
 import { go } from './router.js';
 import { applyUpdate } from '../state/update.js';
+import { isShowcaseOrder } from '../core/showcase.js';
 
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -53,7 +54,8 @@ function Grid({ orders }) {
 
 export function MeScreen() {
   const s = useApp();
-  const { orders, clients, catalogue, sync } = s;
+  const { clients, catalogue, sync } = s;
+  const orders = s.orders.filter((o) => !isShowcaseOrder(o)); // the showcase client's orders are demonstrations, not sales
   const [sheet, setSheet] = useState(null);
   const [restore, setRestore] = useState(null);
   const fileRef = useRef();

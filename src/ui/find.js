@@ -15,6 +15,7 @@ import { money } from '../core/money.js';
 import { orderTotal, composition, orderTitle, isPair, isPlaceholder, needsAob, aobMissing, lineFit, statusLabel } from '../core/orders.js';
 import { dueForRecall, warningIcon, eyeText, rxIsBlank, fitComplete } from '../core/crm.js';
 import { QUOTE_OPTIONS } from '../core/quote.js';
+import { isShowcaseOrder } from '../core/showcase.js';
 import { fold } from '../core/util.js';
 import { Icon } from './icons.js';
 import { fmtDayMonth } from './kit.js';
@@ -99,8 +100,9 @@ function SummaryCard() {
     </a>`;
   }
   const today = new Date();
-  const sold = orders.filter((o) => o.status === 'sold' && o.closedOn && sameDay(new Date(o.closedOn), today));
-  const open = orders.filter((o) => o.status === 'draft' || o.status === 'presented').length;
+  const real = orders.filter((o) => !isShowcaseOrder(o));
+  const sold = real.filter((o) => o.status === 'sold' && o.closedOn && sameDay(new Date(o.closedOn), today));
+  const open = real.filter((o) => o.status === 'draft' || o.status === 'presented').length;
   return html`<div class="dash-card pad-card">
     <div class="dc-top"><span class="dc-k">Today</span><span class="dc-chip">${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(today)}</span></div>
     <div class="dc-amount">${money(sold.reduce((sum, o) => sum + orderTotal(o), 0))}</div>
