@@ -86,6 +86,7 @@ export function options(catalogue, familyId, chosen, stepKey) {
       count: o.count,
       available: o.available,
       highRx: o.value.highRx,
+      maker: o.value.maker,
       fromPrice: o.minPrice,
     }));
 }
@@ -145,6 +146,7 @@ const ATTRS = {
 export function resolve(catalogue, row) {
   const attrs = ATTRS[row.family].map(([key, name]) => ({
     key, name, code: row[key].code, label: row[key].label, pos: row[key].pos,
+    ...(row[key].maker ? { maker: row[key].maker } : {}),
   }));
   const nameParts = row.family === 'CL'
     ? [row.product, row.colour]
@@ -160,6 +162,9 @@ export function resolve(catalogue, row) {
     promoKey: promoKeyFor(catalogue, row),
   };
 }
+
+/** The makers behind a lens, once each and in attribute order: `['Essilor']`, or none. */
+export const makersOf = (lens) => [...new Set((lens?.attributes ?? []).map((a) => a.maker).filter(Boolean))];
 
 export function rowFor(catalogue, rowId) { return catalogue.rowsById.get(rowId) ?? null; }
 

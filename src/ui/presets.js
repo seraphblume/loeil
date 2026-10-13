@@ -4,10 +4,11 @@
 
 import { html, useState, useMemo } from './html.js';
 import { useApp } from './hooks.js';
-import { Sheet, Row, Bar, Screen, Flag } from './kit.js';
+import { Sheet, Row, Bar, Screen, Flag, Maker } from './kit.js';
+import { makersOf } from '../core/lens.js';
 import { Icon } from './icons.js';
 import { money } from '../core/money.js';
-import { presetGroups, resolvePreset, presetKey, itemsText, parseItems } from '../core/presets.js';
+import { presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly } from '../core/presets.js';
 import { needsAddition, rxIsBlank, strongestSphere } from '../core/crm.js';
 import { HIGH_RX_SPHERE } from '../config.js';
 import { applyPreset, setOrderFrame, clientById, toast } from '../state/app.js';
@@ -20,8 +21,8 @@ import { edit } from '../state/working.js';
 import { upsertPreset, deletePreset } from '../core/edits.js';
 
 /** What the prescription decides before any preset is chosen, said once. */
-function rxBasis(rx) {
-  if (!rx || rxIsBlank(rx)) return 'No prescription on the order, so these are single vision. Add the Rx first for progressives.';
+function rxBasis(rx, anyMfOnly) {
+  if (!rx || rxIsBlank(rx)) return `No prescription on the order, so these are single vision${anyMfOnly ? ' (the progressive-only ones aside)' : ''}. Add the Rx first for progressives.`;
   const bits = [needsAddition(rx) ? 'Progressive, from the ADD on the prescription' : 'Single vision, from the prescription'];
   if (strongestSphere(rx) > HIGH_RX_SPHERE) bits.push('high-index where the preset has it');
   return bits.join('; ') + '.';
@@ -33,7 +34,7 @@ function TierRow({ result, onPick }) {
   const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
   const adds = [...result.extras.map((e) => (e.percent ? 'Plus Protection' : e.description)), ...result.items.map(itemText)];
   const notes = [...result.notes, ...result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`)];
-  return html`<${Row} title=${tier.tier} detail=${lens.displayName}
+  return html`<${Row} title=${tier.tier} detail=${html`${lens.displayName}${makersOf(lens).map((m) => html` <${Maker} name=${m} />`)}`}
     sub=${html`${tier.tierBlurb && html`<span class="preset-line">${tier.tierBlurb}</span>`}
       ${adds.length > 0 && html`<span class="preset-adds">${adds.map((a) => html`<span class="chip">${a}</span>`)}</span>`}
       ${notes.length > 0 && html`<span class="preset-note">${notes.join(' · ')}</span>`}`}
@@ -52,7 +53,13 @@ export function PresetSheet({ onClose, toQuote }) {
   const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
   const draftFrame = useApp((s) => s.draft.lines.find((l) => l.kind === 'frame') ?? null);
   const hasPair = useApp((s) => s.draft.lines.some((l) => isPair(l)));
-  const groups = useMemo(() => presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx)) })), [catalogue, rx]);
+  // A preset with nothing for this prescription (Progressive, for single vision) goes to the end.
+  const groups = useMemo(() => {
+    const all = presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx)) }));
+    const offers = (g) => g.results.some((r) => r.lens);
+    return [...all.filter(offers), ...all.filter((g) => !offers(g))];
+  }, [catalogue, rx]);
+  const anyMfOnly = groups.some((g) => g.tiers.some(isProgressiveOnly));
   const [step, setStep] = useState(toQuote ? 'frame' : 'lens');
   const [frame, setFrame] = useState(null); // null: keep the order's · false: none · a line: this one
   const [waiting, setWaiting] = useState(null); // a tier waiting for its brand
@@ -93,7 +100,7 @@ export function PresetSheet({ onClose, toQuote }) {
       ${step === 'lens' && html`
         ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? 'Any frame of the set' : 'Quoted by brand') : chosen ? 'The frame for this option' : 'This option has no frame'}
           end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>Change</button>`} /></div>`}
-        <p class="para pad">${rxBasis(rx)} A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.</p>
+        <p class="para pad">${rxBasis(rx, anyMfOnly)} A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.</p>
         ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title="Keep the lenses on the order" detail="Add this frame with what the order has" chev onClick=${() => finish(null)} /></div>`}
         ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
         ${groups.map((g) => html`<section class="section" key=${g.id}>
@@ -119,7 +126,7 @@ const FIELDS = [
   { key: 'tier', label: 'Tier', required: true, placeholder: 'e.g. Accessible', group: 'Tier' },
   { key: 'tierBlurb', label: 'Tier line', placeholder: 'What it leads with', group: 'Tier' },
   { key: 'sv', label: 'Single vision', placeholder: 'SV|*POLY|ND|*BLANCO|BLC|ARC', caps: true, group: 'Lens',
-    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything. The cheapest match is taken; a strong prescription takes a high-index match when there is one.' },
+    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything. The cheapest match is taken; a strong prescription takes a high-index match when there is one. Blank with a progressive below: progressive only, offered when the prescription has an ADD.' },
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
   { key: 'extras', label: 'Extras', placeholder: 'e.g. 600500800203', group: 'Adds', hint: 'Extra codes, separated by commas — Plus Protection is one.' },
   { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 61004120/61004121; Cleaning solution*: 61004172', group: 'Adds',

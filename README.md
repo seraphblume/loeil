@@ -179,6 +179,19 @@ choosing it then asks for a frame of one of them, unless the option already has 
 Versace, Carolina Herrera, Michael Kors, Emporio Armani, Tous, Prada, Gucci,
 Tom Ford and the rest of its list.
 
+**Progressive** is listed first and has no single vision lens, so it is progressive only.
+It has four tiers: a progressive with anti-reflective (high-index when the sphere is strong),
+then three Varilux tiers, each with a Crizal coating. With no prescription yet it is priced as a progressive.
+For a prescription with no ADD it is shown greyed out at the end of the list.
+
+## Maker badges
+
+A name in the vocabulary can carry a **maker** (the `maker` column, or **Maker
+badge** under Catalogue data → Names and coatings). It shows as a small typeset
+badge beside the name: on the lens steps, on the lens and its upgrades, and on the
+preset tiers. Varilux, Eyezen, Stellest, Crizal, Transitions and Polarex carry
+`Essilor`.
+
 ## The quote
 
 The **Quote** tab is the register's presupuesto: up to three options side by side

@@ -10,7 +10,7 @@ import { html, useState, useRef, useMemo } from './html.js';
 import { useApp } from './hooks.js';
 import {
   Bar, Screen, ScreenTitle, Row, List, Eyebrow, Panel, Figure, Flag, Anchor, Sheet, Seg, Stepper, KV,
-  SearchField, Empty, useCopy, Dock, Toggle,
+  SearchField, Empty, useCopy, Dock, Toggle, Maker,
 } from './kit.js';
 import { FitEye } from './rx.js';
 import { Icon } from './icons.js';
@@ -88,7 +88,7 @@ export function CascadeScreen({ family, query }) {
         ${step.filter && all.length > 8 && html`<div class="pad"><${SearchField} icon="filter" value=${filter} onInput=${setFilter} placeholder="Filter" /></div>`}
 
         <${List}>
-          ${shown.map((o) => html`<${Row} title=${o.label} detail=${[o.detail, o.blurb].filter(Boolean).join(' · ')}
+          ${shown.map((o) => html`<${Row} title=${o.label} badge=${o.maker && html`<${Maker} name=${o.maker} />`} detail=${[o.detail, o.blurb].filter(Boolean).join(' · ')}
             sub=${!o.available ? 'Not sold — the register refuses this one' : (rx?.highRx?.includes(o.code) && step.key === 'material' ? 'Suits this prescription' : null)}
             end=${isLast ? money(o.fromPrice) : null} count=${isLast ? null : o.count} off=${!o.available} onClick=${() => choose(o.code)} />`)}
           ${!shown.length && html`<div class="row"><span class="muted small">Nothing matches “${filter}”.</span></div>`}
@@ -140,7 +140,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
         <${Panel}>
           ${lens.attributes.map((a) => html`<div class="attr">
             <span class="n">${a.name}</span>
-            <span><div class="l">${a.label}</div>${a.pos !== a.label && html`<div class="p">${a.pos}</div>`}</span>
+            <span><div class="l">${a.label}${a.maker && html` <${Maker} name=${a.maker} />`}</div>${a.pos !== a.label && html`<div class="p">${a.pos}</div>`}</span>
             <span class="c sel">${a.code !== a.label && a.code !== a.pos ? a.code : ''}</span>
           </div>`)}
         <//>
@@ -149,7 +149,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
 
         ${ups.length > 0 && html`<section class="gap-s" style="margin:0 calc(-1 * var(--gutter))">
           <div class="pad"><${Eyebrow}>Upgrades<//></div>
-          <${List}>${ups.map((u) => html`<${Row} title=${u.row.treatment.label} detail=${u.row.treatment.blurb} end=${moneyDelta(u.delta)}
+          <${List}>${ups.map((u) => html`<${Row} title=${u.row.treatment.label} badge=${u.row.treatment.maker && html`<${Maker} name=${u.row.treatment.maker} />`} detail=${u.row.treatment.blurb} end=${moneyDelta(u.delta)}
             onClick=${() => go(href(['find', 'lens', u.row.id]), { replace: true })} />`)}<//>
         </section>`}
 
@@ -174,7 +174,7 @@ function ConfigureSheet({ row, onClose }) {
   if (attr) {
     const alts = alternatives(catalogue, row.id, attr.key);
     return html`<${Sheet} title=${attr.name} onClose=${onClose} left=${html`<button class="bar-btn round" aria-label="Back" onClick=${() => setAttr(null)}><${Icon} name="chevL" /></button>`}>
-      <${List}>${alts.map((r) => html`<${Row} title=${r[attr.key].label} detail=${r[attr.key].code} end=${html`${money(r.price)}${r.id === row.id ? html` <${Icon} name="check" />` : ''}`}
+      <${List}>${alts.map((r) => html`<${Row} title=${r[attr.key].label} badge=${r[attr.key].maker && html`<${Maker} name=${r[attr.key].maker} />`} detail=${r[attr.key].code} end=${html`${money(r.price)}${r.id === row.id ? html` <${Icon} name="check" />` : ''}`}
         off=${!r.available} onClick=${() => { onClose(); go(href(['find', 'lens', r.id]), { replace: true }); }} />`)}<//>
     <//>`;
   }

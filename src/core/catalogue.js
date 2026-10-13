@@ -21,6 +21,7 @@ export class LensCode {
     this.group = meta?.group || '';
     this.sameAs = meta?.sameAs || '';
     this.highRx = Boolean(meta?.highRx);
+    this.maker = meta?.maker || ''; // the badge: `Essilor`
   }
   /** `N/A` is a real value in the sheet that means "nothing here". */
   get isNone() { return this.code === 'N/A' || this.code === ''; }

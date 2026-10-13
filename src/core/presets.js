@@ -99,6 +99,9 @@ export function presetGroups(catalogue) {
 
 export const presetKey = (t) => `${t.presetId}|${t.tier}`;
 
+/** A tier that names only a progressive lens. */
+export const isProgressiveOnly = (t) => Boolean(t?.mf && !t?.sv);
+
 /**
  * A tier read against the prescription: the lens it lands on (or why none),
  * the extras and the accessories it adds, and what it left out.
@@ -106,7 +109,12 @@ export const presetKey = (t) => `${t.presetId}|${t.tier}`;
 export function resolvePreset(catalogue, tier, rx) {
   const hasRx = rx && !rxIsBlank(rx);
   const wantsMf = Boolean(hasRx && needsAddition(rx));
-  let family = wantsMf && tier.mf ? 'MF' : 'SV';
+  // A tier with a progressive and no single vision lens (the Progressive
+  // preset) is progressive only: priced as one before the Rx is in, and off
+  // for a prescription with no ADD.
+  const mfOnly = isProgressiveOnly(tier);
+  if (mfOnly && hasRx && !wantsMf) return { tier, lens: null, why: 'Progressive only — this prescription has no ADD.', extras: [], items: [], skipped: [], notes: [] };
+  let family = (wantsMf || mfOnly) && tier.mf ? 'MF' : 'SV';
   const notes = [];
   if (wantsMf && !tier.mf) notes.push('No progressive version — single vision.');
   const spec = family === 'MF' ? tier.mf : tier.sv;

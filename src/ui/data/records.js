@@ -59,7 +59,7 @@ export function VocabScreen({ query }) {
         ${kind === 'treatment' && html`<p class="note pad">Rank is the upgrade ladder: a lens offers every coating ranked above its own. Promo group CRIZAL makes a coating match *CRIZAL promo lines.</p>`}
         ${missing.length > 0 && html`<div class="pad"><${Flag}>Used by lenses but not named here: ${missing.join(', ')}. They show in the POS wording until added.<//></div>`}
         <${List}>${entries.map((v) => html`<${Row} title=${v.english || v.code} detail=${[v.code, v.blurb].filter(Boolean).join(' · ')}
-          sub=${[v.rank != null ? `rank ${v.rank}` : null, v.group ? `group ${v.group}` : null, v.sameAs ? `same as ${v.sameAs}` : null, v.highRx ? 'high Rx' : null, v.aob ? 'needs AOB' : null, v.fit === 'gp' ? 'gas-permeable fitting' : v.fit === 'mf' ? 'multifocal fitting' : null].filter(Boolean).join(' · ') || null}
+          sub=${[v.rank != null ? `rank ${v.rank}` : null, v.group ? `group ${v.group}` : null, v.sameAs ? `same as ${v.sameAs}` : null, v.highRx ? 'high Rx' : null, v.aob ? 'needs AOB' : null, v.fit === 'gp' ? 'gas-permeable fitting' : v.fit === 'mf' ? 'multifocal fitting' : null, v.maker ? v.maker : null].filter(Boolean).join(' · ') || null}
           count=${usage.get(`${kind}|${v.code}`) ?? 0} onClick=${() => setOpen({ v, key: `${v.kind}|${v.code}` })} />`)}<//>
         ${!entries.length && html`<div class="pad"><${Empty} title="Nothing here">Add one with +.<//></div>`}
       </div>
@@ -70,6 +70,7 @@ export function VocabScreen({ query }) {
         { key: 'code', label: 'Code', required: true, caps: true, hint: 'Exactly as the POS uses it. Never change a code that lenses use.' },
         { key: 'english', label: 'English name' },
         { key: 'blurb', label: 'Blurb', type: 'textarea' },
+        { key: 'maker', label: 'Maker badge', placeholder: 'e.g. Essilor', hint: 'Shown as a small badge beside the name wherever a seller picks it. Blank: no badge.' },
         { key: 'rank', label: 'Rank', type: 'number', placeholder: 'blank = none' },
         { key: 'group', label: 'Promo group', caps: true, placeholder: 'e.g. CRIZAL, POLY, TRANS' },
         { key: 'sameAs', label: 'Same as', caps: true, placeholder: 'old/new code' },
@@ -80,8 +81,8 @@ export function VocabScreen({ query }) {
           hint: 'What a contact lens of this material asks for, per eye, when it goes on the order.' }] : []),
       ]}
       onSave=${(x) => {
-        const { printAs, aob, fit, gp, ...rest } = x;
-        const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}), ...(aob ? { aob: true } : {}), ...(fit ? { fit } : {}) };
+        const { printAs, aob, fit, gp, maker, ...rest } = x;
+        const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}), ...(aob ? { aob: true } : {}), ...(fit ? { fit } : {}), ...(maker?.trim() ? { maker: maker.trim() } : {}) };
         const key = `${v.kind}|${v.code}`;
         if (key !== open.key && bundle.vocabulary.some((y) => `${y.kind}|${y.code}` === key)) return `${v.code} is already listed.`;
         edit((b) => upsertVocab(b, v, open.key)); saved();

@@ -240,6 +240,10 @@ button.row:active, a.row:active, .row.pressable:active { background: var(--cell-
 .row .tag { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--label-2); background: var(--fill); border-radius: 6px; padding: 2px 7px; }
 .badge { font-size: 12px; font-weight: 600; color: var(--label-2); background: var(--fill); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
 .badge.warn { color: var(--on-accent); background: var(--accent); }
+.maker { display: inline-block; margin-left: 2px; padding: 1px 6px 1px 7px; border: 1px solid var(--fill-2); border-radius: 999px;
+  font-size: 10px; font-weight: 600; line-height: 1.45; letter-spacing: .08em; text-transform: uppercase; color: var(--label-2);
+  vertical-align: 2px; white-space: nowrap; }
+.attr .l .maker, .row .d .maker { vertical-align: 1px; }
 .inline-ico svg { width: 12px; height: 12px; color: var(--label-2); vertical-align: -1px; }
 
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--cell-2); color: var(--label); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }

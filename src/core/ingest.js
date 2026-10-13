@@ -137,6 +137,7 @@ export function readBackend(sheets, report = new Report()) {
         ...(cellText(r.print_as).trim() ? { printAs: cellText(r.print_as).trim() } : {}),
         ...(isYes(r.needs_aob) ? { aob: true } : {}),
         ...(contactFitCell(r) ? { fit: contactFitCell(r) } : {}),
+        ...(cellText(r.maker).trim() ? { maker: cellText(r.maker).trim() } : {}),
       });
     }
   }

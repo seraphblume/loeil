@@ -95,6 +95,9 @@ export function Section({ title, children, flush, action, footer }) {
   </section>`;
 }
 
+/** The maker's badge beside a product name (`ESSILOR`): typeset, never a logo. */
+export const Maker = ({ name }) => (name ? html`<span class="maker" title=${`Made by ${name}`}>${name}</span>` : null);
+
 export const Flag = ({ children, icon = 'warning' }) => html`<div class="flag"><${Icon} name=${icon} /><div>${children}</div></div>`;
 
 export const Empty = ({ title, children }) => html`<div class="empty"><h2>${title}</h2><p>${children}</p></div>`;
