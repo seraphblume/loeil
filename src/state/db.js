@@ -1,6 +1,7 @@
 // A small key-value store over IndexedDB, with localStorage as a fallback.
 //
-// Client records and orders live here and nowhere else — no sync, no server.
+// Client records and orders live here. Nothing leaves the phone except the
+// admin's opt-in Google Drive backup, sealed with the passcode first (state/cloud.js).
 // Writes are whole-value replacements, so a half-written record never exists.
 
 const DB = 'loeil';

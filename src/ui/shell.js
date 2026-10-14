@@ -28,6 +28,7 @@ import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
 import { MeScreen, PromotionsScreen } from './me.js';
 import { PublishScreen } from './publish.js';
+import { BackupScreen } from './cloud.js';
 import { DataHome } from './data/home.js';
 import { LensPricesScreen, AddCoatingScreen } from './data/lenses.js';
 import { AdjustScreen } from './data/adjust.js';
@@ -158,6 +159,7 @@ function screenFor(route) {
   }
   if (tab === 'me') {
     if (a === 'publish') return html`<${PublishScreen} />`;
+    if (a === 'backup') return html`<${BackupScreen} />`;
     if (a === 'data') {
       if (b === 'lenses') return html`<${LensPricesScreen} family=${route.parts[3] ?? 'SV'} />`;
       if (b === 'coating') return html`<${AddCoatingScreen} />`;

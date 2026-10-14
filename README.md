@@ -41,7 +41,8 @@ using the phone, and it is ready.
 |---|---|---|
 | Prices, lenses, frames, stock, promotions, staff, the branch on the ticket | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
 | Unpublished edits | The admin’s phone (the working copy) | The admin |
-| Client records and orders | That phone only (IndexedDB) | Nobody else — no sync, no account |
+| Client records and orders | That phone (IndexedDB) | Nobody else — no account. On the admin’s phone only, an opt-in backup in his own Google Drive, sealed with the store passcode before it leaves |
+| Google backup link | The admin’s phone only | The admin |
 | GitHub token for publishing | The admin’s phone only | The admin |
 
 **L’Œil owns its data.** No spreadsheet and no Google service is needed to run it
@@ -49,15 +50,39 @@ or to change it. The published file is the source of truth, and every publish is
 a commit, so the full history is in this repository’s log. The repository and the
 site hold only code and the encrypted file; `.gitignore` refuses `*.xlsx`.
 
-Back up client records from **Me → Export backup**. **Me → Restore or import**
-takes a backup from this app or the earlier iPhone and Android apps, or the
-**Alpha workbook**: its CRM table comes in on the phone — each client with their
-latest glasses and contact lens prescriptions, and every ticket as a sale in their
-history (Sell ID, shipment, deal, seller, amount). A client is the same name with
-the same phone (a phone is not a person: families share one). Someone already on
-the phone keeps what is there; a newer prescription or a missing phone is filled
-in, and importing the same workbook again adds only what is new. The workbook is
-read in the browser and never leaves the phone.
+## Backup
+
+**On the admin's phone: Google Drive** (Me → Backup), the way WhatsApp backs up chats.
+**Back up** seals the clients and orders with the store passcode — the same AES-256-GCM
+envelope as the catalogue — and sends them to a small Apps Script of his, which keeps
+them in a Drive folder of his (`L’Œil backups`, the newest 30). Drive holds only
+ciphertext; the script sees no more than the label on each file: when, which phone,
+how many clients and orders. Nothing is sent when nothing changed.
+
+**Back up automatically**: *Only when I tap Back up* (the default), *Daily at 3:00 a.m.*,
+or *Every 2 hours*. A web app cannot wake itself, so a schedule is kept while L’Œil is
+open — daily, the first time it is opened after 3:00 a.m.; every 2 hours, on opening once
+that long has passed and while it stays open. A failed try (no signal) is noted on the
+screen and retried later; it never gets in the way of a sale.
+
+**Restore from Google Drive** lists the backups, newest first; one opens with the
+current passcode, or asks for the one it was made with. Merge adds what the phone does
+not have; Replace swaps the phone's records for the backup.
+
+Set up once, on a computer: open `tools/LOeilSync.gs`, paste it into a new project at
+script.google.com, run `setup`, deploy it as a web app (execute as you, anyone can reach
+it — the key keeps everyone else out), run `showLink`, and paste the line it prints into
+Me → Backup → Google link. `rotateKey` locks out a link you no longer trust.
+
+**On a seller's phone, and as the offline fallback: files.** Me → Export backup and
+Restore or import (on the admin's phone, Me → Backup → Files) take a backup from this
+app or the earlier iPhone and Android apps, or the **Alpha workbook**: its CRM table
+comes in on the phone — each client with their latest glasses and contact lens
+prescriptions, and every ticket as a sale in their history (Sell ID, shipment, deal,
+seller, amount). A client is the same name with the same phone (a phone is not a person:
+families share one). Someone already on the phone keeps what is there; a newer
+prescription or a missing phone is filled in, and importing the same workbook again adds
+only what is new. The workbook is read in the browser and never leaves the phone.
 
 ## Changing the catalogue
 
@@ -329,9 +354,11 @@ src/core/             pure logic, shared with tools/publish.mjs
   lens.js             cascades, POS code, upgrades, search
   promotions.js       promo matching (families come from the vocabulary)
   orders.js crm.js rxticket.js backup.js
-src/state/            storage, sync, the working copy, updates
+  cloud.js            Google Drive backup: the schedule and the script protocol
+src/state/            storage, sync, the working copy, updates, Drive backup
 src/ui/               screens; src/ui/data/ is the catalogue editor
-tools/                publish from a computer; deploy stamping
+tools/                publish from a computer; deploy stamping;
+                      LOeilSync.gs, the Drive end of the backup
 ```
 
 Settings → Pages → Source must be **GitHub Actions**.

@@ -1,7 +1,8 @@
 // Backups in, backups out.
 //
-// There is no sync and no account, so a lost phone or a browser that clears its
-// storage is otherwise the end of every client record. Export is not optional.
+// There is no account, so a lost phone or a browser that clears its storage is
+// otherwise the end of every client record. The admin's phone can keep its
+// backup in Google Drive (state/cloud.js); every other phone exports a file.
 //
 // IMPORT READS THREE SHAPES: this app's own, the iOS app's export, and the
 // Android app's export — so moving from the native apps loses nothing.
