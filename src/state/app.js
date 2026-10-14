@@ -35,7 +35,6 @@ let state = {
   toast: null,
   update: false,
   working: null,
-  cloud: null,     // Google Drive backup settings (state/cloud.js), admin phone only
 };
 
 const listeners = new Set();
@@ -359,13 +358,8 @@ export async function clearQuote() {
 // ---------------------------------------------------------------------------
 // Backups
 
-/** What a backup holds: every client but the showcase one, and every order. */
-export function backupData() {
-  return { clients: state.clients.filter((c) => !isShowcase(c)), orders: state.orders };
-}
-
 export function backupJSON() {
-  return JSON.stringify(exportBackup(backupData()), null, 2);
+  return JSON.stringify(exportBackup({ clients: state.clients.filter((c) => !isShowcase(c)), orders: state.orders }), null, 2);
 }
 
 export function previewBackup(text) { return readBackup(text); }

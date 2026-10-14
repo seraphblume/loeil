@@ -52,13 +52,3 @@ export const LINE_DISCOUNTS = [40, 50];
 /** Contribution grid on the Me tab. */
 export const GRID_WEEKS = 26;
 
-
-/** Google Drive backup (Me → Backup), on the admin's phone only. A web app cannot
- *  wake itself, so the schedule is kept the next time L'Œil is open. */
-export const CLOUD = {
-  DAILY_HOUR: 3,          // Daily: due once this hour has passed since the last backup
-  EVERY_HOURS: 2,         // Every N hours: due once this long has passed
-  CHECK_EVERY_MIN: 5,     // while open, how often to look whether one is due
-  RETRY_MINUTES: 10,      // after a failure, a schedule waits this long to try again
-  TIMEOUT_MS: 45000,      // Apps Script can be slow to wake
-};

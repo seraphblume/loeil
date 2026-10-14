@@ -16,26 +16,17 @@ import { dueForRecall, warningIcon } from '../core/crm.js';
 import { livePromotions, unmatchableLines, conditionsOf, isLive } from '../core/promotions.js';
 import { addDays, startOfDay } from '../core/util.js';
 import { GRID_WEEKS, APP_BUILD } from '../config.js';
-import { refresh, staffMember, lockDevice } from '../state/app.js';
-import { isAdminPhone } from '../state/cloud.js';
-import { frequencyLabel } from '../core/cloud.js';
-import { exportFile, useFilePicker, RestoreSheet } from './files.js';
+import {
+  refresh, staffMember, backupJSON, previewBackup, restoreBackup, toast, lockDevice, previewAlpha, importAlpha,
+} from '../state/app.js';
+import { loadXLSX } from './data/io.js';
+import { plural } from '../core/util.js';
 import { go } from './router.js';
 import { applyUpdate } from '../state/update.js';
 import { isShowcaseOrder } from '../core/showcase.js';
 
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-const stamp = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-/** One line for the Me tab: is the Drive copy current? */
-export function cloudLine(c) {
-  if (!c?.link) return 'Off — your clients are only on this phone';
-  if (c.busy === 'backup') return 'Backing up…';
-  if (c.lastError) return `Last try failed · ${c.lastError}`;
-  const last = c.lastAt ? `Backed up ${stamp.format(new Date(c.lastAt))}` : 'Not backed up yet';
-  return `${last} · ${frequencyLabel(c.frequency)}`;
-}
 
 function Grid({ orders }) {
   const today = startOfDay(new Date());
@@ -67,8 +58,7 @@ export function MeScreen() {
   const orders = s.orders.filter((o) => !isShowcaseOrder(o)); // the showcase client's orders are demonstrations, not sales
   const [sheet, setSheet] = useState(null);
   const [restore, setRestore] = useState(null);
-  const [fileInput, pickFile] = useFilePicker(setRestore);
-  const cloudOn = isAdminPhone(s);
+  const fileRef = useRef();
   const me = staffMember(s);
   const weekAgo = addDays(new Date(), -7);
   const sold = orders.filter((o) => o.status === 'sold');
@@ -76,6 +66,30 @@ export function MeScreen() {
   const due = dueForRecall(clients, orders);
   const orphans = unmatchableLines(catalogue).length;
   const isAdmin = !catalogue.staff.length || me?.role === 'admin';
+
+  const exportFile = async () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const name = `loeil-backup-${stamp}.json`;
+    const blob = new Blob([backupJSON()], { type: 'application/json' });
+    const file = new File([blob], name, { type: 'application/json' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'L’Œil backup' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
+  const pickBackup = async (e) => {
+    const f = e.currentTarget.files?.[0];
+    e.currentTarget.value = '';
+    if (!f) return;
+    try {
+      if (/\.xlsx$/i.test(f.name) || f.type.includes('spreadsheet')) setRestore(previewAlpha(await crmRows(f)));
+      else setRestore(previewBackup(await f.text()));
+    } catch (err) { toast(err.message); }
+  };
 
   const syncLine = {
     checking: 'Checking…', upToDate: 'Up to date', updated: 'Updated just now', offline: 'Offline — using the copy on this phone',
@@ -135,16 +149,14 @@ export function MeScreen() {
           <${Row} to="#/me/promotions" title="Live promotions" count=${livePromotions(catalogue).length} chev />
         <//>
 
-        ${cloudOn ? html`<${Section} title="Backup">
-          <${Row} to="#/me/backup" icon="cloud" title="Google Drive" detail=${cloudLine(s.cloud)} chev />
-        <//>` : html`<div class="pad gap-s">
+        <div class="pad gap-s">
           <${Eyebrow}>Backup<//>
           <p class="para">Client records live only on this phone. There is no sync and no account, so export regularly — a lost phone or a cleared browser is otherwise the end of them.</p>
           <${Secondary} icon="download" onClick=${exportFile}>Export backup<//>
-          <${Secondary} icon="upload" onClick=${pickFile}>Restore or import<//>
-          ${fileInput}
+          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Restore or import<//>
+          <input ref=${fileRef} type="file" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pickBackup} />
           <p class="note">A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales.</p>
-        </div>`}
+        </div>
 
         ${!isStandalone() && html`<div class="pad"><${Flag} icon="download">
           <strong style="font-weight:500">Add L’Œil to your Home Screen.</strong>
@@ -169,6 +181,66 @@ export function MeScreen() {
     ${sheet === 'lock' && html`<${Confirm} title="Lock this phone?" message="The catalogue and passcode are removed from this phone; it will ask for the passcode again. Clients and orders stay." action="Lock"
       onConfirm=${lockDevice} onClose=${() => setSheet(null)} />`}
     ${restore && html`<${RestoreSheet} parsed=${restore} onClose=${() => setRestore(null)} />`}`;
+}
+
+/** The CRM tab of the Alpha workbook, as rows of cells. */
+async function crmRows(file) {
+  const XLSX = await loadXLSX();
+  const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
+  const read = (n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
+  const name = wb.SheetNames.find((n) => n.trim().toUpperCase() === 'CRM')
+    ?? wb.SheetNames.find((n) => read(n).slice(0, 12).some((r) => String(r?.[0] ?? '').trim().toLowerCase() === 'sell id'));
+  if (!name) throw new Error('This workbook has no CRM table — the sheet with a Sell ID column.');
+  return read(name);
+}
+
+function AlphaSheet({ parsed, onClose }) {
+  const { counts, alpha } = parsed;
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    const done = await importAlpha(alpha);
+    toast(done.clients || done.orders ? `Added ${plural(done.clients, 'client', 'clients')} and ${plural(done.orders, 'past sale', 'past sales')}` : 'Nothing new to add');
+    onClose();
+  };
+  const nothing = !counts.clients && !counts.orders && !counts.updated;
+  return html`<${Sheet} title="Import from Alpha" onClose=${onClose}>
+    <div class="pad stack tight">
+      <${Panel}>
+        <${KV} k="People" v=${alpha.people.length} />
+        <${KV} k="New clients" v=${counts.clients} />
+        ${counts.matched > 0 && html`<${KV} k="Already here" v=${counts.updated ? `${counts.matched} · ${counts.updated} brought up to date` : counts.matched} />`}
+        <${KV} k="Past sales" v=${counts.already ? `${counts.orders} new · ${counts.already} already here` : counts.orders} />
+      <//>
+      <p class="para">Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.</p>
+      <p class="note">Someone already on this phone keeps what is here; only a newer prescription or a missing phone number is filled in. Importing the same workbook again adds only what is new.</p>
+      ${nothing ? html`<${Quiet} onClick=${onClose}>Nothing new — close<//>`
+        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? 'Adding…' : 'Add to this phone'}<//>`}
+    </div>
+  <//>`;
+}
+
+function RestoreSheet({ parsed, onClose }) {
+  const [confirm, setConfirm] = useState(false);
+  if (parsed.source === 'Alpha') return html`<${AlphaSheet} parsed=${parsed} onClose=${onClose} />`;
+  const run = async (mode) => {
+    const added = await restoreBackup(parsed, mode);
+    toast(mode === 'replace' ? 'Backup restored' : `Added ${added.clients} clients and ${added.orders} orders`);
+    onClose();
+  };
+  if (confirm) return html`<${Confirm} title="Replace everything?" message="Every client and order on this phone is replaced by the backup. Export first if you are not sure." action="Replace" onConfirm=${() => run('replace')} onClose=${onClose} />`;
+  return html`<${Sheet} title="Restore" onClose=${onClose}>
+    <div class="pad stack tight">
+      <${Panel}>
+        <${KV} k="From" v=${parsed.source === 'web' ? 'This app' : `The ${parsed.source} app`} />
+        <${KV} k="Clients" v=${parsed.clients.length} />
+        <${KV} k="Orders" v=${parsed.orders.length} />
+      <//>
+      <p class="para">Merging adds what this phone does not have and leaves everything already here untouched.</p>
+      <${Anchor} onClick=${() => run('merge')}>Merge into this phone<//>
+      <${Quiet} danger onClick=${() => setConfirm(true)}>Replace everything instead<//>
+    </div>
+  <//>`;
 }
 
 export function PromotionsScreen() {
