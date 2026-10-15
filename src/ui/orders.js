@@ -1,5 +1,6 @@
 // Orders by status. An order marked Sold IS the purchase history — moving one
 // to Sold is what makes it count on the dashboard and resets the recall clock.
+// Beside them, Alpha's Control: Delivery and Follow Up (control.js).
 
 import { html, useState } from './html.js';
 import { useApp } from './hooks.js';
@@ -9,6 +10,9 @@ import { money } from '../core/money.js';
 import { upsertOrder, deleteOrder, clientById, toast } from '../state/app.js';
 import { LinesPanel, TotalBlock, OrderPromotions } from './order.js';
 import { go } from './router.js';
+import { DeliveryView, FollowUpView } from './control.js';
+
+const VIEWS = [{ value: 'orders', label: 'Orders' }, { value: 'delivery', label: 'Delivery' }, { value: 'followup', label: 'Follow Up' }];
 
 export function OrderRow({ order, byTitle, on }) {
   const client = useApp((s) => clientById(order.clientId, s));
@@ -18,14 +22,17 @@ export function OrderRow({ order, byTitle, on }) {
     end=${orderTotal(order) ? money(orderTotal(order)) : statusLabel(order.status)} />`;
 }
 
-export function OrdersScreen({ selected }) {
+export function OrdersScreen({ selected, query }) {
   const orders = useApp((s) => s.orders);
+  const view = VIEWS.some((v) => v.value === query?.get('view')) ? query.get('view') : 'orders';
+  const show = (v) => go(v === 'orders' ? '#/orders' : `#/orders?view=${v}`, { replace: true });
   return html`
     <${Bar} title="Orders" large />
     <${Screen}>
       <div class="stack">
         <${LargeTitle}>Orders<//>
-        ${orders.length === 0
+        <div class="pad"><${Seg} label="Show" value=${view} options=${VIEWS} onChange=${show} /></div>
+        ${view === 'delivery' ? html`<${DeliveryView} />` : view === 'followup' ? html`<${FollowUpView} />` : orders.length === 0
           ? html`<div class="pad"><${Empty} title="No orders yet">Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);

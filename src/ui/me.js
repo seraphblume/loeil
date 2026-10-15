@@ -86,7 +86,7 @@ export function MeScreen() {
     e.currentTarget.value = '';
     if (!f) return;
     try {
-      if (/\.xlsx$/i.test(f.name) || f.type.includes('spreadsheet')) setRestore(previewAlpha(await crmRows(f)));
+      if (/\.xlsx$/i.test(f.name) || f.type.includes('spreadsheet')) setRestore(previewAlpha(await workbookRows(f)));
       else setRestore(previewBackup(await f.text()));
     } catch (err) { toast(err.message); }
   };
@@ -155,7 +155,7 @@ export function MeScreen() {
           <${Secondary} icon="download" onClick=${exportFile}>Export backup<//>
           <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Restore or import<//>
           <input ref=${fileRef} type="file" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pickBackup} />
-          <p class="note">A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales.</p>
+          <p class="note">A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales (on the admin’s phone), and your rows on its Control sheet fill Orders → Delivery and Follow Up.</p>
         </div>
 
         ${!isStandalone() && html`<div class="pad"><${Flag} icon="download">
@@ -183,39 +183,72 @@ export function MeScreen() {
     ${restore && html`<${RestoreSheet} parsed=${restore} onClose=${() => setRestore(null)} />`}`;
 }
 
-/** The CRM tab of the Alpha workbook, as rows of cells. */
-async function crmRows(file) {
+/**
+ * The Alpha workbook's sheets as rows of cells: its CRM (either shape), All
+ * (the tickets), Control and Config — whichever it has.
+ */
+async function workbookRows(file) {
   const XLSX = await loadXLSX();
-  const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array' });
-  const read = (n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null });
-  const name = wb.SheetNames.find((n) => n.trim().toUpperCase() === 'CRM')
-    ?? wb.SheetNames.find((n) => read(n).slice(0, 12).some((r) => String(r?.[0] ?? '').trim().toLowerCase() === 'sell id'));
-  if (!name) throw new Error('This workbook has no CRM table — the sheet with a Sell ID column.');
-  return read(name);
+  const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellFormula: true });
+  const read = (n) => (n ? XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null }) : null);
+  const named = (want) => wb.SheetNames.find((n) => n.trim().toUpperCase() === want);
+  const crm = named('CRM') ?? wb.SheetNames.find((n) => !['ALL', 'CONTROL'].includes(n.trim().toUpperCase())
+    && read(n).slice(0, 12).some((r) => String(r?.[0] ?? '').trim().toLowerCase() === 'sell id'));
+  const controlName = named('CONTROL');
+  const control = read(controlName);
+  if (control) {
+    // An open order's Delivered cell holds a live =TODAY(), not a delivery date.
+    const ws = wb.Sheets[controlName];
+    control.forEach((row, r) => row?.forEach((_, c) => {
+      const f = ws[XLSX.utils.encode_cell({ r, c })]?.f;
+      if (f && /^\s*TODAY\(\)\s*$/i.test(f)) row[c] = null;
+    }));
+  }
+  if (!crm && !control) throw new Error('This workbook has no CRM or Control sheet.');
+  return { crm: read(crm), all: read(named('ALL')), control, config: read(named('CONFIG')) };
 }
 
 function AlphaSheet({ parsed, onClose }) {
-  const { counts, alpha } = parsed;
+  const { counts, alpha, control, crm } = parsed;
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
-    const done = await importAlpha(alpha);
-    toast(done.clients || done.orders ? `Added ${plural(done.clients, 'client', 'clients')} and ${plural(done.orders, 'past sale', 'past sales')}` : 'Nothing new to add');
+    const done = await importAlpha(parsed);
+    const said = [];
+    if (alpha) said.push(done.clients || done.orders ? `${plural(done.clients, 'client', 'clients')} and ${plural(done.orders, 'past sale', 'past sales')} added` : 'Clients up to date');
+    if (control) said.push(`${plural(done.deliveries, 'delivery', 'deliveries')} and ${plural(done.followUps, 'follow-up', 'follow-ups')}`);
+    toast(said.join(' · '));
     onClose();
   };
-  const nothing = !counts.clients && !counts.orders && !counts.updated;
+  const nothing = (!counts || (!counts.clients && !counts.orders && !counts.updated)) && !control;
+  const was = (n, here) => (here ? `${n} · replaces ${here}` : String(n));
   return html`<${Sheet} title="Import from Alpha" onClose=${onClose}>
     <div class="pad stack tight">
-      <${Panel}>
-        <${KV} k="People" v=${alpha.people.length} />
-        <${KV} k="New clients" v=${counts.clients} />
-        ${counts.matched > 0 && html`<${KV} k="Already here" v=${counts.updated ? `${counts.matched} · ${counts.updated} brought up to date` : counts.matched} />`}
-        <${KV} k="Past sales" v=${counts.already ? `${counts.orders} new · ${counts.already} already here` : counts.orders} />
-      <//>
-      <p class="para">Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.</p>
-      <p class="note">Someone already on this phone keeps what is here; only a newer prescription or a missing phone number is filled in. Importing the same workbook again adds only what is new.</p>
+      ${alpha && html`
+        <${Eyebrow}>CRM<//>
+        <${Panel}>
+          <${KV} k="People" v=${alpha.people.length} />
+          <${KV} k="New clients" v=${counts.clients} />
+          ${counts.matched > 0 && html`<${KV} k="Already here" v=${counts.updated ? `${counts.matched} · ${counts.updated} brought up to date` : counts.matched} />`}
+          <${KV} k="Past sales" v=${counts.already ? `${counts.orders} new · ${counts.already} already here` : counts.orders} />
+          ${counts.history > 0 && html`<${KV} k="Into their history" v=${plural(counts.history, 'prescription', 'prescriptions')} />`}
+        <//>
+        <p class="para">${alpha.layout === 'clients'
+          ? 'Each client comes with their Customer ID, birthdate, quality and their glasses, lecture and contact lens prescriptions, and every ticket of yours on the All tab becomes a sale in their history.'
+          : 'Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.'}</p>
+        <p class="note">Someone already on this phone keeps what is here: Alpha fills in what is missing, and brings a newer prescription — the one it replaces goes into their history. Importing the same workbook again adds only what is new.</p>`}
+      ${crm && !alpha && html`<p class="note">The CRM’s clients come in on the admin’s phone only.</p>`}
+      ${control && html`
+        <${Eyebrow}>Control<//>
+        <${Panel}>
+          <${KV} k="Delivery" v=${was(control.deliveries.length, control.here.deliveries)} />
+          <${KV} k="Follow Up" v=${was(control.followUps.length, control.here.followUps)} />
+          <${KV} k="WhatsApp messages" v=${control.messages ? 'From the workbook' : 'As before'} />
+        <//>
+        <p class="note">Your rows only. The workbook’s replace this phone’s, so its Status, Promised, Delivered and Pending win over what was changed here.</p>
+        ${!control.followUps.length && control.vendorFilter && control.vendorFilter !== 'All' && html`<p class="note">Follow Up was last rebuilt for ${control.vendorFilter} only — set Control ▸ Vendor to All and rebuild it to bring everyone’s.</p>`}`}
       ${nothing ? html`<${Quiet} onClick=${onClose}>Nothing new — close<//>`
-        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? 'Adding…' : 'Add to this phone'}<//>`}
+        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? 'Importing…' : 'Import to this phone'}<//>`}
     </div>
   <//>`;
 }
@@ -228,13 +261,14 @@ function RestoreSheet({ parsed, onClose }) {
     toast(mode === 'replace' ? 'Backup restored' : `Added ${added.clients} clients and ${added.orders} orders`);
     onClose();
   };
-  if (confirm) return html`<${Confirm} title="Replace everything?" message="Every client and order on this phone is replaced by the backup. Export first if you are not sure." action="Replace" onConfirm=${() => run('replace')} onClose=${onClose} />`;
+  if (confirm) return html`<${Confirm} title="Replace everything?" message=${`Every client and order on this phone is replaced by the backup${parsed.control ? ', and Delivery and Follow Up with it' : ''}. Export first if you are not sure.`} action="Replace" onConfirm=${() => run('replace')} onClose=${onClose} />`;
   return html`<${Sheet} title="Restore" onClose=${onClose}>
     <div class="pad stack tight">
       <${Panel}>
         <${KV} k="From" v=${parsed.source === 'web' ? 'This app' : `The ${parsed.source} app`} />
         <${KV} k="Clients" v=${parsed.clients.length} />
         <${KV} k="Orders" v=${parsed.orders.length} />
+        ${parsed.control && html`<${KV} k="Delivery · Follow Up" v=${`${parsed.control.deliveries.length} · ${parsed.control.followUps.length}`} />`}
       <//>
       <p class="para">Merging adds what this phone does not have and leaves everything already here untouched.</p>
       <${Anchor} onClick=${() => run('merge')}>Merge into this phone<//>

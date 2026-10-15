@@ -6,12 +6,12 @@
 // Typing is the fast way in; the slider is there to see the value and to nudge.
 
 import { html, useState, useRef, useEffect } from './html.js';
-import { Eyebrow, Toggle, Seg, Sheet, Anchor, Quiet, fmtDate } from './kit.js';
+import { Eyebrow, Toggle, Seg, Sheet, Anchor, Secondary, Quiet, fmtDate } from './kit.js';
 import { Icon } from './icons.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import {
   RX_LIMITS, PRISM_BASES, snap, monoPd, hasPrism, blankRx, blankEye, blankContactRx, rxIsBlank, contactIsBlank, GP_FIELDS, CL_FITS,
-  validity, VALIDITY_LABEL, warningIcon, expiresOn, issuedDate, needsAddition, pd,
+  validity, VALIDITY_LABEL, warningIcon, expiresOn, issuedDate, needsAddition, pd, withRx, RX_KINDS,
 } from '../core/crm.js';
 import { aobLenses, lineText } from '../core/orders.js';
 import { isoDay } from '../core/util.js';
@@ -102,7 +102,7 @@ export function RxSlider({ kind, label, value, onChange, eye, unit }) {
 
 const SIDE = { od: { title: 'Right eye', short: 'OD' }, os: { title: 'Left eye', short: 'OS' } };
 
-function EyePanel({ side, rx, onEye, onPd, prisms, addition }) {
+function EyePanel({ side, rx, onEye, onPd, prisms, addition, near }) {
   const eye = rx[side] ?? blankEye();
   const set = (k) => (v) => onEye(side, { ...eye, [k]: v });
   const prism = eye.prism ?? { amount: 0, base: 'in' };
@@ -113,7 +113,7 @@ function EyePanel({ side, rx, onEye, onPd, prisms, addition }) {
       <${RxSlider} kind="cylinder" label="CYL" eye=${side} value=${eye.cylinder} onChange=${set('cylinder')} />
       <${RxSlider} kind="axis" label="AXIS" eye=${side} value=${eye.axis} onChange=${set('axis')} unit="°" />
       ${addition && html`<${RxSlider} kind="addition" label="ADD" eye=${side} value=${eye.addition} onChange=${set('addition')} />`}
-      <${RxSlider} kind="pd" label="PD" eye=${side} value=${monoPd(rx, side)} onChange=${(v) => onPd(side, v)} unit="mm" />
+      <${RxSlider} kind="pd" label="PD" eye=${side} value=${monoPd(rx, side, near)} onChange=${(v) => onPd(side, v)} unit="mm" />
       ${prisms && html`
         <${RxSlider} kind="prism" label="PRISM" eye=${side} value=${prism.amount} unit="Δ"
           onChange=${(v) => onEye(side, { ...eye, prism: { ...prism, amount: v } })} />
@@ -128,17 +128,19 @@ function EyePanel({ side, rx, onEye, onPd, prisms, addition }) {
 /**
  * Both eyes, the prism switch, and (when asked) the issue date.
  * `addition` false leaves ADD out (contact lenses carry one figure for both).
+ * `near` is a lecture prescription: no ADD, and its PD is the near one.
  */
-export function RxEntry({ rx, onChange, dated, addition = true }) {
+export function RxEntry({ rx, onChange, dated, addition = true, near = false }) {
   const [prisms, setPrisms] = useState(() => hasPrism(rx));
   const onEye = (side, eye) => onChange({ ...rx, [side]: eye });
   // DNP is per eye. A binocular PD on file splits into halves the moment one eye is set.
   const onPd = (side, v) => {
     const other = side === 'od' ? 'os' : 'od';
+    const key = near ? 'pdNear' : 'pdFar';
     onChange({
-      ...rx, pdFarMM: null,
-      [side]: { ...rx[side], pdFar: v },
-      [other]: { ...rx[other], pdFar: rx[other]?.pdFar ?? monoPd(rx, other) },
+      ...rx, [near ? 'pdNearMM' : 'pdFarMM']: null,
+      [side]: { ...rx[side], [key]: v },
+      [other]: { ...rx[other], [key]: rx[other]?.[key] ?? monoPd(rx, other, near) },
     });
   };
   const togglePrisms = (on) => {
@@ -156,8 +158,8 @@ export function RxEntry({ rx, onChange, dated, addition = true }) {
       <div class="cell"><span class="k">Add prisms</span><${Toggle} on=${prisms} onChange=${togglePrisms} label="Add prisms" /></div>
     </div>
     <div class="rx-eyes">
-      <${EyePanel} side="od" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition} />
-      <${EyePanel} side="os" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition} />
+      <${EyePanel} side="od" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition && !near} near=${near} />
+      <${EyePanel} side="os" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition && !near} near=${near} />
     </div>
     <p class="note pad-in">Type a value or slide to it. A sphere typed without a sign keeps the one shown — ± flips it. Cylinder is always minus.</p>
   </div>`;
@@ -229,18 +231,19 @@ function RxTable({ cols, rows }) {
   </table>`;
 }
 
-export function RxCard({ rx, onEdit, title = 'Glasses' }) {
+/** A glasses prescription as a card; `near` reads a lecture one (its PD is the near PD). */
+export function RxCard({ rx, onEdit, title = 'Glasses', near = false }) {
   const v = validity(rx);
   const icon = warningIcon(rx);
   const exp = expiresOn(rx);
   const issued = issuedDate(rx);
   const add = needsAddition(rx);
   const prism = hasPrism(rx);
-  const near = pd(rx, true);
+  const nearPd = pd(rx, true);
   const cols = ['SPH', 'CYL', 'AXIS', ...(add ? ['ADD'] : []), 'PD'];
   const row = (side) => {
     const e = rx[side];
-    const dnp = monoPd(rx, side);
+    const dnp = monoPd(rx, side, near);
     return [SIDE[side].short, FORMAT.sphere(Number(e.sphere)), Number(e.cylinder) ? FORMAT.cylinder(Number(e.cylinder)) : '—',
       Number(e.cylinder) ? FORMAT.axis(Number(e.axis)) + '°' : '—', ...(add ? [Number(e.addition) ? FORMAT.addition(Number(e.addition)) : '—'] : []),
       dnp ? FORMAT.pd(dnp) : '—'];
@@ -255,7 +258,7 @@ export function RxCard({ rx, onEdit, title = 'Glasses' }) {
           <${RxTable} cols=${cols} rows=${[row('od'), row('os')]} />
           ${prism && html`<div class="rx-foot">${['od', 'os'].filter((s) => rx[s].prism?.amount).map((s) => `${SIDE[s].short} prism ${FORMAT.prism(rx[s].prism.amount)}Δ base ${rx[s].prism.base}`).join(' · ')}</div>`}
           <div class="rx-foot">
-            ${[issued && `Issued ${fmtDate(issued)}`, exp && `Expires ${fmtDate(exp)}`, rx.pdFarMM && `PD ${FORMAT.pd(rx.pdFarMM)} mm`, near && `Near ${FORMAT.pd(near)} mm`].filter(Boolean).join(' · ')}
+            ${[issued && `Issued ${fmtDate(issued)}`, exp && `Expires ${fmtDate(exp)}`, !near && rx.pdFarMM && `PD ${FORMAT.pd(rx.pdFarMM)} mm`, nearPd && `${near ? 'PD' : 'Near'} ${FORMAT.pd(nearPd)} mm`].filter(Boolean).join(' · ')}
           </div>
         </div>`}
     </button>
@@ -313,7 +316,7 @@ export function OrderRxSheet({ onClose, start = 'rx' }) {
 
   const finish = async () => {
     await setDraftRx(rx);
-    if (toClient && client) await upsertClient({ ...client, prescription: rx });
+    if (toClient && client) await upsertClient(withRx(client, 'glasses', rx));
     if (measures) await setDraftAob(aob);
     toast(measures ? 'Prescription and AOB on the order' : 'Prescription on the order');
     onClose();
@@ -353,22 +356,60 @@ export function OrderRxSheet({ onClose, start = 'rx' }) {
   <//>`;
 }
 
-/** The editor for a client's record: glasses, and contact lenses when he adds them. */
+/**
+ * The editor for a client's record: glasses, lecture (near work), or contact
+ * lenses. A prescription saved with another issue date puts the one it replaces
+ * into their history; the same date is a correction.
+ */
 export function ClientRxSheet({ client, kind = 'glasses', onClose }) {
   const catalogue = useApp((s) => s.catalogue);
-  const [rx, setRx] = useState(() => copy(client.prescription ?? blankRx()));
+  const [rx, setRx] = useState(() => copy((kind === 'near' ? client.nearRx : client.prescription) ?? blankRx()));
   const [cl, setCl] = useState(() => copy(client.contactRx ?? blankContactRx()));
   const brands = [...new Set(catalogue.contact.map((r) => r.product?.label).filter(Boolean))];
+  const value = () => (kind === 'contact' ? (contactIsBlank(cl) ? null : cl) : kind === 'near' ? (rxIsBlank(rx) ? null : rx) : rx);
   const save = async () => {
-    await upsertClient(kind === 'glasses' ? { ...client, prescription: rx } : { ...client, contactRx: contactIsBlank(cl) ? null : cl });
+    await upsertClient(withRx(client, kind, value()));
     toast('Prescription saved');
     onClose();
   };
-  return html`<${Sheet} title=${kind === 'glasses' ? 'Glasses' : 'Contact lenses'} onClose=${onClose} full
+  const on = kind === 'contact' ? !contactIsBlank(client.contactRx) : kind === 'near' ? !rxIsBlank(client.nearRx) : false;
+  const remove = async () => {
+    await upsertClient(withRx(client, kind, null));
+    toast('Moved to their history');
+    onClose();
+  };
+  return html`<${Sheet} title=${RX_KINDS[kind].label} onClose=${onClose} full
     right=${html`<button class="bar-btn strong" onClick=${save}>Save</button>`}>
     <div class="pad stack tight">
-      ${kind === 'glasses' ? html`<${RxEntry} rx=${rx} onChange=${setRx} dated />` : html`<${ContactRxEntry} cl=${cl} onChange=${setCl} brands=${brands} />`}
+      ${kind === 'contact' ? html`<${ContactRxEntry} cl=${cl} onChange=${setCl} brands=${brands} />`
+        : html`<${RxEntry} rx=${rx} onChange=${setRx} dated near=${kind === 'near'} />`}
+      ${kind === 'near' && html`<p class="note pad-in">The lecture prescription is for near work — reading, a desk, a screen. No ADD: the powers are the near ones, and the PD is the near PD.</p>`}
       <${Anchor} onClick=${save}>Save<//>
+      ${on && html`<${Quiet} danger onClick=${remove}>Remove — it stays in their history<//>`}
+    </div>
+  <//>`;
+}
+
+/** One prescription from the history: read it, put it back on file, or let it go. */
+export function RxHistorySheet({ client, entry, onClose }) {
+  const kind = RX_KINDS[entry.kind];
+  const restore = async () => {
+    await upsertClient(withRx(client, entry.kind, entry.rx));
+    toast('Back on file');
+    onClose();
+  };
+  const forget = async () => {
+    await upsertClient({ ...client, rxHistory: (client.rxHistory ?? []).filter((h) => h.id !== entry.id) });
+    toast('Removed from the history');
+    onClose();
+  };
+  return html`<${Sheet} title=${kind.label} onClose=${onClose}>
+    <div class="pad stack tight">
+      ${entry.kind === 'contact' ? html`<${ContactRxCard} cl=${entry.rx} />`
+        : html`<${RxCard} rx=${entry.rx} title=${kind.label} near=${entry.kind === 'near'} />`}
+      ${entry.archivedOn && html`<p class="note">Moved to the history on ${fmtDate(entry.archivedOn)}.</p>`}
+      <${Secondary} icon="undo" onClick=${restore}>Put it back on file<//>
+      <${Quiet} danger onClick=${forget}>Remove from the history<//>
     </div>
   <//>`;
 }

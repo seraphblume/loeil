@@ -14,7 +14,10 @@ import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { withShowcase, isShowcase, SHOWCASE_ID } from '../core/showcase.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
-import { readAlpha, mergeAlpha } from '../core/alpha.js';
+import { readAlpha, readClients, readTickets, attachTickets, isClientLayout, mergeAlpha } from '../core/alpha.js';
+import {
+  blankControl, readControl, readVendors, readMessages, assignSellers, rowsFor, editDelivery, mergeControl,
+} from '../core/control.js';
 import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
 import { uid } from '../core/util.js';
 
@@ -28,6 +31,7 @@ let state = {
   sync: { status: 'idle', note: null, checkedAt: null },
   clients: [],
   orders: [],
+  control: blankControl(),
   identity: null,
   draft: newOrder(),
   draftRx: null,
@@ -56,8 +60,8 @@ export function toast(message) {
 // Boot
 
 export async function boot() {
-  const [bundle, passcode, store, identity, draft, quote] = await Promise.all([
-    db.get('bundle'), db.get('passcode'), db.get('store'), db.get('identity'), db.get('draft'), db.get('quote'),
+  const [bundle, passcode, store, identity, draft, quote, control] = await Promise.all([
+    db.get('bundle'), db.get('passcode'), db.get('store'), db.get('identity'), db.get('draft'), db.get('quote'), db.get('control'),
   ]);
   setState({
     booted: true,
@@ -65,6 +69,7 @@ export async function boot() {
     passcode: passcode ?? null,
     clients: sortClients(withShowcase(store?.clients ?? [])), // the showcase client, put back as she is
     orders: sortOrders(store?.orders ?? []),
+    control: { ...blankControl(), ...(control ?? {}) },
     identity: identity ?? null,
     draft: draft?.order ?? newOrder(),
     draftRx: draft?.rx ?? null,
@@ -158,6 +163,9 @@ export async function lockDevice() {
 export function staffMember(s = state) {
   return s.catalogue.staff.find((m) => m.employeeNumber === s.identity) ?? null;
 }
+
+/** The admin's phone — or any phone while the catalogue names no staff. */
+export const isAdminPhone = (s = state) => !s.catalogue.staff.length || staffMember(s)?.role === 'admin';
 
 export async function setIdentity(employeeNumber) {
   setState({ identity: employeeNumber });
@@ -358,8 +366,12 @@ export async function clearQuote() {
 // ---------------------------------------------------------------------------
 // Backups
 
+const hasControl = (c) => Boolean(c && (c.deliveries.length || c.followUps.length || c.messages));
+
 export function backupJSON() {
-  return JSON.stringify(exportBackup({ clients: state.clients.filter((c) => !isShowcase(c)), orders: state.orders }), null, 2);
+  return JSON.stringify(exportBackup({
+    clients: state.clients.filter((c) => !isShowcase(c)), orders: state.orders, control: hasControl(state.control) ? state.control : null,
+  }), null, 2);
 }
 
 export function previewBackup(text) { return readBackup(text); }
@@ -367,23 +379,87 @@ export function previewBackup(text) { return readBackup(text); }
 export async function restoreBackup(parsed, mode) {
   const next = mode === 'replace' ? { clients: parsed.clients, orders: parsed.orders, added: { clients: parsed.clients.length, orders: parsed.orders.length } }
     : mergeBackup({ clients: state.clients, orders: state.orders }, parsed);
-  setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
+  // Control comes along when the backup has one; a backup without it leaves this phone's.
+  const control = !parsed.control ? state.control
+    : mode === 'replace' ? { ...blankControl(), ...parsed.control } : mergeControl(state.control, parsed.control);
+  setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders), control });
   await saveStore();
+  await saveControl();
   return next.added;
 }
 
-/** The Alpha workbook's CRM table → what importing it would do, before it does anything. */
-export function previewAlpha(rows) {
-  const alpha = readAlpha(rows, state.catalogue.staff);
-  const { counts } = mergeAlpha({ clients: state.clients, orders: state.orders }, alpha);
-  return { source: 'Alpha', alpha, counts };
+/**
+ * The Alpha workbook (its sheets as rows: `crm`, `all`, `control`, `config`)
+ * → what importing it would do, before it does anything.
+ *
+ * The CRM is the admin's: its clients come in on the admin's phone only, each
+ * with the tickets this phone's seller sold them on the All tab. Control comes
+ * in on every phone, this seller's rows only.
+ */
+export function previewAlpha(book) {
+  const b = Array.isArray(book) ? { crm: book } : book;
+  const staff = state.catalogue.staff;
+  const seller = state.identity ?? null;
+  const admin = isAdminPhone();
+  const tickets = readTickets(b.all, staff);
+  let alpha = null;
+  if (b.crm) alpha = isClientLayout(b.crm) ? attachTickets(readClients(b.crm), tickets, seller) : readAlpha(b.crm, staff);
+  let control = null;
+  const read = b.control ? readControl(b.control) : null;
+  if (read) {
+    const all = assignSellers(read, tickets, readVendors(b.config, staff));
+    control = {
+      deliveries: rowsFor(all.deliveries, seller, admin), followUps: rowsFor(all.followUps, seller, admin),
+      messages: readMessages(b.config), vendorFilter: read.vendorFilter,
+      here: { deliveries: state.control.deliveries.length, followUps: state.control.followUps.length },
+    };
+  }
+  if (!alpha && !control) throw new Error('This workbook has no CRM or Control sheet.');
+  const clients = admin ? alpha : null;
+  const counts = clients ? mergeAlpha({ clients: state.clients, orders: state.orders }, clients).counts : null;
+  return { source: 'Alpha', alpha: clients, crm: Boolean(alpha), counts, control, admin };
 }
 
-export async function importAlpha(alpha) {
-  const next = mergeAlpha({ clients: state.clients, orders: state.orders }, alpha);
-  setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
-  await saveStore();
-  return next.counts;
+/** Bring the workbook in: the CRM merged (admin's phone), this seller's Control replaced by the workbook's. */
+export async function importAlpha(parsed) {
+  const done = { clients: 0, orders: 0, updated: 0, deliveries: 0, followUps: 0 };
+  if (parsed.alpha) {
+    const next = mergeAlpha({ clients: state.clients, orders: state.orders }, parsed.alpha);
+    setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
+    await saveStore();
+    Object.assign(done, next.counts);
+  }
+  if (parsed.control) {
+    const c = parsed.control;
+    setState({
+      control: {
+        deliveries: c.deliveries, followUps: c.followUps, messages: c.messages ?? state.control.messages,
+        vendorFilter: c.vendorFilter, importedAt: new Date().toISOString(),
+      },
+    });
+    await saveControl();
+    done.deliveries = c.deliveries.length;
+    done.followUps = c.followUps.length;
+  }
+  return done;
+}
+
+// ---------------------------------------------------------------------------
+// Control: Delivery and Follow Up. Changed on the phone; the next import
+// from Alpha puts the workbook's back.
+
+async function saveControl() { await db.set('control', state.control); }
+
+export async function updateDelivery(saleId, patch) {
+  const deliveries = state.control.deliveries.map((r) => (r.saleId === saleId ? editDelivery(r, patch) : r));
+  setState({ control: { ...state.control, deliveries } });
+  await saveControl();
+}
+
+export async function updateFollowUp(saleId, patch) {
+  const followUps = state.control.followUps.map((r) => (r.saleId === saleId ? { ...r, ...patch } : r));
+  setState({ control: { ...state.control, followUps } });
+  await saveControl();
 }
 
 // ---------------------------------------------------------------------------

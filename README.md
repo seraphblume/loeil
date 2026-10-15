@@ -41,7 +41,7 @@ using the phone, and it is ready.
 |---|---|---|
 | Prices, lenses, frames, stock, promotions, staff, the branch on the ticket | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
 | Unpublished edits | The admin’s phone (the working copy) | The admin |
-| Client records and orders | That phone only (IndexedDB) | Nobody else — no sync, no account |
+| Client records, orders, Delivery and Follow Up | That phone only (IndexedDB) | Nobody else — no sync, no account |
 | GitHub token for publishing | The admin’s phone only | The admin |
 
 **L’Œil owns its data.** No spreadsheet and no Google service is needed to run it
@@ -49,15 +49,25 @@ or to change it. The published file is the source of truth, and every publish is
 a commit, so the full history is in this repository’s log. The repository and the
 site hold only code and the encrypted file; `.gitignore` refuses `*.xlsx`.
 
-Back up client records from **Me → Export backup**. **Me → Restore or import**
-takes a backup from this app or the earlier iPhone and Android apps, or the
-**Alpha workbook**: its CRM table comes in on the phone — each client with their
-latest glasses and contact lens prescriptions, and every ticket as a sale in their
-history (Sell ID, shipment, deal, seller, amount). A client is the same name with
-the same phone (a phone is not a person: families share one). Someone already on
-the phone keeps what is there; a newer prescription or a missing phone is filled
-in, and importing the same workbook again adds only what is new. The workbook is
-read in the browser and never leaves the phone.
+Back up client records from **Me → Export backup** (Delivery and Follow Up go
+with them). **Me → Restore or import** takes a backup from this app or the earlier
+iPhone and Android apps, or the **Alpha workbook**:
+
+- **Its CRM** comes in on the admin's phone only — it is his client list. Each
+  client arrives with their Customer ID, birthdate, quality (Easygoing, Regular,
+  Demanding, Difficult) and their spectacle, lecture and contact lens
+  prescriptions, and each ticket of theirs on the **All** tab that this phone's
+  seller sold becomes a sale in their history (Sell ID, shipment, deal, amount).
+  The earlier CRM, a row per ticket, still reads too. A client is the same name
+  with the same phone (a phone is not a person: families share one), or the same
+  name with the same Customer ID. Someone already on the phone keeps what is
+  there: Alpha fills in what is missing and brings a newer prescription (the one
+  it replaces goes into their history), and importing the same workbook again
+  adds only what is new.
+- **Its Control** comes in on every phone, that seller's rows only — see
+  [Delivery and Follow Up](#delivery-and-follow-up).
+
+The workbook is read in the browser and never leaves the phone.
 
 ## Changing the catalogue
 
@@ -125,6 +135,33 @@ list** (Catalogue data → Accessory prices, or the `accessories` tab of the Bac
 workbook: product code, true SKU, description, price, collection). A gift is $0.01,
 as the register charges it. An item not on the list goes to the ticket as a code
 and a quantity, and the register prices it.
+
+## Delivery and Follow Up
+
+Alpha's **Control** sheet, on the phone: **Orders → Delivery** and **Orders →
+Follow Up**. Rows come only from importing the Alpha workbook (a checkout here never
+adds one), and each phone keeps its own seller's — the seller of each Sell ID on
+the All tab (Follow Up falls back to its Vendor column through Config's short
+names). An import puts the workbook's rows back as they are: its Status, Promised,
+Delivered and Pending win over anything changed on the phone since.
+
+- **Delivery** lists open orders by status (Delayed, In Production, Sent to Store,
+  Ready for Pickup — oldest first), then the delivered ones, newest first. A row
+  shows its promised date, the days left (or how many late), and what is pending.
+  Its sheet changes Status, Promised, Delivered and Pending with the sheet's own
+  rules: turning **Delivered** stamps today's date, leaving it clears the date, a
+  typed delivered date makes the row Delivered, and the first promised date is kept
+  as the **first promise**. An open order's Delivered cell in Alpha (a live
+  `=TODAY()`) is read as not delivered.
+- **WhatsApp** sends what Alpha's would: Ready for Pickup sends the ready message,
+  Delivered the review request, a Promised date that no longer matches the first
+  promise the new-date message; anything else just opens the chat. The wording
+  comes from Config's Delivery messages with each import. The phone is the CRM's,
+  or else a client on this phone by the same name.
+- **Follow Up** lists each eye exam whose Sell ID never carried a sale — to follow
+  up, then those with a Plan ID — with the chat a tap away. Plan ID and Customer ID
+  can be typed here. Alpha rebuilds the list for the vendor on Control (or All):
+  rebuild it for All before importing on the sellers' phones.
 
 ## Discounts
 
@@ -227,9 +264,14 @@ and its base per eye. A sphere typed without a sign keeps the one shown (± flip
 it); a cylinder is always minus. A binocular PD on file splits into halves the
 moment one eye's PD is set.
 
-A client has a glasses prescription and, if they wear them, a contact lens one
-(brand, replacement, SPH CYL AXIS per eye, ADD); a contact lens line suggests its
-power from it. The order carries the prescription the job is made to (it starts
+A client has a glasses prescription and, when they have them, a **lecture** one
+for near work (no ADD; its PD is the near PD) and a contact lens one (brand,
+replacement, SPH CYL AXIS per eye, ADD); a contact lens line suggests its power
+from it. **A prescription is its issue date**: saving one with another date puts
+the one it replaces into the client's **prescription history** (one per kind per
+date), while saving with the same date is a correction and leaves nothing behind.
+An entry in the history can be put back on file or removed. The client also keeps
+a Customer ID, a birthdate (their age beside it) and a quality. The order carries the prescription the job is made to (it starts
 as the client's and can be saved back to them), and, when its lenses need it, the
 **AOB** of each eye (15–30 mm) — measured for the job, so it stays on the order.
 
@@ -329,6 +371,7 @@ src/core/             pure logic, shared with tools/publish.mjs
   lens.js             cascades, POS code, upgrades, search
   promotions.js       promo matching (families come from the vocabulary)
   orders.js crm.js rxticket.js backup.js
+  alpha.js control.js the Alpha workbook: its CRM, and Control (Delivery, Follow Up)
 src/state/            storage, sync, the working copy, updates
 src/ui/               screens; src/ui/data/ is the catalogue editor
 tools/                publish from a computer; deploy stamping

@@ -14,9 +14,14 @@ export function useApp(select = (s) => s) {
   const value = select(getState());
   const last = useRef(value);
   last.current = value;
-  useEffect(() => subscribe((s) => {
-    if (!Object.is(sel.current(s), last.current)) rerender();
-  }), []);
+  useEffect(() => {
+    const off = subscribe((s) => {
+      if (!Object.is(sel.current(s), last.current)) rerender();
+    });
+    // A change between the render and this subscription (a fast boot) is not missed.
+    if (!Object.is(sel.current(getState()), last.current)) rerender();
+    return off;
+  }, []);
   return value;
 }
 

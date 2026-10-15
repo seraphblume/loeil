@@ -112,7 +112,7 @@ function Panes({ route }) {
       <div class="pane detail-pane">${a ? html`<${ClientScreen} id=${a} embedded key=${a} />` : html`<${Placeholder} icon="people" text="Choose a client" />`}</div>`;
   }
   if (tab === 'orders') {
-    return html`<div class="pane list-pane"><${OrdersScreen} selected=${a} /></div>
+    return html`<div class="pane list-pane"><${OrdersScreen} selected=${a} query=${route.query} /></div>
       <div class="pane detail-pane">${!a ? html`<${Placeholder} icon="doc" text="Choose an order" />`
         : b === 'receipt' ? html`<${SavedReceiptScreen} id=${a} key=${a + 'r'} />` : html`<${SavedOrderScreen} id=${a} embedded key=${a} />`}</div>`;
   }
@@ -154,7 +154,7 @@ function screenFor(route) {
   if (tab === 'clients') return a ? html`<${ClientScreen} id=${a} />` : html`<${ClientsScreen} />`;
   if (tab === 'orders') {
     if (a && b === 'receipt') return html`<${SavedReceiptScreen} id=${a} />`;
-    return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} />`;
+    return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} query=${route.query} />`;
   }
   if (tab === 'me') {
     if (a === 'publish') return html`<${PublishScreen} />`;

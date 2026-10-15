@@ -7,20 +7,21 @@
 import { html, useState, useRef } from './html.js';
 import { useApp } from './hooks.js';
 import {
-  Bar, Screen, ScreenTitle, LargeTitle, SearchField, Section, Eyebrow, Empty, Anchor, Secondary, Sheet, Dock,
+  Bar, Screen, ScreenTitle, LargeTitle, SearchField, Section, Row, Eyebrow, Empty, Anchor, Secondary, Sheet, Dock,
   Confirm, fmtDate, fmtDayMonth,
 } from './kit.js';
 import { Icon } from './icons.js';
 import { go, linkProps } from './router.js';
 import {
   newClient, initials, eyeText, rxIsBlank, warningIcon, dueForRecall, guidance, recallDate, contactIsBlank,
+  QUALITIES, ageOn, historyOf, RX_KINDS,
 } from '../core/crm.js';
-import { fold } from '../core/util.js';
+import { fold, isoDay } from '../core/util.js';
 import {
   upsertClient, deleteClient, toggleFavourite, clientById, setDraftClient, getState, toast, clearDraft,
 } from '../state/app.js';
 import { OrderRow } from './orders.js';
-import { RxCard, ContactRxCard, ClientRxSheet } from './rx.js';
+import { RxCard, ContactRxCard, ClientRxSheet, RxHistorySheet, rxSummary } from './rx.js';
 import { isShowcase } from '../core/showcase.js';
 
 export function ClientsScreen({ selected }) {
@@ -34,7 +35,8 @@ export function ClientsScreen({ selected }) {
   const dueIds = new Set(due.map((d) => d.client.id));
   const t = fold(term);
   const digits = term.replace(/\D/g, '');
-  const results = clients.filter((c) => !dueIds.has(c.id) && (!term || fold(c.name).includes(t) || (digits && c.phone.replace(/\D/g, '').includes(digits))));
+  const results = clients.filter((c) => !dueIds.has(c.id) && (!term || fold(c.name).includes(t)
+    || (digits && (c.phone.replace(/\D/g, '').includes(digits) || String(c.customerId ?? '').includes(digits)))));
   const ordersFor = (id) => orders.filter((o) => o.clientId === id).length;
   const askDelete = (c) => (isShowcase(c) ? toast('Valeria stays: she is the showcase client on every phone') : setPending(c));
 
@@ -43,7 +45,7 @@ export function ClientsScreen({ selected }) {
     <${Screen}>
       <div class="stack">
         <${LargeTitle} detail=${clients.length ? `${clients.length} on this device` : null}>Clients<//>
-        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Name or phone" /></div>
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Name, phone or Customer ID" /></div>
         ${due.length > 0 && html`<${Section} title="Due for a visit">
           ${due.map(({ client, due: when }) => html`<${ClientRow} client=${client} on=${client.id === selected} note=${when <= new Date() ? 'Overdue' : 'Due ' + fmtDayMonth(when)} onDelete=${askDelete} />`)}
         <//>`}
@@ -120,6 +122,8 @@ export function ClientScreen({ id, embedded }) {
   const g = guidance(client.prescription, catalogue);
   const due = recallDate(client, orders);
   const tel = client.phone.replace(/[^\d+]/g, '');
+  const age = ageOn(client.birthdate);
+  const past = historyOf(client);
 
   const startOrder = () => {
     const { draft } = getState();
@@ -137,13 +141,23 @@ export function ClientScreen({ id, embedded }) {
         <div class="group">
           <div class="cell"><span class="k">Phone</span><span class="v">${client.phone ? html`<a href=${'tel:' + tel}>${client.phone}</a>` : '—'}</span></div>
           ${client.email && html`<div class="cell"><span class="k">Email</span><span class="v"><a href=${'mailto:' + client.email}>${client.email}</a></span></div>`}
+          ${client.customerId && html`<div class="cell"><span class="k">Customer ID</span><span class="v num sel">${client.customerId}</span></div>`}
+          ${client.birthdate && html`<div class="cell"><span class="k">Birthdate</span><span class="v">${fmtDate(client.birthdate)}${age != null ? ` · ${age}` : ''}</span></div>`}
+          ${client.quality && html`<div class="cell"><span class="k">Quality</span><span class="v">${client.quality}</span></div>`}
           ${client.notes && html`<div class="cell"><span class="k">Notes</span><span class="v">${client.notes}</span></div>`}
         </div>
         <${RxCard} rx=${client.prescription} onEdit=${() => setSheet('rx')} />
         ${g.reasons.length > 0 && html`<div class="gap-s">${g.reasons.map((r) => html`<div class="silver small">${r}</div>`)}</div>`}
-        ${contactIsBlank(client.contactRx)
-          ? html`<${Secondary} icon="cl" onClick=${() => setSheet('cl')}>Add a contact lens prescription<//>`
-          : html`<${ContactRxCard} cl=${client.contactRx} onEdit=${() => setSheet('cl')} />`}
+        ${!rxIsBlank(client.nearRx) && html`<${RxCard} rx=${client.nearRx} title="Lecture" near onEdit=${() => setSheet('near')} />`}
+        ${!contactIsBlank(client.contactRx) && html`<${ContactRxCard} cl=${client.contactRx} onEdit=${() => setSheet('cl')} />`}
+        ${rxIsBlank(client.nearRx) && html`<${Secondary} icon="glasses" onClick=${() => setSheet('near')}>Add a lecture prescription<//>`}
+        ${contactIsBlank(client.contactRx) && html`<${Secondary} icon="cl" onClick=${() => setSheet('cl')}>Add a contact lens prescription<//>`}
+        ${past.length > 0 && html`<section class="gap-s">
+          <${Eyebrow}>Prescription history<//>
+          <div class="group flush-rows">${past.map((h) => html`<${Row} onClick=${() => setSheet(h)} one
+            title=${`${RX_KINDS[h.kind].label} · ${h.rx.issuedOn ? fmtDate(h.rx.issuedOn) : 'no date'}`}
+            detail=${[h.kind === 'contact' ? h.rx.brand : null, rxSummary(h.rx)].filter(Boolean).join(' · ') || '—'} chev />`)}</div>
+        </section>`}
         <section class="gap-s">
           <${Eyebrow}>Orders and history<//>
           ${mine.length === 0 ? html`<p class="para muted">Nothing yet.</p>` : html`<div class="group flush-rows">${mine.map((o) => html`<${OrderRow} order=${o} byTitle />`)}</div>`}
@@ -154,6 +168,8 @@ export function ClientScreen({ id, embedded }) {
     ${sheet === 'edit' && html`<${ClientEditorSheet} client=${client} onClose=${() => setSheet(null)} />`}
     ${sheet === 'rx' && html`<${ClientRxSheet} client=${client} kind="glasses" onClose=${() => setSheet(null)} />`}
     ${sheet === 'cl' && html`<${ClientRxSheet} client=${client} kind="contact" onClose=${() => setSheet(null)} />`}
+    ${sheet === 'near' && html`<${ClientRxSheet} client=${client} kind="near" onClose=${() => setSheet(null)} />`}
+    ${sheet?.kind && html`<${RxHistorySheet} client=${client} entry=${sheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'replace' && html`<${Confirm} title="Replace the order in progress?" message="The order being built belongs to another client. Starting one here clears it — save it first if you need it."
       action="Clear it and start" onConfirm=${async () => { await clearDraft(); await setDraftClient(client.id); go('#/find/order'); }} onClose=${() => setSheet(null)} />`}`;
 }
@@ -179,6 +195,16 @@ export function ClientEditorSheet({ client, onClose, onSaved }) {
         <label class="cell"><span class="k">Name</span><input value=${c.name} autocomplete="off" autocapitalize="words" placeholder="Required" onInput=${(e) => set('name')(e.currentTarget.value)} /></label>
         <label class="cell"><span class="k">Phone</span><input type="tel" inputmode="tel" value=${c.phone} placeholder="—" onInput=${(e) => set('phone')(e.currentTarget.value)} /></label>
         <label class="cell"><span class="k">Email</span><input type="email" inputmode="email" autocapitalize="off" value=${c.email} placeholder="—" onInput=${(e) => set('email')(e.currentTarget.value)} /></label>
+      </div>
+      <div class="group">
+        <label class="cell"><span class="k">Customer ID</span><input inputmode="numeric" autocomplete="off" value=${c.customerId ?? ''} placeholder="—" onInput=${(e) => set('customerId')(e.currentTarget.value.replace(/\D/g, ''))} /></label>
+        <label class="cell"><span class="k">Birthdate</span><input type="date" value=${c.birthdate ?? ''} max=${isoDay(new Date())} onInput=${(e) => set('birthdate')(e.currentTarget.value || null)} /></label>
+        <label class="cell"><span class="k">Quality</span>
+          <select value=${c.quality ?? ''} onChange=${(e) => set('quality')(e.currentTarget.value)}>
+            <option value="">—</option>
+            ${QUALITIES.map((q) => html`<option value=${q}>${q}</option>`)}
+          </select>
+        </label>
       </div>
       <div class="gap-s">
         <${Eyebrow}>Notes<//>

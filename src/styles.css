@@ -628,6 +628,8 @@ html[data-nav="tab"]::view-transition-old(root), html[data-nav="tab"]::view-tran
 .dock { view-transition-name: dock; }
 .topnav { view-transition-name: topnav; }
 .list-pane { view-transition-name: list-pane; }
+/* Its view-transition name makes the list its own layer, so a sheet opened from it lifts the whole pane above the record. */
+.list-pane:has(.scrim) { z-index: 50; }
 ::view-transition-group(tabbar), ::view-transition-old(tabbar), ::view-transition-new(tabbar),
 ::view-transition-group(topnav), ::view-transition-old(topnav), ::view-transition-new(topnav) { animation: none; }
 ::view-transition-old(dock), ::view-transition-new(dock) { animation-duration: .2s; }

@@ -44,11 +44,12 @@ export function snap(value, { min, max, step }) {
   return Number(s.toFixed(2));
 }
 
-/** Monocular far PD per eye: the eye's own, else half the binocular figure. */
-export function monoPd(rx, side) {
-  const own = rx?.[side]?.pdFar;
+/** Monocular PD per eye: the eye's own, else half the binocular figure. Far, or near for a lecture Rx. */
+export function monoPd(rx, side, near = false) {
+  const own = rx?.[side]?.[near ? 'pdNear' : 'pdFar'];
   if (own) return Number(own);
-  return rx?.pdFarMM ? Number(rx.pdFarMM) / 2 : null;
+  const bin = near ? rx?.pdNearMM : rx?.pdFarMM;
+  return bin ? Number(bin) / 2 : null;
 }
 
 export const hasPrism = (rx) => ['od', 'os'].some((e) => Number(rx?.[e]?.prism?.amount) > 0);
@@ -115,15 +116,90 @@ export function sphericalEquivalent(sphere, cylinder = 0) {
   return Math.round(se * 4) / 4;
 }
 
+/** How he sizes up a client, as Alpha's CRM does. */
+export const QUALITIES = ['Easygoing', 'Regular', 'Demanding', 'Difficult'];
+
+/**
+ * A client. Besides the glasses (`prescription`) and contact lens ones, a
+ * lecture prescription for near work (`nearRx`, its PD the near one), and the
+ * prescriptions they had before (`rxHistory`).
+ */
 export function newClient(name = '') {
   return {
-    id: uid(), name, phone: '', email: '', prescription: blankRx(), contactRx: null, notes: '',
+    id: uid(), name, phone: '', email: '', customerId: '', birthdate: null, quality: '',
+    prescription: blankRx(), nearRx: null, contactRx: null, rxHistory: [], notes: '',
     isFavourite: false, createdOn: new Date().toISOString(),
   };
 }
 
+/** Whole years since `YYYY-MM-DD`. */
+export function ageOn(birthdate, now = new Date()) {
+  const b = dayToDate(birthdate);
+  if (!b) return null;
+  let a = now.getFullYear() - b.getFullYear();
+  if (now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) a--;
+  return a >= 0 ? a : null;
+}
+
 export const eyeIsBlank = (e) => !e || (!Number(e.sphere) && !Number(e.cylinder) && !Number(e.axis) && !Number(e.addition));
 export const rxIsBlank = (rx) => !rx || (eyeIsBlank(rx.od) && eyeIsBlank(rx.os));
+
+// ---------------------------------------------------------------------------
+// History: the prescriptions a client had before.
+//
+// A PRESCRIPTION IS ITS ISSUE DATE. Saving one with another date puts the one
+// it replaces into the history; saving one with the same date is a correction,
+// and leaves nothing behind. The history holds one of each kind per date.
+
+export const RX_KINDS = {
+  glasses: { field: 'prescription', label: 'Glasses', blank: rxIsBlank },
+  near: { field: 'nearRx', label: 'Lecture', blank: rxIsBlank },
+  contact: { field: 'contactRx', label: 'Contact lenses', blank: (cl) => contactIsBlank(cl) },
+};
+
+const dateOf = (rx) => rx?.issuedOn ?? null;
+
+/** The history with `rx` in it, in place of any of its kind from the same day. */
+function archived(history, kind, rx) {
+  return [
+    { id: uid(), kind, rx, archivedOn: new Date().toISOString() },
+    ...(history ?? []).filter((h) => !(h.kind === kind && dateOf(h.rx) === dateOf(rx))),
+  ];
+}
+
+/** The client with this prescription on file; the one it replaces goes into their history when it was another. */
+export function withRx(client, kind, rx) {
+  const { field, blank } = RX_KINDS[kind];
+  const old = client[field] ?? null;
+  let rxHistory = client.rxHistory ?? [];
+  if (old && !blank(old) && (!rx || blank(rx) || dateOf(old) !== dateOf(rx))) rxHistory = archived(rxHistory, kind, old);
+  // The one now on file is no longer history.
+  if (rx && !blank(rx)) rxHistory = rxHistory.filter((h) => !(h.kind === kind && dateOf(h.rx) === dateOf(rx)));
+  return { ...client, [field]: rx, rxHistory };
+}
+
+/**
+ * Prescriptions from elsewhere (the Alpha workbook) against the client's: the
+ * newest of all is on file and the rest are history. One already here for the
+ * same day — on file or in the history — stays as it is.
+ */
+export function takeRx(client, kind, incoming = []) {
+  const { field, blank } = RX_KINDS[kind];
+  let c = client;
+  const newest = (a, b) => (dateOf(b) ?? '') > (dateOf(a) ?? '');
+  for (const rx of [...incoming].filter((r) => r && !blank(r)).sort((a, b) => (dateOf(a) ?? '').localeCompare(dateOf(b) ?? ''))) {
+    const current = c[field] ?? null;
+    const here = (current && !blank(current) && dateOf(current) === dateOf(rx))
+      || (c.rxHistory ?? []).some((h) => h.kind === kind && dateOf(h.rx) === dateOf(rx));
+    if (here) continue;
+    if (!current || blank(current) || newest(current, rx)) c = withRx(c, kind, rx);
+    else c = { ...c, rxHistory: archived(c.rxHistory, kind, rx) };
+  }
+  return c;
+}
+
+/** The history, newest prescription first. */
+export const historyOf = (client) => [...(client?.rxHistory ?? [])].sort((a, b) => (dateOf(b.rx) ?? '').localeCompare(dateOf(a.rx) ?? ''));
 
 /** `-2.25 -1.00 × 175°` — the way it is written on the form. */
 export function eyeText(e) {

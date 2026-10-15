@@ -16,6 +16,7 @@ export function showcaseClient(now = new Date()) {
   const issuedOn = isoDay(addDays(now, -30));
   return {
     id: SHOWCASE_ID, showcase: true, name: 'Valeria Luxe', phone: '+81 90-7895-6779', email: 'valeria.luxe@loeil.com',
+    customerId: '', birthdate: '1994-05-12', quality: 'Easygoing', nearRx: null, rxHistory: [],
     prescription: {
       ...blankRx(), issuedOn,
       od: { ...blankEye(), sphere: -1.75, cylinder: -0.5, axis: 175, pdFar: 31.5 },

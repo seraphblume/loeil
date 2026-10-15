@@ -6,13 +6,15 @@
 // IMPORT READS THREE SHAPES: this app's own, the iOS app's export, and the
 // Android app's export — so moving from the native apps loses nothing.
 
-import { blankRx, blankEye, blankContactRx } from './crm.js';
+import { blankRx, blankEye, blankContactRx, blankContactEye, QUALITIES, RX_KINDS } from './crm.js';
+import { normalizeControl } from './control.js';
 import { uid } from './util.js';
 
 export const BACKUP_FORMAT = 'loeil-backup';
 
-export function exportBackup({ clients, orders }) {
-  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), clients, orders };
+/** Clients, orders, and this phone's Control (Delivery and Follow Up) when there is one. */
+export function exportBackup({ clients, orders, control }) {
+  return { format: BACKUP_FORMAT, version: 1, exportedAt: new Date().toISOString(), clients, orders, ...(control ? { control } : {}) };
 }
 
 const STATUS = { DRAFT: 'draft', PRESENTED: 'presented', SOLD: 'sold', LOST: 'lost' };
@@ -50,14 +52,28 @@ function rx(p) {
 function contact(cl) {
   if (!cl) return null;
   const b = blankContactRx();
-  const e = (x) => ({ sphere: num(x?.sphere), cylinder: num(x?.cylinder), axis: num(x?.axis) });
-  return { ...b, od: e(cl.od), os: e(cl.os), addition: num(cl.addition), brand: cl.brand ?? '', modality: cl.modality ?? '', issuedOn: day(cl.issuedOn) };
+  // The gas-permeable fitting (K1 K2 RC DIA) travels with the powers.
+  const e = (x) => ({
+    ...blankContactEye(), sphere: num(x?.sphere), cylinder: num(x?.cylinder), axis: num(x?.axis),
+    k1: opt(x?.k1), k2: opt(x?.k2), rc: opt(x?.rc), dia: opt(x?.dia),
+  });
+  return {
+    ...b, od: e(cl.od), os: e(cl.os), addition: num(cl.addition), brand: cl.brand ?? '', modality: cl.modality ?? '',
+    issuedOn: day(cl.issuedOn), gp: Boolean(cl.gp),
+  };
 }
+
+const READ = { glasses: rx, near: rx, contact };
 
 function client(c) {
   return {
     id: String(c.id ?? uid()), name: c.name ?? '', phone: c.phone ?? '', email: c.email ?? '',
-    prescription: rx(c.prescription), contactRx: contact(c.contactRx), notes: c.notes ?? '', isFavourite: Boolean(c.isFavourite),
+    customerId: c.customerId ? String(c.customerId) : '', birthdate: day(c.birthdate),
+    quality: QUALITIES.includes(c.quality) ? c.quality : '',
+    prescription: rx(c.prescription), nearRx: c.nearRx ? rx(c.nearRx) : null, contactRx: contact(c.contactRx),
+    rxHistory: (Array.isArray(c.rxHistory) ? c.rxHistory : []).filter((h) => RX_KINDS[h?.kind] && h.rx)
+      .map((h) => ({ id: String(h.id ?? uid()), kind: h.kind, rx: READ[h.kind](h.rx), archivedOn: iso(h.archivedOn) })),
+    notes: c.notes ?? '', isFavourite: Boolean(c.isFavourite),
     createdOn: iso(c.createdOn) ?? new Date().toISOString(),
   };
 }
@@ -112,7 +128,7 @@ function order(o) {
   };
 }
 
-/** Any supported backup → `{ clients, orders, source }`. Throws on anything else. */
+/** Any supported backup → `{ clients, orders, control, source }`. Throws on anything else. */
 export function readBackup(json) {
   const data = typeof json === 'string' ? JSON.parse(json) : json;
   if (!data || !Array.isArray(data.clients) || !Array.isArray(data.orders)) {
@@ -121,7 +137,7 @@ export function readBackup(json) {
   const source = data.format === BACKUP_FORMAT ? 'web'
     : data.orders.some((o) => (o.lines ?? []).some((l) => l.type)) ? 'Android'
       : data.orders.some((o) => 'clientID' in o) ? 'iOS' : 'web';
-  return { clients: data.clients.map(client), orders: data.orders.map(order), source };
+  return { clients: data.clients.map(client), orders: data.orders.map(order), control: normalizeControl(data.control), source };
 }
 
 /** Merge without overwriting: anything already on this phone wins. */
