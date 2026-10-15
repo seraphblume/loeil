@@ -13,7 +13,7 @@
 // not a person, though — a mother books her son on her own phone — so a client
 // is the name and the phone together.
 
-import { blankRx, blankEye, blankContactRx, blankContactEye, rxIsBlank, takeRx, QUALITIES } from './crm.js';
+import { blankRx, blankEye, blankContactRx, blankContactEye, rxIsBlank, mirrorRx, canon, QUALITIES } from './crm.js';
 import { fold, sheetDay, toCents, digits, uid } from './util.js';
 
 /** What the Products column abbreviates, in the order a ticket reads. */
@@ -30,7 +30,11 @@ export const ALPHA_PRODUCTS = {
   ACC: 'Accessories',
 };
 
-const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+const num = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null; // a word in a figure's cell is not a figure
+};
 const zero = (v) => num(v) ?? 0;
 export const nameKey = (s) => fold(s).replace(/\s+/g, ' ').trim();
 export const clientKey = (name, phone) => `${nameKey(name)}|${digits(phone)}`;
@@ -101,10 +105,13 @@ function contactRx(row, c, day) {
   const brand = c.brand >= 0 ? String(row[c.brand] ?? '').trim() : '';
   if (!has(row, c.cl) && !brand) return null;
   const eye = (s, cy, ax) => ({ ...blankContactEye(), sphere: zero(row[s]), cylinder: zero(row[cy]), axis: zero(row[ax]) });
+  // A multifocal lens's ADD is a figure, or a word (Low, Med, High) — kept as written.
+  const add = c.clAdd >= 0 ? row[c.clAdd] : null;
   return {
     ...blankContactRx(),
     od: eye(c.cl.odS, c.cl.odC, c.cl.odA), os: eye(c.cl.osS, c.cl.osC, c.cl.osA),
-    addition: c.clAdd >= 0 ? zero(row[c.clAdd]) : 0,
+    addition: num(add) ?? 0,
+    ...(num(add) == null && String(add ?? '').trim() ? { addLabel: String(add).trim() } : {}),
     brand, modality: c.modality >= 0 ? String(row[c.modality] ?? '').trim() : '',
     issuedOn: day || null,
   };
@@ -164,6 +171,7 @@ export function readAlpha(rows, staff = []) {
   return {
     source: 'Alpha',
     layout: 'tickets',
+    provides: { fields: c.phone >= 0 ? ['phone'] : [], kinds: ['glasses', 'contact'] },
     people: list,
     visits: list.reduce((n, p) => n + p.visits.length, 0),
     skipped,
@@ -251,7 +259,9 @@ export function readClients(rows) {
     if (cl) p.rxs.contact.push(cl);
   }
   const list = [...people.values()];
-  return { source: 'Alpha', layout: 'clients', people: list, visits: 0, skipped };
+  const fields = [['phone', c.phone], ['email', c.email], ['customerId', c.id], ['birthdate', c.birth], ['quality', c.quality]].filter(([, i]) => i >= 0).map(([k]) => k);
+  const kinds = ['glasses', ...(c.n.odS >= 0 ? ['near'] : []), ...(c.cl.odS >= 0 || c.brand >= 0 ? ['contact'] : [])];
+  return { source: 'Alpha', layout: 'clients', provides: { fields, kinds }, people: list, visits: 0, skipped };
 }
 
 /** The All tab's header row (it starts with Sell ID) and its columns. */
@@ -336,33 +346,42 @@ export function historyOrder(v, client) {
 }
 
 const KINDS = ['glasses', 'near', 'contact'];
-const FILLED = ['phone', 'email', 'customerId', 'birthdate', 'quality'];
-const known = (c) => JSON.stringify([...FILLED.map((k) => c[k] ?? null), c.prescription ?? null, c.nearRx ?? null, c.contactRx ?? null, c.rxHistory ?? []]);
-const earliest = (p) => [...p.visits.map((v) => v.day), ...KINDS.flatMap((k) => p.rxs[k].map((r) => r.issuedOn))].filter(Boolean).sort()[0] ?? null;
+const FIELDS = ['phone', 'email', 'customerId', 'birthdate', 'quality'];
+const known = (c) => canon([...FIELDS.map((k) => c[k] || null), c.prescription ?? null, c.nearRx ?? null, c.contactRx ?? null, (c.rxHistory ?? []).map((h) => [h.kind, h.rx])]);
+const earliest = (p) => [...p.visits.map((v) => v.day), ...KINDS.flatMap((k) => (p.rxs[k] ?? []).map((r) => r.issuedOn))].filter(Boolean).sort()[0] ?? null;
 
 /**
  * What the import does to this phone, worked out before anything changes:
  * the merged lists, and the counts the preview shows.
  *
- * Someone already here keeps what is here: Alpha fills in what is missing
- * (phone, email, Customer ID, birthdate, quality), brings a newer prescription
- * — the one it replaces goes into their history — and an older one into the
- * history. Their tickets become sales, once each.
+ * THE WORKBOOK IS THE SOURCE OF RECORD. Someone already here takes what Alpha
+ * has for them — phone, email, Customer ID, birthdate, quality, and each
+ * prescription it has a block for (the one it replaces goes into their
+ * history) — and keeps what Alpha has no column for: notes, favourite, orders.
+ * Clients Alpha does not list stay as they are. Their tickets become sales,
+ * once each.
  */
 export function mergeAlpha(current, alpha) {
   const clients = current.clients.map((c) => ({ ...c }));
   const byKey = new Map(clients.map((c) => [clientKey(c.name, c.phone), c]));
   const byName = new Map();
   for (const c of clients) if (!digits(c.phone)) byName.set(nameKey(c.name), c);
+  const named = new Map();
+  for (const c of clients) { const k = nameKey(c.name); named.set(k, named.has(k) ? null : c); } // null: more than one by that name
   const byId = new Map(clients.filter((c) => c.customerId).map((c) => [`${c.customerId}|${nameKey(c.name)}`, c]));
+  const taken = new Set();
   const haveSale = new Set(current.orders.flatMap((o) => [o.id, o.saleId && `alpha-${o.saleId}`]).filter(Boolean));
   const orders = [...current.orders];
   const counts = { clients: 0, matched: 0, updated: 0, orders: 0, already: 0, history: 0 };
+  const provides = alpha.provides ?? { fields: ['phone'], kinds: ['glasses', 'contact'] };
 
   for (const p of alpha.people) {
     // A Customer ID is shared by a family, so it counts together with the name.
-    let client = (p.customerId && byId.get(`${p.customerId}|${nameKey(p.name)}`))
-      ?? byKey.get(clientKey(p.name, p.phone)) ?? byName.get(nameKey(p.name));
+    // The name alone is enough when only one client on this phone has it.
+    let client = [
+      p.customerId && byId.get(`${p.customerId}|${nameKey(p.name)}`),
+      byKey.get(clientKey(p.name, p.phone)), byName.get(nameKey(p.name)), named.get(nameKey(p.name)),
+    ].find((c) => c && !taken.has(c.id)) ?? null;
     const fresh = !client;
     if (fresh) {
       const first = earliest(p);
@@ -375,11 +394,12 @@ export function mergeAlpha(current, alpha) {
       byKey.set(clientKey(client.name, client.phone), client);
       counts.clients++;
     } else counts.matched++;
+    taken.add(client.id);
     const before = known(client);
     const historyBefore = (client.rxHistory ?? []).length;
-    for (const k of FILLED) if (!client[k] && p[k]) client[k] = p[k];
+    for (const k of provides.fields) client[k] = p[k] || (k === 'birthdate' ? null : '');
     let next = client;
-    for (const kind of KINDS) next = takeRx(next, kind, p.rxs?.[kind] ?? []);
+    for (const kind of provides.kinds) next = mirrorRx(next, kind, p.rxs?.[kind] ?? []);
     Object.assign(client, next);
     counts.history += Math.max(0, (client.rxHistory ?? []).length - historyBefore);
     if (!fresh && known(client) !== before) counts.updated++;

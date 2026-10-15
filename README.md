@@ -59,11 +59,13 @@ iPhone and Android apps, or the **Alpha workbook**:
   prescriptions, and each ticket of theirs on the **All** tab that this phone's
   seller sold becomes a sale in their history (Sell ID, shipment, deal, amount).
   The earlier CRM, a row per ticket, still reads too. A client is the same name
-  with the same phone (a phone is not a person: families share one), or the same
-  name with the same Customer ID. Someone already on the phone keeps what is
-  there: Alpha fills in what is missing and brings a newer prescription (the one
-  it replaces goes into their history), and importing the same workbook again
-  adds only what is new.
+  with the same Customer ID or the same phone (a phone is not a person: families
+  share one), or the same name when only one client on the phone has it. **Alpha is
+  the source of record:** someone already on the phone takes its phone, email,
+  Customer ID, birthdate, quality and prescriptions — a prescription it replaces
+  goes into their history, so nothing is lost — and keeps what Alpha has no column
+  for (notes, favourite, orders). Clients Alpha does not list stay as they are,
+  and importing the same workbook again adds only what is new.
 - **Its Control** comes in on every phone, that seller's rows only — see
   [Delivery and Follow Up](#delivery-and-follow-up).
 

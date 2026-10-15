@@ -178,22 +178,33 @@ export function withRx(client, kind, rx) {
   return { ...client, [field]: rx, rxHistory };
 }
 
+/** Key order aside, the same value: what a backup round trip or an edit leaves alone compares equal. */
+export function canon(x) {
+  if (Array.isArray(x)) return `[${x.map(canon).join(',')}]`;
+  if (x && typeof x === 'object') return `{${Object.keys(x).sort().map((k) => `${JSON.stringify(k)}:${canon(x[k])}`).join(',')}}`;
+  return JSON.stringify(x ?? null);
+}
+
 /**
- * Prescriptions from elsewhere (the Alpha workbook) against the client's: the
- * newest of all is on file and the rest are history. One already here for the
- * same day — on file or in the history — stays as it is.
+ * The client's prescriptions of one kind made to match the Alpha workbook's,
+ * the source of record: its newest is on file — whatever was on the phone, a
+ * correction on the same day included — and its older ones are in the history.
+ * Nothing is lost: what it replaces on file goes into the history. With none of
+ * that kind in the workbook, the one on file goes into the history too.
  */
-export function takeRx(client, kind, incoming = []) {
+export function mirrorRx(client, kind, incoming = []) {
   const { field, blank } = RX_KINDS[kind];
+  const byDay = new Map();
+  for (const rx of [...incoming].filter((r) => r && !blank(r)).sort((a, b) => (dateOf(a) ?? '').localeCompare(dateOf(b) ?? ''))) byDay.set(dateOf(rx), rx);
+  const days = [...byDay.values()];
+  const newest = days.pop() ?? null;
   let c = client;
-  const newest = (a, b) => (dateOf(b) ?? '') > (dateOf(a) ?? '');
-  for (const rx of [...incoming].filter((r) => r && !blank(r)).sort((a, b) => (dateOf(a) ?? '').localeCompare(dateOf(b) ?? ''))) {
-    const current = c[field] ?? null;
-    const here = (current && !blank(current) && dateOf(current) === dateOf(rx))
-      || (c.rxHistory ?? []).some((h) => h.kind === kind && dateOf(h.rx) === dateOf(rx));
-    if (here) continue;
-    if (!current || blank(current) || newest(current, rx)) c = withRx(c, kind, rx);
-    else c = { ...c, rxHistory: archived(c.rxHistory, kind, rx) };
+  const current = c[field] ?? null;
+  if (newest) { if (canon(current) !== canon(newest)) c = withRx(c, kind, newest); }
+  else if (current && !blank(current)) c = withRx(c, kind, kind === 'glasses' ? blankRx() : null);
+  for (const rx of days) {
+    const h = (c.rxHistory ?? []).find((x) => x.kind === kind && dateOf(x.rx) === dateOf(rx));
+    if (!h || canon(h.rx) !== canon(rx)) c = { ...c, rxHistory: archived(c.rxHistory, kind, rx) };
   }
   return c;
 }

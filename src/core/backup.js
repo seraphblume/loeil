@@ -59,7 +59,7 @@ function contact(cl) {
   });
   return {
     ...b, od: e(cl.od), os: e(cl.os), addition: num(cl.addition), brand: cl.brand ?? '', modality: cl.modality ?? '',
-    issuedOn: day(cl.issuedOn), gp: Boolean(cl.gp),
+    issuedOn: day(cl.issuedOn), gp: Boolean(cl.gp), ...(cl.addLabel ? { addLabel: String(cl.addLabel) } : {}),
   };
 }
 

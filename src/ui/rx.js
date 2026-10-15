@@ -217,6 +217,9 @@ export function ContactRxEntry({ cl, onChange, brands = [] }) {
     </div>
     <div class="group">
       <div class="cell cell-slider"><${RxSlider} kind="addition" label="ADD" eye="cl" value=${cl.addition} onChange=${(v) => onChange({ ...cl, addition: v })} /></div>
+      ${cl.addLabel != null && cl.addLabel !== '' && html`<label class="cell"><span class="k">ADD as written</span>
+        <input value=${cl.addLabel} placeholder="Low, Med, High" autocomplete="off" onInput=${(e) => onChange({ ...cl, addLabel: e.currentTarget.value })} />
+      </label>`}
     </div>`}
   </div>`;
 }
@@ -277,7 +280,7 @@ export function ContactRxCard({ cl, onEdit }) {
       <div class="rx-card-in">
         ${(cl.brand || cl.modality) && html`<div class="rx-brand">${cl.brand || 'Brand not set'}${cl.modality && html`<span class="muted"> · ${cl.modality}</span>`}</div>`}
         <${RxTable} cols=${cl.gp ? GP_FIELDS.map((f) => f.label) : ['SPH', 'CYL', 'AXIS']} rows=${[row('od'), row('os')]} />
-        <div class="rx-foot">${[cl.gp ? 'Gas permeable' : null, !cl.gp && Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : null, cl.issuedOn && `Issued ${fmtDate(cl.issuedOn)}`].filter(Boolean).join(' · ')}</div>
+        <div class="rx-foot">${[cl.gp ? 'Gas permeable' : null, !cl.gp && Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : !cl.gp && cl.addLabel ? `ADD ${cl.addLabel}` : null, cl.issuedOn && `Issued ${fmtDate(cl.issuedOn)}`].filter(Boolean).join(' · ')}</div>
       </div>
     </button>
   </section>`;

@@ -236,7 +236,7 @@ function AlphaSheet({ parsed, onClose }) {
         <p class="para">${alpha.layout === 'clients'
           ? 'Each client comes with their Customer ID, birthdate, quality and their glasses, lecture and contact lens prescriptions, and every ticket of yours on the All tab becomes a sale in their history.'
           : 'Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.'}</p>
-        <p class="note">Someone already on this phone keeps what is here: Alpha fills in what is missing, and brings a newer prescription — the one it replaces goes into their history. Importing the same workbook again adds only what is new.</p>`}
+        <p class="note">Alpha is the source: someone already on this phone takes its details and prescriptions, and a prescription it replaces goes into their history. Notes and favourites stay, and so does anyone Alpha does not list. Importing the same workbook again adds only what is new.</p>`}
       ${crm && !alpha && html`<p class="note">The CRM’s clients come in on the admin’s phone only.</p>`}
       ${control && html`
         <${Eyebrow}>Control<//>
