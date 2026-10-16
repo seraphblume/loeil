@@ -132,7 +132,7 @@ export function ticketItems(rows, catalogue) {
     if (l.kind === 'lens') {
       out.push({ code: lensCodeText(l.lens), desc: upper([l.eye, l.power, l.lens.displayName].filter(Boolean).join(' ')), qty, price: unit(r.list), net: unit(r.net), total: r.net, pending });
     } else if (l.kind === 'frame') {
-      out.push({ code: l.sku, desc: upper(l.description), qty: 1, price: r.list, net: r.net, total: r.net, note: l.set ? `${l.set.name} (${l.set.id})` : null });
+      out.push({ code: l.sku, desc: upper(l.description), qty: 1, price: r.list, net: r.net, total: r.net, note: l.set ? l.set.name : null }); // the set by name; its ID Maestro stays off the ticket
     } else {
       out.push({ code: l.code, desc: upper(l.description), qty, price: unit(r.list), net: unit(r.net), total: r.net, register: r.net == null, note: isShare(l) ? `${l.percent}% of ${money(r.base)}` : null });
     }

@@ -2,7 +2,7 @@
 // titles that hand over to the bar as they scroll away, glass for the
 // navigation layer only, one strong action per screen in the opposite tone.
 
-import { html, useState, useEffect, useRef, useLayoutEffect } from './html.js';
+import { html, render, useState, useEffect, useRef, useLayoutEffect } from './html.js';
 import { Icon } from './icons.js';
 import { back, linkProps } from './router.js';
 import { dayToDate } from '../core/util.js';
@@ -146,6 +146,23 @@ export function SearchField({ value, onInput, placeholder, autofocus, icon = 'se
 }
 
 /**
+ * Its children, rendered at the end of the page rather than where it stands.
+ * On an iPad or a computer the list is a scrolling pane of its own, and a sheet
+ * opened from it was clipped to that pane; from here it covers the whole window.
+ */
+function Portal({ children }) {
+  const host = useRef(null);
+  if (!host.current) host.current = document.createElement('div');
+  useLayoutEffect(() => {
+    const el = host.current;
+    document.body.appendChild(el);
+    return () => { render(null, el); el.remove(); };
+  }, []);
+  useLayoutEffect(() => { render(children, host.current); });
+  return null;
+}
+
+/**
  * A bottom sheet. Escape, the scrim, or a pull down on its bar close it.
  *
  * Every way a sheet can close — Cancel, a choice made inside it, the parent
@@ -188,7 +205,7 @@ export function Sheet({ title, onClose, left, right, children, full }) {
     if (sheet) { sheet.style.transition = 'transform .32s cubic-bezier(.32, .72, 0, 1)'; sheet.style.transform = ''; }
   };
 
-  return html`<div class="scrim" ref=${ref} onClick=${(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+  return html`<${Portal}><div class="scrim" ref=${ref} onClick=${(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
     <div class=${'sheet' + (full ? ' full' : '')} role="dialog" aria-modal="true" aria-label=${title}>
       <div class="sheet-bar" onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up}>
         <div class="grab" aria-hidden="true"></div>
@@ -198,7 +215,7 @@ export function Sheet({ title, onClose, left, right, children, full }) {
       </div>
       <div class="sheet-body">${children}</div>
     </div>
-  </div>`;
+  </div><//>`;
 }
 
 /** The leaving copy of a sheet: it slides from wherever it was, the scrim fades, then it is gone. */
@@ -209,7 +226,7 @@ function leaveGracefully(node) {
   ghost.setAttribute('aria-hidden', 'true');
   const sheet = ghost.firstElementChild;
   const from = node.firstElementChild?.style.transform || 'translateY(0)';
-  node.parentNode.insertBefore(ghost, node);
+  document.body.appendChild(ghost); // the sheet's own host leaves with it
   const done = () => ghost.remove();
   ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' });
   sheet?.animate([{ transform: from }, { transform: 'translateY(100%)' }], { duration: 220, easing: 'cubic-bezier(.32, .72, 0, 1)', fill: 'forwards' }).finished.then(done, done);

@@ -18,6 +18,7 @@ import {
 } from '../core/orders.js';
 import { OrderRxSheet, rxSummary, FitEye } from './rx.js';
 import { addOrderToQuote } from './quote.js';
+import { OrderGifts } from './gifts.js';
 import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
 import { solutionClash, clashParts } from '../core/presets.js';
@@ -287,6 +288,7 @@ export function OrderScreen() {
           </div>
         </div></div>`}
         ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
+        <${OrderGifts} order=${draft} />
         ${noFit.length > 0 && html`<div class="pad"><${Flag}>${noFit.length === 1 ? 'A contact lens needs its' : 'Contact lenses need their'} fitting (${[...new Set(noFit.map((l) => CL_FITS[lineFit(l, catalogue)].fields.map((f) => f.label).join(' ')))].join('; ')}). Tap “Add the fitting” on the line.<//></div>`}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 

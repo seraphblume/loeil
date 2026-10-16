@@ -220,7 +220,8 @@ function validatePresets(b, report, { facts, lookup }) {
     const k = `${t.presetId}|${t.tier}`;
     if (keys.has(k)) report.error('Lifestyle presets', `${where} is listed twice.`);
     keys.add(k);
-    if (!t.sv && !t.mf) report.error('Lifestyle presets', `${where} names no lens.`);
+    // No lens at all is a care preset (contact lenses): it must add something, then.
+    if (!t.sv && !t.mf && !(t.items?.length || t.extras?.length)) report.error('Lifestyle presets', `${where} names no lens and no accessories.`);
     for (const [label, spec] of [['single vision', t.sv], ['progressive', t.mf]]) {
       if (spec && !facts.some((f) => factsMatch(lookup, spec, f))) report.warn('Lifestyle presets', `${where}: the ${label} lens matches nothing in the catalogue.`);
     }

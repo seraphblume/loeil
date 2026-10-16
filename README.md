@@ -147,10 +147,13 @@ the All tab (Follow Up falls back to its Vendor column through Config's short
 names). An import puts the workbook's rows back as they are: its Status, Promised,
 Delivered and Pending win over anything changed on the phone since.
 
+A row opens as its own screen on a phone, and beside the list on an iPad or a
+computer, the way an order does (`#/orders/delivery/<Sell ID>`, `#/orders/followup/<Sell ID>`).
+
 - **Delivery** lists open orders by status (Delayed, In Production, Sent to Store,
   Ready for Pickup — oldest first), then the delivered ones, newest first. A row
   shows its promised date, the days left (or how many late), and what is pending.
-  Its sheet changes Status, Promised, Delivered and Pending with the sheet's own
+  Its screen changes Status, Promised, Delivered and Pending with the sheet's own
   rules: turning **Delivered** stamps today's date, leaving it clears the date, a
   typed delivered date makes the row Delivered, and the first promised date is kept
   as the **first promise**. An open order's Delivered cell in Alpha (a live
@@ -161,9 +164,24 @@ Delivered and Pending win over anything changed on the phone since.
   comes from Config's Delivery messages with each import. The phone is the CRM's,
   or else a client on this phone by the same name.
 - **Follow Up** lists each eye exam whose Sell ID never carried a sale — to follow
-  up, then those with a Plan ID — with the chat a tap away. Plan ID and Customer ID
-  can be typed here. Alpha rebuilds the list for the vendor on Control (or All):
-  rebuild it for All before importing on the sellers' phones.
+  up, then those with a **preset** (Progressive, First glasses, Digital nomad, All
+  round, Kids, Driver, Outdoors & sun, Luxury, Best Vision — Alpha's dropdown).
+  With a preset, WhatsApp sends that preset's message from Config's **Follow Up
+  messages**, the client's first name, the campaign's promotions and their end date
+  filled in (the message can be read before it goes); without one it just opens the
+  chat. The preset and Customer ID can be changed here; an earlier workbook's Plan
+  ID reads as the preset. Alpha rebuilds the list for the vendor on Control (or
+  All): rebuild it for All before importing on the sellers' phones.
+
+## Brand gifts
+
+When a brand gives something away with its frames — Converse, Carrera, Tommy and
+Nautica this campaign — it is a promotion of kind **gift** (Catalogue data →
+Promotions): `brand_in` names the brands, and `gift: 61004341/61004340` the items to
+hand over, from the accessory list's Brand Gift collection. A gift shows beside
+the brand's frames in every list, on the frame, and on an order carrying one, with
+a tap to put the gift item on the ticket; **Me → Brand gifts** lists them all.
+Gifts stay out of Live promotions, and never change a price.
 
 ## Discounts
 
@@ -196,22 +214,36 @@ standing one, which a new campaign's dates leave alone.
 **Lifestyle preset** at the top of the order's Add list puts a whole lens on the
 order in one tap — single vision, or progressive when the prescription has an ADD;
 high-index when the sphere is strong and the preset has one — with Plus Protection
-and the accessories that go with it (pouch, microfibre cloth, cleaning solution,
-a kids' case and strap). Each preset has tiers: an accessible price and the better
-value (Kids adds myopia control). Tapping another preset swaps the lens and what
-the last preset added; frames and anything added by hand stay.
+and the accessories that go with it (an Estuche Nube pouch, a microfibre cloth,
+cleaning solution; for Kids a case, a Xikú keychain — conchita or aguacate — and a
+strap). Each preset has tiers: an accessible price and the better value (Kids adds
+myopia control). Tapping another preset swaps the lens and what the last preset
+added; frames and anything added by hand stay.
+
+**Every order gets its own accessories.** An accessory lists its alternatives —
+the six Estuche Nube colours, both gift cloths, a dozen straps, both kids' cases and
+keychains — and each order takes one of those on hand at the first one's price,
+weighted by stock so the shelves empty evenly. The price never moves; the colour
+does, and the same order always shows the same one.
+
+**Contact lenses** is a care preset: no lens, only a solution and a lens case —
+Devlyn Multiplus 120 ml (Accessible) or ReNu Advanced 355 ml (Value) with the Xikú
+lens case. It leaves every lens on the order as it is, and a spectacle preset
+leaves it as it is.
 
 **Cleaning solutions damage Crizal (any of them), Transitions and Polarex**, and void
 their warranty. A preset never adds one to those lenses, whatever its data says,
 and an order that ends up with both is flagged — it stays only if the customer
-insists.
+insists. The **Saco Maravilloso** pouch carries a solution of its own, so it counts
+as one; the Estuche Nube is only a pouch. Contact lens solutions (ReNu, Multiplus)
+never touch spectacle lenses and are not.
 
 Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 `presets` tab of the workbook): a row per tier with its single vision and
 progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`), the extra
-codes, and the accessories as `Pouch: 61004120/61004121; Cleaning solution*: 61004172`
-— barcodes in order of preference (the first on hand, else the first in the price list), a `*` marking a
-cleaning solution. A tier can also name its **frame brands** (comma-separated):
+codes, and the accessories as `Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172`
+— the alternatives an order picks from (with none on hand, the first in the price list), a `*` marking a
+cleaning solution. A tier with no lens at all is a care preset. A tier can also name its **frame brands** (comma-separated):
 choosing it then asks for a frame of one of them, unless the option already has one.
 
 **Luxury** is built that way: value and premium lenses only, with a renowned frame —
@@ -250,7 +282,7 @@ order, no frame, or quote it as
   quoted at the set's price; one outside a set *from* its lowest catalogue price,
   and the option's total reads “from $…”;
 - **Set** — any frame of the set, at the set's price; the ticket adds a Set row with
-  its ID Maestro.
+  its name (the ID Maestro stays on the order screen, off the tickets).
 
 Then the lenses: a lifestyle preset, or the lenses already on the order. A frame
 quoted by brand or set is a placeholder — the order flags it, and the real frame is
@@ -322,7 +354,8 @@ $1,999 + $5,099 = $7,098 — and Plus Protection, if added, is 10% of that.
 
 Scan the frame and the order does the rest: the frame's brand picks the set, the
 lens walked in the cascade finds its row of the table on its own (or he picks
-it), and the ID Maestro goes in the codes. A catalogue frame is matched on its
+it), and the order shows the ID Maestro for the register (the quote and the
+receipt name the set only). A catalogue frame is matched on its
 brand exactly; a frame known only from stock on the brand its description
 starts with. Each row's match (`family|material|design|filter|colour|coating`)
 lives in the data, as does every price, so a new campaign is a data edit.

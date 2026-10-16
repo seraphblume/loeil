@@ -69,7 +69,7 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
     const isFrom = l.placeholder && !l.set && (l.priceSource === 'from' || (l.setExcluded && l.fromCents != null));
     if (isFrom) from = true;
     rows.push({ label: 'Frame', desc: upper(l.brand || l.description), qty: 1, price: r.list, from: isFrom });
-    if (l.set) rows.push({ label: 'Set', desc: upper(`${l.set.name} · ID Maestro ${l.set.id}`) });
+    if (l.set) rows.push({ label: 'Set', desc: upper(l.set.name) }); // the set by name; its ID Maestro stays off the ticket
   }
   for (const r of byKind('lens')) {
     const l = r.line;

@@ -22,9 +22,11 @@ export function OrderRow({ order, byTitle, on }) {
     end=${orderTotal(order) ? money(orderTotal(order)) : statusLabel(order.status)} />`;
 }
 
-export function OrdersScreen({ selected, query }) {
+/** `view` comes from the route when a delivery or follow-up is open beside the list. */
+export function OrdersScreen({ selected, query, view: open }) {
   const orders = useApp((s) => s.orders);
-  const view = VIEWS.some((v) => v.value === query?.get('view')) ? query.get('view') : 'orders';
+  const asked = open ?? query?.get('view');
+  const view = VIEWS.some((v) => v.value === asked) ? asked : 'orders';
   const show = (v) => go(v === 'orders' ? '#/orders' : `#/orders?view=${v}`, { replace: true });
   return html`
     <${Bar} title="Orders" large />
@@ -32,7 +34,7 @@ export function OrdersScreen({ selected, query }) {
       <div class="stack">
         <${LargeTitle}>Orders<//>
         <div class="pad"><${Seg} label="Show" value=${view} options=${VIEWS} onChange=${show} /></div>
-        ${view === 'delivery' ? html`<${DeliveryView} />` : view === 'followup' ? html`<${FollowUpView} />` : orders.length === 0
+        ${view === 'delivery' ? html`<${DeliveryView} selected=${selected} />` : view === 'followup' ? html`<${FollowUpView} selected=${selected} />` : orders.length === 0
           ? html`<div class="pad"><${Empty} title="No orders yet">Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);

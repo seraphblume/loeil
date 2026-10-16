@@ -198,6 +198,10 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .num { font-variant-numeric: tabular-nums; }
 .para { font-size: 15px; color: var(--label-2); margin: 0; line-height: 1.4; }
 .note { font-size: 13px; color: var(--label-3); margin: 0; line-height: 1.4; }
+/* A message as WhatsApp will open it, folded until asked for. */
+.msg-preview { background: var(--cell); border-radius: var(--radius); padding: 12px 16px; }
+.msg-preview summary { font-size: 15px; color: var(--label-2); cursor: pointer; }
+.msg-preview p { margin: 10px 0 2px; white-space: pre-line; font-size: 14px; line-height: 1.45; color: var(--label); }
 .pad-in { padding: 0 16px; }
 .sel { -webkit-user-select: text; user-select: text; }
 .center { text-align: center; }
@@ -415,6 +419,11 @@ button.group:disabled { opacity: 1; }
 .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--label-2); background: var(--fill); border-radius: 999px; padding: 3px 9px; }
 .pill.alert { color: var(--on-accent); background: var(--accent); }
 .pill svg { width: 12px; height: 12px; }
+/* A brand's gift: a quiet mark beside the frame, the items under the flag. */
+.gift-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--label-2); background: var(--fill); border-radius: 999px; padding: 1px 7px 1px 5px; vertical-align: 2px; }
+.gift-badge svg { width: 11px; height: 11px; }
+.gift-items { margin-top: 6px; display: grid; gap: 3px; }
+.gift-until { margin-top: 4px; font-size: 12px; color: var(--label-3); }
 
 .chip { font-size: 13px; font-weight: 500; color: var(--label-2); background: var(--fill); border-radius: 999px; padding: 4px 11px; line-height: 1.35; transition: transform .18s var(--spring), background-color .15s; }
 .chip:active { transform: scale(.94); }
@@ -628,8 +637,6 @@ html[data-nav="tab"]::view-transition-old(root), html[data-nav="tab"]::view-tran
 .dock { view-transition-name: dock; }
 .topnav { view-transition-name: topnav; }
 .list-pane { view-transition-name: list-pane; }
-/* Its view-transition name makes the list its own layer, so a sheet opened from it lifts the whole pane above the record. */
-.list-pane:has(.scrim) { z-index: 50; }
 ::view-transition-group(tabbar), ::view-transition-old(tabbar), ::view-transition-new(tabbar),
 ::view-transition-group(topnav), ::view-transition-old(topnav), ::view-transition-new(topnav) { animation: none; }
 ::view-transition-old(dock), ::view-transition-new(dock) { animation-duration: .2s; }

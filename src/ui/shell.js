@@ -26,7 +26,9 @@ import { QuoteScreen } from './quote.js';
 import { PresetsAdminScreen } from './presets.js';
 import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
+import { DeliveryScreen, FollowUpScreen } from './control.js';
 import { MeScreen, PromotionsScreen } from './me.js';
+import { GiftsScreen } from './gifts.js';
 import { PublishScreen } from './publish.js';
 import { DataHome } from './data/home.js';
 import { LensPricesScreen, AddCoatingScreen } from './data/lenses.js';
@@ -112,9 +114,17 @@ function Panes({ route }) {
       <div class="pane detail-pane">${a ? html`<${ClientScreen} id=${a} embedded key=${a} />` : html`<${Placeholder} icon="people" text="Choose a client" />`}</div>`;
   }
   if (tab === 'orders') {
-    return html`<div class="pane list-pane"><${OrdersScreen} selected=${a} query=${route.query} /></div>
-      <div class="pane detail-pane">${!a ? html`<${Placeholder} icon="doc" text="Choose an order" />`
-        : b === 'receipt' ? html`<${SavedReceiptScreen} id=${a} key=${a + 'r'} />` : html`<${SavedOrderScreen} id=${a} embedded key=${a} />`}</div>`;
+    // Delivery and Follow Up open their rows beside the list too: #/orders/delivery/<Sell ID>.
+    const control = a === 'delivery' || a === 'followup' ? a : null;
+    const view = control ?? route.query.get('view');
+    const empty = { delivery: 'Choose a delivery', followup: 'Choose a follow-up' }[view] ?? 'Choose an order';
+    const detail = control
+      ? (b ? (control === 'delivery' ? html`<${DeliveryScreen} saleId=${b} embedded key=${'d' + b} />` : html`<${FollowUpScreen} saleId=${b} embedded key=${'f' + b} />`)
+        : html`<${Placeholder} icon="doc" text=${empty} />`)
+      : !a ? html`<${Placeholder} icon="doc" text=${empty} />`
+        : b === 'receipt' ? html`<${SavedReceiptScreen} id=${a} key=${a + 'r'} />` : html`<${SavedOrderScreen} id=${a} embedded key=${a} />`;
+    return html`<div class="pane list-pane"><${OrdersScreen} selected=${control ? b : a} view=${control} query=${route.query} /></div>
+      <div class="pane detail-pane">${detail}</div>`;
   }
   return html`<div class="pane main-pane">${screenFor(route)}</div>`;
 }
@@ -153,6 +163,8 @@ function screenFor(route) {
   if (tab === 'quote') return html`<${QuoteScreen} />`;
   if (tab === 'clients') return a ? html`<${ClientScreen} id=${a} />` : html`<${ClientsScreen} />`;
   if (tab === 'orders') {
+    if (a === 'delivery') return b ? html`<${DeliveryScreen} saleId=${b} />` : html`<${OrdersScreen} view="delivery" />`;
+    if (a === 'followup') return b ? html`<${FollowUpScreen} saleId=${b} />` : html`<${OrdersScreen} view="followup" />`;
     if (a && b === 'receipt') return html`<${SavedReceiptScreen} id=${a} />`;
     return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} query=${route.query} />`;
   }
@@ -178,6 +190,7 @@ function screenFor(route) {
       return html`<${DataHome} />`;
     }
     if (a === 'promotions') return html`<${PromotionsScreen} />`;
+    if (a === 'gifts') return html`<${GiftsScreen} />`;
     return html`<${MeScreen} />`;
   }
   return html`<${FindHome} query=${route.query} />`;

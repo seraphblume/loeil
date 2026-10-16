@@ -48,6 +48,7 @@ const P = {
   text: html`<path d="M5 7h14M5 12h14M5 17h9"/>`,
   arrowUp: html`<path d="M12 19V6M7 11l5-5 5 5"/>`,
   cloud: html`<path d="M7 18.5a4 4 0 0 1-.6-8 5.5 5.5 0 0 1 10.6-1.3A4.5 4.5 0 0 1 17 18.5z"/>`,
+  gift: html`<rect x="4" y="9" width="16" height="4" rx="1"/><path d="M5.5 13v6.5h13V13M12 9v10.5"/><path d="M12 9C10.4 5.4 6.4 5.6 6.8 7.9 7.1 9.3 9.6 9 12 9zM12 9c1.6-3.6 5.6-3.4 5.2-1.1-.3 1.4-2.8 1.1-5.2 1.1z"/>`,
 };
 
 export function Icon({ name, size }) {

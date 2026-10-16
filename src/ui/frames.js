@@ -16,6 +16,7 @@ import { stockLabel, STOCK_KIND_LABEL, showsStock } from '../core/catalogue.js';
 import { frameLine, extraLine } from '../core/orders.js';
 import { addLine, toast } from '../state/app.js';
 import { livePromotions } from '../core/promotions.js';
+import { GiftBadge, GiftPanel } from './gifts.js';
 import { brandKey, fmtExpiry } from './format.js';
 import { setForFrame, setTable, frameFacts, autoDiscountFor } from '../core/sets.js';
 
@@ -89,7 +90,7 @@ export function FramesScreen({ query }) {
         </div>
         ${result.total === 0 ? html`<div class="pad"><${Empty} title="No frames match">Loosen a filter, or search by the eight barcode digits.<//></div>` : html`
         <${List}>
-          ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one
+          ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one badge=${html`<${GiftBadge} brand=${f.brand} />`}
             detail=${[f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
             end=${money(f.price)} />`)}
         <//>
@@ -126,6 +127,7 @@ export function FrameScreen({ sku }) {
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
         <${Figure} value=${money(frame.price)} caption="Tag price" size=${38} />
+        <${GiftPanel} brand=${frame.brand} />
         <${CampaignPanel} frame=${frame} set=${set} sun=${sun} />
         <${Panel}>
           <${KV} k="Barcode" v=${frame.sku} mono />

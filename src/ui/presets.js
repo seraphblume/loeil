@@ -8,7 +8,7 @@ import { Sheet, Row, Bar, Screen, Flag, Maker } from './kit.js';
 import { makersOf } from '../core/lens.js';
 import { Icon } from './icons.js';
 import { money } from '../core/money.js';
-import { presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly } from '../core/presets.js';
+import { presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly, isCareOnly } from '../core/presets.js';
 import { needsAddition, rxIsBlank, strongestSphere } from '../core/crm.js';
 import { HIGH_RX_SPHERE } from '../config.js';
 import { applyPreset, setOrderFrame, clientById, toast } from '../state/app.js';
@@ -28,10 +28,24 @@ function rxBasis(rx, anyMfOnly) {
   return bits.join('; ') + '.';
 }
 
+const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
+
+/** A care tier: what it adds, and what that comes to. The lenses on the order stay. */
+function CareRow({ result, onPick }) {
+  const { tier, items } = result;
+  const total = items.reduce((t, i) => t + (i.price ?? 0), 0);
+  const notes = result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`);
+  return html`<${Row} title=${tier.tier} detail=${items.length ? 'Accessories only — the lenses on the order stay' : 'Nothing on hand'}
+    sub=${html`${tier.tierBlurb && html`<span class="preset-line">${tier.tierBlurb}</span>`}
+      ${items.length > 0 && html`<span class="preset-adds">${items.map((i) => html`<span class="chip">${itemText(i)}</span>`)}</span>`}
+      ${notes.length > 0 && html`<span class="preset-note">${notes.join(' · ')}</span>`}`}
+    end=${total ? money(total) : null} off=${!items.length} chev=${items.length > 0} onClick=${items.length ? () => onPick(result) : null} />`;
+}
+
 function TierRow({ result, onPick }) {
   const { tier, lens } = result;
+  if (result.care) return html`<${CareRow} result=${result} onPick=${onPick} />`;
   if (!lens) return html`<${Row} title=${tier.tier} detail=${result.why} off />`;
-  const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
   const adds = [...result.extras.map((e) => (e.percent ? 'Plus Protection' : e.description)), ...result.items.map(itemText)];
   const notes = [...result.notes, ...result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`)];
   return html`<${Row} title=${tier.tier} detail=${html`${lens.displayName}${makersOf(lens).map((m) => html` <${Maker} name=${m} />`)}`}
@@ -53,12 +67,14 @@ export function PresetSheet({ onClose, toQuote }) {
   const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
   const draftFrame = useApp((s) => s.draft.lines.find((l) => l.kind === 'frame') ?? null);
   const hasPair = useApp((s) => s.draft.lines.some((l) => isPair(l)));
+  const orderId = useApp((s) => s.draft.id); // picks the accessories' colours, the same each time for this order
   // A preset with nothing for this prescription (Progressive, for single vision) goes to the end.
   const groups = useMemo(() => {
-    const all = presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx)) }));
-    const offers = (g) => g.results.some((r) => r.lens);
+    const all = presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx, { seed: orderId })) }));
+    const offers = (g) => g.results.some((r) => r.lens || (r.care && r.items.length));
     return [...all.filter(offers), ...all.filter((g) => !offers(g))];
-  }, [catalogue, rx]);
+  }, [catalogue, rx, orderId]);
+  const anyCare = groups.some((g) => g.tiers.some(isCareOnly));
   const anyMfOnly = groups.some((g) => g.tiers.some(isProgressiveOnly));
   const [step, setStep] = useState(toQuote ? 'frame' : 'lens');
   const [frame, setFrame] = useState(null); // null: keep the order's · false: none · a line: this one
@@ -73,6 +89,7 @@ export function PresetSheet({ onClose, toQuote }) {
     toast(result ? `${result.tier.preset} · ${result.tier.tier} on the order` : 'Frame on the order');
   };
   const pick = (result) => {
+    if (result.care) { finish(result); return; }
     const brands = result.brands ?? [];
     const theirs = chosen && brands.map(brandKey).includes(brandKey(chosen.brand || ''));
     if (brands.length && !theirs) { setWaiting(result); setStep('brand'); return; }
@@ -100,7 +117,7 @@ export function PresetSheet({ onClose, toQuote }) {
       ${step === 'lens' && html`
         ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? 'Any frame of the set' : 'Quoted by brand') : chosen ? 'The frame for this option' : 'This option has no frame'}
           end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>Change</button>`} /></div>`}
-        <p class="para pad">${rxBasis(rx, anyMfOnly)} A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.</p>
+        <p class="para pad">${rxBasis(rx, anyMfOnly)} A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.${anyCare ? ' A contact lens preset adds only its solution and case.' : ''}</p>
         ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title="Keep the lenses on the order" detail="Add this frame with what the order has" chev onClick=${() => finish(null)} /></div>`}
         ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
         ${groups.map((g) => html`<section class="section" key=${g.id}>
@@ -126,11 +143,11 @@ const FIELDS = [
   { key: 'tier', label: 'Tier', required: true, placeholder: 'e.g. Accessible', group: 'Tier' },
   { key: 'tierBlurb', label: 'Tier line', placeholder: 'What it leads with', group: 'Tier' },
   { key: 'sv', label: 'Single vision', placeholder: 'SV|*POLY|ND|*BLANCO|BLC|ARC', caps: true, group: 'Lens',
-    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything. The cheapest match is taken; a strong prescription takes a high-index match when there is one. Blank with a progressive below: progressive only, offered when the prescription has an ADD.' },
+    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything. The cheapest match is taken; a strong prescription takes a high-index match when there is one. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a care preset (contact lenses) — it adds only its accessories and leaves the lenses on the order alone.' },
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
   { key: 'extras', label: 'Extras', placeholder: 'e.g. 600500800203', group: 'Adds', hint: 'Extra codes, separated by commas — Plus Protection is one.' },
-  { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 61004120/61004121; Cleaning solution*: 61004172', group: 'Adds',
-    hint: 'Label: barcodes in order of preference (the first on hand is added, else the first in the price list), separated by ;. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
+  { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172', group: 'Adds',
+    hint: 'Label: barcodes, separated by ;. Each order takes one of the codes on hand at the first one’s price — colours and models vary from order to order, the price does not; with none on hand, the first in the price list. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
   { key: 'brands', label: 'Frame brands', type: 'textarea', placeholder: 'e.g. Versace, Carolina Herrera, Michael Kors', group: 'Frame',
     hint: 'Separated by commas. When set, choosing this tier asks for a frame of one of these brands (unless the option already has one). Blank: any frame.' },
 ];
@@ -151,10 +168,10 @@ export function PresetsAdminScreen() {
     <${Bar} backTo="#/me/data" title="Lifestyle presets" trail=${html`<button class="bar-btn round" aria-label="Add" onClick=${() => setOpen({ t: blank })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">Each preset has tiers — an accessible price, the better value. A tier names its lens for single vision and for progressives, the extras (Plus Protection) and the accessories it adds — and, for Luxury, the frame brands it goes with.</p>
+        <p class="para pad">Each preset has tiers — an accessible price, the better value. A tier names its lens for single vision and for progressives, the extras (Plus Protection) and the accessories it adds — and, for Luxury, the frame brands it goes with. A tier with no lens is a care preset: contact lens solution and case.</p>
         ${groups.map((g) => html`<section class="section">
           <div class="section-head"><div class="eyebrow">${g.name}</div></div>
-          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
+          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || 'Accessories only'} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
             chev onClick=${() => setOpen({ t: asForm(t), key: presetKey(t) })} />`)}</div>
         </section>`)}
       </div>

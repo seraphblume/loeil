@@ -14,7 +14,7 @@ import { upsertPromo, deletePromo, setPromoDates, setLine, deleteLine } from '..
 import { isLive, parseKey, ANY } from '../../core/promotions.js';
 import { fold, parseCodeLabel } from '../../core/util.js';
 
-const KINDS = ['package_tier', 'set', 'percent', 'fixed_price', 'bundle', 'service', 'partner'];
+const KINDS = ['package_tier', 'set', 'percent', 'fixed_price', 'bundle', 'service', 'partner', 'gift'];
 const status = (p) => {
   const today = new Date().toISOString().slice(0, 10);
   if (p.validTo && p.validTo < today) return 'Ended';
@@ -26,11 +26,11 @@ const promoFields = [
   { key: 'id', label: 'Promo number', required: true, inputmode: 'numeric' },
   { key: 'name', label: 'Name', required: true },
   { key: 'kind', label: 'Kind', type: 'select', options: KINDS.map((k) => ({ value: k, label: k.replace('_', ' ') })) },
-  { key: 'category', label: 'Applies to', suggest: ['Ophthalmic frame', 'Sun frame', 'Contact lens', 'Lenses', 'Solutions', 'Service', 'Partner'] },
+  { key: 'category', label: 'Applies to', suggest: ['Ophthalmic frame', 'Sun frame', 'Contact lens', 'Lenses', 'Solutions', 'Service', 'Partner', 'Brand gift'] },
   { key: 'validFrom', label: 'From', type: 'date' },
   { key: 'validTo', label: 'To', type: 'date' },
   { key: 'description', label: 'Description', type: 'textarea' },
-  { key: 'conditions', label: 'Conditions', type: 'textarea', hint: 'Shown to the seller as written. Separate several with semicolons: package: PLUS; brand_in: Ray Ban. A package name here groups its tiers.' },
+  { key: 'conditions', label: 'Conditions', type: 'textarea', hint: 'Shown to the seller as written. Separate several with semicolons: package: PLUS; brand_in: Ray Ban. A package name here groups its tiers. A gift (kind gift) reads its brand_in to show beside those brands’ frames, and gift: 61004340/61004341 names the items to hand over.' },
   { key: 'notes', label: 'Notes', type: 'textarea', hint: 'A figure like “From $999” becomes the package’s entry price.' },
 ];
 

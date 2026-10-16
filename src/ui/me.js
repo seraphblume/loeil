@@ -13,7 +13,7 @@ import { StaffSheet, NewPasscodeSheet } from './unlock.js';
 import { money } from '../core/money.js';
 import { orderTotal } from '../core/orders.js';
 import { dueForRecall, warningIcon } from '../core/crm.js';
-import { livePromotions, unmatchableLines, conditionsOf, isLive } from '../core/promotions.js';
+import { livePromotions, liveGifts, unmatchableLines, conditionsOf, isLive, isGift } from '../core/promotions.js';
 import { addDays, startOfDay } from '../core/util.js';
 import { GRID_WEEKS, APP_BUILD } from '../config.js';
 import {
@@ -147,6 +147,7 @@ export function MeScreen() {
 
         <${Section} title="Promotions">
           <${Row} to="#/me/promotions" title="Live promotions" count=${livePromotions(catalogue).length} chev />
+          <${Row} to="#/me/gifts" icon="gift" title="Brand gifts" detail="Brands giving a gift with their frames" count=${liveGifts(catalogue).length} chev />
         <//>
 
         <div class="pad gap-s">
@@ -279,7 +280,7 @@ function RestoreSheet({ parsed, onClose }) {
 
 export function PromotionsScreen() {
   const catalogue = useApp((s) => s.catalogue);
-  const all = catalogue.promotions;
+  const all = catalogue.promotions.filter((p) => !isGift(p)); // the brands' gifts have their own list
   const live = all.filter((p) => isLive(p));
   const ended = all.length - live.length;
   const groups = new Map();

@@ -16,7 +16,8 @@ import { withShowcase, isShowcase, SHOWCASE_ID } from '../core/showcase.js';
 import { exportBackup, readBackup, mergeBackup } from '../core/backup.js';
 import { readAlpha, readClients, readTickets, attachTickets, isClientLayout, mergeAlpha } from '../core/alpha.js';
 import {
-  blankControl, readControl, readVendors, readMessages, assignSellers, rowsFor, editDelivery, mergeControl,
+  blankControl, readControl, readVendors, readMessages, readFollowUpMessages, assignSellers, rowsFor, editDelivery, mergeControl,
+  normalizeControl,
 } from '../core/control.js';
 import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
 import { uid } from '../core/util.js';
@@ -69,7 +70,7 @@ export async function boot() {
     passcode: passcode ?? null,
     clients: sortClients(withShowcase(store?.clients ?? [])), // the showcase client, put back as she is
     orders: sortOrders(store?.orders ?? []),
-    control: { ...blankControl(), ...(control ?? {}) },
+    control: { ...blankControl(), ...(normalizeControl(control) ?? {}) }, // a Plan ID kept before presets reads as one
     identity: identity ?? null,
     draft: draft?.order ?? newOrder(),
     draftRx: draft?.rx ?? null,
@@ -258,11 +259,29 @@ export async function setDraftClient(clientId) {
  * A lifestyle preset onto the order: its lens replaces the spectacle lenses
  * there, and what an earlier preset added goes, so tapping another preset
  * swaps cleanly. Frames, contact lenses and what he added by hand stay.
+ *
+ * A care preset (contact lenses: solution and case) only swaps what an earlier
+ * care preset added; the spectacle lenses and their preset stay, and the other
+ * way round.
  */
 export async function applyPreset(result, frame = null) {
   const tag = `${result.tier.presetId}|${result.tier.tier}`;
+  if (result.care) {
+    const keep = state.draft.lines.filter((l) => l.presetKind !== 'care' && !(frame !== null && l.kind === 'frame'));
+    if (frame) keep.unshift(frame);
+    const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
+    const mark = { preset: tag, presetKind: 'care', presetName: `${result.tier.preset} · ${result.tier.tier}` };
+    const lines = [
+      ...keep,
+      ...result.extras.filter((e) => !have.has(e.id)).map((e) => ({ ...extraLine(e.id, e.description, 1, null, e.percent), ...mark })),
+      ...result.items.filter((i) => !have.has(i.sku)).map((i) => ({ ...extraLine(i.sku, i.description, 1, i.stock), ...mark })),
+    ];
+    setState({ draft: { ...state.draft, lines } });
+    await saveDraft();
+    return;
+  }
   // frame: null keeps the order's frame, false leaves none, a line takes its place.
-  const keep = state.draft.lines.filter((l) => !l.preset && !isPair(l) && !(frame !== null && l.kind === 'frame'));
+  const keep = state.draft.lines.filter((l) => (!l.preset || l.presetKind === 'care') && !isPair(l) && !(frame !== null && l.kind === 'frame'));
   if (frame) keep.unshift(frame);
   const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
   const lines = [
@@ -410,7 +429,7 @@ export function previewAlpha(book) {
     const all = assignSellers(read, tickets, readVendors(b.config, staff));
     control = {
       deliveries: rowsFor(all.deliveries, seller, admin), followUps: rowsFor(all.followUps, seller, admin),
-      messages: readMessages(b.config), vendorFilter: read.vendorFilter,
+      messages: readMessages(b.config), followUpMessages: readFollowUpMessages(b.config), vendorFilter: read.vendorFilter,
       here: { deliveries: state.control.deliveries.length, followUps: state.control.followUps.length },
     };
   }
@@ -434,6 +453,7 @@ export async function importAlpha(parsed) {
     setState({
       control: {
         deliveries: c.deliveries, followUps: c.followUps, messages: c.messages ?? state.control.messages,
+        followUpMessages: c.followUpMessages ?? state.control.followUpMessages,
         vendorFilter: c.vendorFilter, importedAt: new Date().toISOString(),
       },
     });

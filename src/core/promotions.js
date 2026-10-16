@@ -18,8 +18,12 @@
 // CONDITIONS ARE TEXT, NOT LOGIC. `brand_in: Ray Ban`, `min_boxes: 4` are
 // displayed, never parsed into rules. A wrong automatic exclusion costs a
 // customer a discount; a line of text costs him one second to read.
+//
+// The one exception is a brand's gift (kind `gift`): its `brand_in` is read to
+// put the gift beside that brand's frames, and its `gift: 61004340/61004341`
+// names the items to hand over. A gift only reminds; it never prices anything.
 
-import { dayToDate, startOfDay } from './util.js';
+import { dayToDate, startOfDay, brandKey } from './util.js';
 import { designCodeOf } from './lens.js';
 
 export const ANY = '*ANY';
@@ -171,6 +175,39 @@ export function unmatchableLines(catalogue) {
   });
 }
 
+/** The live promotions — the brands' gifts aside, which have their own list. */
 export function livePromotions(catalogue, on = new Date()) {
-  return catalogue.promotions.filter((p) => isLive(p, on));
+  return catalogue.promotions.filter((p) => !isGift(p) && isLive(p, on));
+}
+
+// ---------------------------------------------------------------------------
+// Brand gifts
+
+export const isGift = (p) => p?.kind === 'gift';
+
+/** `brand_in: Converse, Carrera` → the names; `gift: 61004340/61004341` → the barcodes. */
+function listIn(promo, key) {
+  const c = conditionsOf(promo).find((x) => x.toLowerCase().startsWith(key + ':'));
+  return c ? c.slice(key.length + 1).split(/[,/]+/).map((s) => s.trim()).filter(Boolean) : [];
+}
+export const giftBrands = (promo) => listIn(promo, 'brand_in');
+export const giftSkus = (promo) => listIn(promo, 'gift').map((s) => s.replace(/\D/g, '')).filter(Boolean);
+
+export function liveGifts(catalogue, on = new Date()) {
+  return catalogue.promotions.filter((p) => isGift(p) && isLive(p, on));
+}
+
+/** The live gifts that go with a frame of this brand. */
+export function giftsFor(catalogue, brand, on = new Date()) {
+  if (!brand) return [];
+  const k = brandKey(brand);
+  return liveGifts(catalogue, on).filter((p) => giftBrands(p).some((b) => brandKey(b) === k));
+}
+
+/** A gift's items as the catalogue knows them: what to hand over, with its stock. */
+export function giftItems(catalogue, promo) {
+  return giftSkus(promo).map((sku) => {
+    const i = catalogue.inventoryBySku?.get(sku) ?? catalogue.listedOnlyBySku?.get(sku);
+    return i ? { sku, description: i.description, stock: i.stock ?? null } : { sku, description: sku, stock: null };
+  });
 }

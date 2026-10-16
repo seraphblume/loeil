@@ -10,7 +10,16 @@
 // CLEANING SOLUTIONS DAMAGE CRIZAL (ANY OF THEM), TRANSITIONS AND POLAREX, and
 // void their warranty. A preset never adds a solution to such a lens, whatever
 // its data says, and an order that ends up with both is flagged — only a
-// customer who insists takes one home with them.
+// customer who insists takes one home with them. The Saco Maravilloso pouch
+// carries a solution of its own, so it counts as one.
+//
+// A tier that names no lens at all is a care preset — contact lenses: it adds
+// its solution and case and leaves every lens on the order as it is.
+//
+// VARIETY: an accessory is listed with its alternatives (colours, models). Each
+// order takes one of those on hand at the first one's price — so the price never
+// moves — chosen by the order, so the same order always shows the same one and
+// the next order likely another.
 
 import { factsMatch, lensFacts } from './sets.js';
 import { resolve } from './lens.js';
@@ -40,7 +49,7 @@ export function itemsText(items) {
 // ---------------------------------------------------------------------------
 // What a cleaning solution is, and what it damages
 
-const SOLUTION_WORDS = /SOLUCI|SPRAY|TOALLITA|LIMPIADOR/i;
+const SOLUTION_WORDS = /SOLUCI|SPRAY|TOALLITA|LIMPIADOR|SACO MARAVILLOS/i;
 
 /**
  * A stock item or an extra that is (or carries) a lens-cleaning liquid. Contact
@@ -102,11 +111,68 @@ export const presetKey = (t) => `${t.presetId}|${t.tier}`;
 /** A tier that names only a progressive lens. */
 export const isProgressiveOnly = (t) => Boolean(t?.mf && !t?.sv);
 
+/** A tier that names no lens: it adds its accessories (contact lens care) and nothing else. */
+export const isCareOnly = (t) => Boolean(t && !t.sv && !t.mf);
+
+/** FNV-1a: a small, steady number from a string. */
+function hash(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h;
+}
+
+/**
+ * One accessory of a tier: of its codes on hand at the first one's price, the
+ * one this order lands on (weighted by stock, so shelves empty evenly). Without
+ * a seed — or with nothing on hand — the first on hand, else the first known.
+ */
+function pickItem(catalogue, spec, seed) {
+  // Stock counts drift between imports, so a count never drops an item.
+  const known = spec.skus.map((s) => catalogue.inventoryBySku.get(s) ?? catalogue.listedOnlyBySku?.get(s)).filter(Boolean);
+  const onHand = known.filter((i) => i.stock > 0);
+  const first = onHand[0] ?? known[0] ?? null;
+  if (!first || !seed || onHand.length < 2) return { first, known };
+  const price = (i) => catalogue.itemPrice?.(i.sku) ?? null;
+  const alike = onHand.filter((i) => price(i) === price(first));
+  const total = alike.reduce((t, i) => t + i.stock, 0);
+  let at = hash(`${seed}|${spec.label}`) % total;
+  for (const i of alike) { if (at < i.stock) return { first: i, known }; at -= i.stock; }
+  return { first, known };
+}
+
+/** A tier's extras and accessories, minus what would harm a `sensitive` lens. */
+function addsOf(catalogue, tier, sensitive, seed) {
+  const skipped = [];
+  const extras = [];
+  for (const id of tier.extras ?? []) {
+    const e = catalogue.extras.find((x) => x.id === id);
+    if (!e) { skipped.push({ label: id, why: 'not in the extras list' }); continue; }
+    if (sensitive && isSolution(catalogue, e.id, e.description)) { skipped.push({ label: e.description, why: SOLUTION_WARNING }); continue; }
+    extras.push(e);
+  }
+  const items = [];
+  for (const spec of tier.items ?? []) {
+    const { first: item, known } = pickItem(catalogue, spec, seed);
+    const solution = spec.solution || known.some((i) => isSolution(catalogue, i.sku, i.description));
+    if (sensitive && solution) { skipped.push({ label: spec.label, why: SOLUTION_WARNING }); continue; }
+    if (!item) { skipped.push({ label: spec.label, why: 'not in the price list' }); continue; }
+    // The price list's wording when it has the item: the stock report mangles a few (ReNu's ®).
+    const description = catalogue.accessoriesBySku?.get(item.sku)?.description ?? item.description;
+    items.push({ label: spec.label, sku: item.sku, description, stock: item.stock, solution, price: catalogue.itemPrice?.(item.sku) ?? null });
+  }
+  return { extras, items, skipped };
+}
+
 /**
  * A tier read against the prescription: the lens it lands on (or why none),
- * the extras and the accessories it adds, and what it left out.
+ * the extras and the accessories it adds, and what it left out. `seed` (the
+ * order's id) picks among an accessory's alternatives.
  */
-export function resolvePreset(catalogue, tier, rx) {
+export function resolvePreset(catalogue, tier, rx, { seed = null } = {}) {
+  if (isCareOnly(tier)) {
+    const adds = addsOf(catalogue, tier, false, seed);
+    return { tier, family: 'CL', lens: null, care: true, sensitive: false, ...adds, notes: [], brands: [] };
+  }
   const hasRx = rx && !rxIsBlank(rx);
   const wantsMf = Boolean(hasRx && needsAddition(rx));
   // A tier with a progressive and no single vision lens (the Progressive
@@ -136,25 +202,6 @@ export function resolvePreset(catalogue, tier, rx) {
   const pick = pool.sort((a, b) => a.row.price - b.row.price)[0];
   const lens = pick.lens;
   const sensitive = solutionSensitive(catalogue, lens);
-
-  const skipped = [];
-  const extras = [];
-  for (const id of tier.extras ?? []) {
-    const e = catalogue.extras.find((x) => x.id === id);
-    if (!e) { skipped.push({ label: id, why: 'not in the extras list' }); continue; }
-    if (sensitive && isSolution(catalogue, e.id, e.description)) { skipped.push({ label: e.description, why: SOLUTION_WARNING }); continue; }
-    extras.push(e);
-  }
-  const items = [];
-  for (const spec2 of tier.items ?? []) {
-    // Stock counts drift between imports, so a count never drops an item: the
-    // first code on hand wins, else the first code the price list or stock knows.
-    const known = spec2.skus.map((s) => catalogue.inventoryBySku.get(s) ?? catalogue.listedOnlyBySku?.get(s)).filter(Boolean);
-    const solution = spec2.solution || known.some((i) => isSolution(catalogue, i.sku, i.description));
-    if (sensitive && solution) { skipped.push({ label: spec2.label, why: SOLUTION_WARNING }); continue; }
-    const item = known.find((i) => i.stock > 0) ?? known[0] ?? null;
-    if (!item) { skipped.push({ label: spec2.label, why: 'not in the price list' }); continue; }
-    items.push({ label: spec2.label, sku: item.sku, description: item.description, stock: item.stock, solution, price: catalogue.itemPrice?.(item.sku) ?? null });
-  }
+  const { extras, items, skipped } = addsOf(catalogue, tier, sensitive, seed);
   return { tier, family, lens, high, sensitive, extras, items, skipped, notes, brands: tier.brands ?? [] };
 }

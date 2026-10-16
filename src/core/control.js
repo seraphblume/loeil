@@ -21,7 +21,7 @@ export const DEFAULT_MESSAGES = {
   reviewLink: 'https://search.google.com/local/writereview?placeid=ChIJwXqatL3jLYQRhWxiAJMXW9M&source=g.page.m.ia._&laa=nmx-review-solicitation-ia2',
 };
 
-export const blankControl = () => ({ deliveries: [], followUps: [], messages: null, importedAt: null, vendorFilter: null });
+export const blankControl = () => ({ deliveries: [], followUps: [], messages: null, followUpMessages: null, importedAt: null, vendorFilter: null });
 
 // ---------------------------------------------------------------------------
 // The rules the sheet's script keeps, kept here the same way.
@@ -66,6 +66,7 @@ export function messageKind(row) {
 }
 
 const ddmmyyyy = (day) => (day ? day.split('-').reverse().join('/') : '');
+const ddmmyy = (day) => (day ? `${day.slice(8, 10)}/${day.slice(5, 7)}/${day.slice(2, 4)}` : '');
 
 /** The message with the row filled in: {customer}, {order}, {date}, {review}. */
 export function fillMessage(template, row, messages = DEFAULT_MESSAGES) {
@@ -89,6 +90,36 @@ export function deliveryWhatsApp(row, phone, messages) {
   const m = { ...DEFAULT_MESSAGES, ...(messages ?? {}) };
   const kind = messageKind(row);
   return { kind, link: whatsappLink(phone, kind ? fillMessage(m[kind], row, m) : null) };
+}
+
+// ---------------------------------------------------------------------------
+// Follow Up: a message per preset, as Alpha's Config writes them.
+
+/** Alpha's PROPER(first word): `MARIA de los Angeles` → `Maria`. */
+export function firstName(full) {
+  const w = String(full ?? '').trim().split(/\s+/)[0] ?? '';
+  return w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : '';
+}
+
+/** The preset's message with the row filled in: {name}, {customer}, {promos}, {until}. */
+export function fillFollowUp(template, row, fu) {
+  return String(template ?? '')
+    .replaceAll('{promos}', fu?.promos ?? '')
+    .replaceAll('{until}', ddmmyy(fu?.until))
+    .replaceAll('{name}', firstName(row.customer))
+    .replaceAll('{customer}', String(row.customer ?? '').trim());
+}
+
+/** The message a row's preset sends, or null: the row has no preset, or the workbook has no message for it. */
+export function followUpMessage(row, fu) {
+  const m = row?.preset ? (fu?.presets ?? []).find((p) => p.name === row.preset) : null;
+  return m?.text ? fillFollowUp(m.text, row, fu) : null;
+}
+
+/** The row's WhatsApp: the preset's message (Send), else just the chat. */
+export function followUpWhatsApp(row, phone, fu) {
+  const message = followUpMessage(row, fu);
+  return { message, link: whatsappLink(phone, message) };
 }
 
 /** Whose rows these are: this seller's — and on the admin's phone, the ones nobody could be matched to. */
@@ -145,7 +176,7 @@ export function readControl(rows) {
     const f = block(starts[1], head.length);
     const F = {
       sell: f('sell id'), customer: f('customer'), customerId: f('customer id'), phone: f('phone'),
-      visited: f('date visited'), vendor: f('vendor'), plan: f('plan id'),
+      visited: f('date visited'), vendor: f('vendor'), preset: f('preset') >= 0 ? f('preset') : f('plan id'),
     };
     for (const row of rows.slice(at + 1)) {
       const saleId = text(row?.[F.sell]);
@@ -157,7 +188,7 @@ export function readControl(rows) {
         phone: F.phone >= 0 ? digits(row[F.phone]) : '',
         visitedOn: F.visited >= 0 ? day(row[F.visited]) : null,
         vendor: F.vendor >= 0 ? text(row[F.vendor]) : '',
-        planId: F.plan >= 0 ? text(cellText(row[F.plan])) : '',
+        preset: F.preset >= 0 ? text(cellText(row[F.preset])) : '',
         sellerEmployeeNumber: null, sellerName: null,
       });
     }
@@ -198,6 +229,27 @@ export function readMessages(configRows) {
 }
 
 /**
+ * Config's Follow Up messages: under the label, Promotions ({promos}),
+ * Promotions valid until ({until}), then a message per preset until No preset.
+ * Null when the workbook has none.
+ */
+export function readFollowUpMessages(configRows) {
+  const rows = configRows ?? [];
+  const at = rows.findIndex((r) => lower(r?.[0]) === 'follow up messages');
+  if (at < 0) return null;
+  const out = { promos: '', until: null, presets: [] };
+  for (const r of rows.slice(at + 1)) {
+    const k = text(r?.[0]);
+    if (!k || lower(k) === 'no preset') break;
+    const v = String(r?.[1] ?? '').trim();
+    if (lower(k) === 'promotions') out.promos = v;
+    else if (lower(k) === 'promotions valid until') out.until = day(r?.[1]);
+    else if (v) out.presets.push({ name: k, text: v });
+  }
+  return out.presets.length ? out : null;
+}
+
+/**
  * Who sold each row: the vendor on the All tab for its Sell ID, else (Follow
  * Up) its Vendor column through Config's short names.
  */
@@ -223,6 +275,7 @@ export function mergeControl(here, incoming) {
     deliveries: add(here.deliveries, incoming.deliveries ?? []),
     followUps: add(here.followUps, incoming.followUps ?? []),
     messages: here.messages ?? incoming.messages ?? null,
+    followUpMessages: here.followUpMessages ?? incoming.followUpMessages ?? null,
     importedAt: here.importedAt ?? incoming.importedAt ?? null,
   };
 }
@@ -240,10 +293,14 @@ export function normalizeControl(c) {
     })),
     followUps: (c.followUps ?? []).filter((r) => r?.saleId).map((r) => ({
       saleId: String(r.saleId), customer: String(r.customer ?? ''), customerId: String(r.customerId ?? ''), phone: String(r.phone ?? ''),
-      visitedOn: s(r.visitedOn), vendor: String(r.vendor ?? ''), planId: String(r.planId ?? ''),
+      visitedOn: s(r.visitedOn), vendor: String(r.vendor ?? ''), preset: String(r.preset ?? r.planId ?? ''),
       sellerEmployeeNumber: s(r.sellerEmployeeNumber), sellerName: s(r.sellerName),
     })),
     messages: c.messages && typeof c.messages === 'object' ? { ...c.messages } : null,
+    followUpMessages: c.followUpMessages?.presets ? {
+      promos: String(c.followUpMessages.promos ?? ''), until: s(c.followUpMessages.until),
+      presets: c.followUpMessages.presets.filter((p) => p?.name).map((p) => ({ name: String(p.name), text: String(p.text ?? '') })),
+    } : null,
     importedAt: s(c.importedAt),
     vendorFilter: s(c.vendorFilter),
   };
