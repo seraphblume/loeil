@@ -30,6 +30,7 @@
   --tab-pill: rgba(17, 17, 17, 0.08);
   --danger: #A8322B; --on-danger: #F6F4EE; --danger-soft: rgba(168, 50, 43, 0.08); --danger-line: rgba(168, 50, 43, 0.34); --danger-ink: #8E2A24;
   --ok: #3E7A57;
+  --essilor: #0D52A0; /* the brand's blue, on its own logo */
   --glass: rgba(246, 244, 238, 0.74); --glass-strong: rgba(240, 237, 230, 0.86);
   --glass-edge: inset 0 0 0 0.5px rgba(17, 17, 17, 0.1), inset 0 0.5px 0 rgba(255, 255, 255, 0.7);
   --glass-lift: 0 10px 30px -12px rgba(17, 17, 17, 0.3), 0 2px 6px rgba(17, 17, 17, 0.07);
@@ -82,6 +83,7 @@
     --tab-pill: rgba(246, 244, 238, 0.12);
     --danger: #FF8A7A; --on-danger: #111111; --danger-soft: rgba(255, 138, 122, 0.1); --danger-line: rgba(255, 138, 122, 0.34); --danger-ink: #FFB4A9;
     --ok: #7BC29A;
+    --essilor: #5A97E0; /* the same blue, lifted to read on ink */
     --glass: rgba(29, 28, 27, 0.66); --glass-strong: rgba(33, 32, 31, 0.86);
     --glass-edge: inset 0 0 0 0.5px rgba(246, 244, 238, 0.1), inset 0 0.5px 0 rgba(246, 244, 238, 0.14);
     --glass-lift: 0 12px 32px -10px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -248,6 +250,8 @@ button.row:active, a.row:active, .row.pressable:active { background: var(--cell-
   font-size: 10px; font-weight: 600; line-height: 1.45; letter-spacing: .08em; text-transform: uppercase; color: var(--label-2);
   vertical-align: 2px; white-space: nowrap; }
 .attr .l .maker, .row .d .maker { vertical-align: 1px; }
+.maker-logo { display: inline-block; height: .7em; width: calc(var(--ar) * .7em); margin-left: 3px; vertical-align: -.02em; color: var(--essilor); }
+.inline-ico svg.maker-logo { height: .7em; width: calc(var(--ar) * .7em); color: var(--essilor); vertical-align: -.02em; }
 .inline-ico svg { width: 12px; height: 12px; color: var(--label-2); vertical-align: -1px; }
 
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--cell-2); color: var(--label); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex: none; }

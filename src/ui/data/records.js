@@ -70,7 +70,7 @@ export function VocabScreen({ query }) {
         { key: 'code', label: 'Code', required: true, caps: true, hint: 'Exactly as the POS uses it. Never change a code that lenses use.' },
         { key: 'english', label: 'English name' },
         { key: 'blurb', label: 'Blurb', type: 'textarea' },
-        { key: 'maker', label: 'Maker badge', placeholder: 'e.g. Essilor', hint: 'Shown as a small badge beside the name wherever a seller picks it. Blank: no badge.' },
+        { key: 'maker', label: 'Maker badge', placeholder: 'e.g. Essilor', hint: 'Shown as a small badge beside the name wherever a seller picks it; Essilor shows as its logo. Blank: no badge.' },
         { key: 'rank', label: 'Rank', type: 'number', placeholder: 'blank = none' },
         { key: 'group', label: 'Promo group', caps: true, placeholder: 'e.g. CRIZAL, POLY, TRANS' },
         { key: 'sameAs', label: 'Same as', caps: true, placeholder: 'old/new code' },

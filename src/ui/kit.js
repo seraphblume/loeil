@@ -4,6 +4,7 @@
 
 import { html, render, useState, useEffect, useRef, useLayoutEffect } from './html.js';
 import { Icon } from './icons.js';
+import { makerLogo } from './logos.js';
 import { back, linkProps } from './router.js';
 import { dayToDate } from '../core/util.js';
 
@@ -95,8 +96,16 @@ export function Section({ title, children, flush, action, footer }) {
   </section>`;
 }
 
-/** The maker's badge beside a product name (`ESSILOR`): typeset, never a logo. */
-export const Maker = ({ name }) => (name ? html`<span class="maker" title=${`Made by ${name}`}>${name}</span>` : null);
+/** The maker's badge beside a product name: the maker's own logo where there is one
+ * (Essilor, in its blue), else the name typeset (`ESSILOR`). */
+export function Maker({ name }) {
+  if (!name) return null;
+  const logo = makerLogo(name);
+  if (!logo) return html`<span class="maker" title=${`Made by ${name}`}>${name}</span>`;
+  return html`<svg class="maker-logo" viewBox=${`0 0 ${logo.w} ${logo.h}`} style=${{ '--ar': logo.w / logo.h }} role="img" aria-label=${name}>
+    <title>Made by ${name}</title><path fill="currentColor" fill-rule="evenodd" d=${logo.d} />
+  </svg>`;
+}
 
 export const Flag = ({ children, icon = 'warning' }) => html`<div class="flag"><${Icon} name=${icon} /><div>${children}</div></div>`;
 

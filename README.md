@@ -261,10 +261,12 @@ For a prescription with no ADD it is shown greyed out at the end of the list.
 ## Maker badges
 
 A name in the vocabulary can carry a **maker** (the `maker` column, or **Maker
-badge** under Catalogue data → Names and coatings). It shows as a small typeset
-badge beside the name: on the lens steps, on the lens and its upgrades, and on the
+badge** under Catalogue data → Names and coatings). It shows as a small badge
+beside the name: on the lens steps, on the lens and its upgrades, and on the
 preset tiers. Varilux, Eyezen, Stellest, Crizal, Transitions and Polarex carry
-`Essilor`.
+`Essilor`, which shows as Essilor's own logo (the eye beside the wordmark) in the
+brand's blue, lifted a little in dark mode so it still reads. Any other maker is
+typeset. The logo lives in `src/ui/logos.js`; another maker's logo goes there too.
 
 ## The quote
 
