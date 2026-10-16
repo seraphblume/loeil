@@ -11,7 +11,8 @@
 // void their warranty. A preset never adds a solution to such a lens, whatever
 // its data says, and an order that ends up with both is flagged — only a
 // customer who insists takes one home with them. The Saco Maravilloso pouch
-// carries a solution of its own, so it counts as one.
+// carries a solution of its own, and anything antiempañante is alcohol-based,
+// so both count as one. The Toalla Maravillosa is only a polishing cloth.
 //
 // A tier that names no lens at all is a care preset — contact lenses: it adds
 // its solution and case and leaves every lens on the order as it is.
@@ -49,7 +50,7 @@ export function itemsText(items) {
 // ---------------------------------------------------------------------------
 // What a cleaning solution is, and what it damages
 
-const SOLUTION_WORDS = /SOLUCI|SPRAY|TOALLITA|LIMPIADOR|SACO MARAVILLOS/i;
+const SOLUTION_WORDS = /SOLUCI|SPRAY|TOALLITA|LIMPIADOR|SACO MARAVILLOS|ANTIEMPA/i;
 
 /**
  * A stock item or an extra that is (or carries) a lens-cleaning liquid. Contact

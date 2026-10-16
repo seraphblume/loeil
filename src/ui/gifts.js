@@ -1,5 +1,6 @@
 // Brand gifts: when a brand gives something away with its frames (Converse,
-// Carrera, Tommy, Nautica this campaign). Kept as promotions of kind `gift` —
+// Carrera, Tommy, Nautica) — while stock lasts, not for a campaign. Kept as
+// promotions of kind `gift` —
 // Catalogue data → Promotions — and shown wherever that brand's frame is: in the
 // frame lists, on the frame, on the order, and in their own list on Me.
 
@@ -18,7 +19,9 @@ export function GiftBadge({ brand }) {
   return gifts.length ? html`<span class="gift-badge" title="Gift with this brand’s frames"><${Icon} name="gift" />Gift</span>` : null;
 }
 
-const itemLine = (i) => (i.stock == null ? i.description : `${i.description} · ${i.stock} on hand`);
+const itemLine = (i) => (i.stock == null ? i.description : i.stock > 0 ? `${i.description} · ${i.stock} on hand` : `${i.description} · none on hand`);
+/** A gift runs while its stock lasts, unless it was given an end date. */
+const lasts = (g) => (g.validTo ? `Until ${fmtDate(g.validTo)}` : 'While stock lasts');
 
 /** On a frame: what the brand gives with it. */
 export function GiftPanel({ brand }) {
@@ -29,7 +32,7 @@ export function GiftPanel({ brand }) {
     <strong style="font-weight:500">${brand} gives a gift with this frame.</strong>
     ${g.description ? ` ${g.description}` : ''}
     ${giftItems(catalogue, g).length > 0 && html`<div class="gift-items">${giftItems(catalogue, g).map((i) => html`<div>${itemLine(i)}</div>`)}</div>`}
-    ${g.validTo && html`<div class="gift-until">Until ${fmtDate(g.validTo)}</div>`}
+    <div class="gift-until">${lasts(g)}</div>
   <//>`)}`;
 }
 
@@ -45,7 +48,7 @@ export function OrderGifts({ order }) {
     <strong style="font-weight:500">${brand} gives a gift with the frame.</strong>${g.description ? ` ${g.description}` : ''}
     ${items.length > 0 && html`<div class="gift-items">${items.map((i) => (have.has(i.sku)
       ? html`<div>${i.description} · on the order</div>`
-      : html`<div><button type="button" class="link" onClick=${() => add(i)}>Add ${i.description}</button>${i.stock != null ? ` · ${i.stock} on hand` : ''}</div>`))}</div>`}
+      : html`<div><button type="button" class="link" onClick=${() => add(i)}>Add ${i.description}</button>${i.stock != null ? (i.stock > 0 ? ` · ${i.stock} on hand` : ' · none on hand') : ''}</div>`))}</div>`}
   <//></div>`)}`;
 }
 
@@ -64,7 +67,7 @@ export function GiftsScreen() {
               <span class="t">${giftBrands(g).join(', ') || g.name}</span>
               ${g.description && html`<span class="d">${g.description}</span>`}
               ${giftItems(catalogue, g).map((i) => html`<span class="d">${itemLine(i)}</span>`)}
-              <span class="s">${g.validFrom ? fmtDate(g.validFrom) : ''} – ${g.validTo ? fmtDate(g.validTo) : ''}</span>
+              <span class="s">${lasts(g)}</span>
             </span>
           </div>`)}<//>`}
         <p class="note pad">The frame’s screen, the frame lists and the order show the gift too. On the order, one tap puts the gift item on the ticket.</p>

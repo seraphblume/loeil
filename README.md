@@ -176,12 +176,14 @@ computer, the way an order does (`#/orders/delivery/<Sell ID>`, `#/orders/follow
 ## Brand gifts
 
 When a brand gives something away with its frames — Converse, Carrera, Tommy and
-Nautica this campaign — it is a promotion of kind **gift** (Catalogue data →
+Nautica now, while stock lasts — it is a promotion of kind **gift** (Catalogue data →
 Promotions): `brand_in` names the brands, and `gift: 61004341/61004340` the items to
 hand over, from the accessory list's Brand Gift collection. A gift shows beside
 the brand's frames in every list, on the frame, and on an order carrying one, with
 a tap to put the gift item on the ticket; **Me → Brand gifts** lists them all.
-Gifts stay out of Live promotions, and never change a price.
+A gift has no end date unless it is given one: it runs while the stock lasts, and
+each gift item shows how many are on hand. Gifts stay out of Live promotions, and
+never change a price.
 
 ## Discounts
 
@@ -235,7 +237,8 @@ leaves it as it is.
 their warranty. A preset never adds one to those lenses, whatever its data says,
 and an order that ends up with both is flagged — it stays only if the customer
 insists. The **Saco Maravilloso** pouch carries a solution of its own, so it counts
-as one; the Estuche Nube is only a pouch. Contact lens solutions (ReNu, Multiplus)
+as one, and so does anything antiempañante (alcohol-based); the Estuche Nube is only
+a pouch and the Toalla Maravillosa only a polishing cloth. Contact lens solutions (ReNu, Multiplus)
 never touch spectacle lenses and are not.
 
 Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
