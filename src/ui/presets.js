@@ -1,15 +1,22 @@
 // Lifestyle presets on the order: one tap for the lens, Plus Protection and
 // the accessories that suit how the client lives. And their editor, for the
 // admin, under Catalogue data.
+//
+// The presets are tiles, two to a row, each with the lowest price it comes to
+// for this prescription and this frame. Tapping one opens its tiers right
+// below it — Lite to Ultra — each priced the way the order will price it.
 
-import { html, useState, useMemo } from './html.js';
+import { html, useState, useMemo, useRef, useEffect } from './html.js';
 import { useApp } from './hooks.js';
 import { Sheet, Row, Bar, Screen, Flag, Maker } from './kit.js';
 import { makersOf } from '../core/lens.js';
 import { Icon } from './icons.js';
 import { money } from '../core/money.js';
-import { presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly, isCareOnly } from '../core/presets.js';
-import { needsAddition, rxIsBlank, strongestSphere } from '../core/crm.js';
+import {
+  presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly,
+  tierPrice, tierName, offers, TIERS,
+} from '../core/presets.js';
+import { needsAddition, rxIsBlank, strongestSphere, CL_FITS, fitComplete } from '../core/crm.js';
 import { HIGH_RX_SPHERE } from '../config.js';
 import { applyPreset, setOrderFrame, clientById, toast } from '../state/app.js';
 import { FramePicker } from './framepick.js';
@@ -20,39 +27,82 @@ import { useWorking } from './data/home.js';
 import { edit } from '../state/working.js';
 import { upsertPreset, deletePreset } from '../core/edits.js';
 
-/** What the prescription decides before any preset is chosen, said once. */
-function rxBasis(rx, anyMfOnly) {
-  if (!rx || rxIsBlank(rx)) return `No prescription on the order, so these are single vision${anyMfOnly ? ' (the progressive-only ones aside)' : ''}. Add the Rx first for progressives.`;
-  const bits = [needsAddition(rx) ? 'Progressive, from the ADD on the prescription' : 'Single vision, from the prescription'];
-  if (strongestSphere(rx) > HIGH_RX_SPHERE) bits.push('high-index where the preset has it');
-  return bits.join('; ') + '.';
+/** A glyph for each preset's tile; a preset added later takes the sparkle. */
+const PRESET_ICON = {
+  progressive: 'mf', first: 'glasses', digital: 'display', everyday: 'halfsun', kids: 'balloon',
+  driver: 'wheel', outdoor: 'sun', luxury: 'spark', clarity: 'eye', contacts: 'cl',
+};
+
+/** What the prescription and the frame decide before any preset is chosen, said once. */
+function basis(rx, anyMfOnly, frame) {
+  const bits = [];
+  if (!rx || rxIsBlank(rx)) bits.push(`No prescription on the order, so these are single vision${anyMfOnly ? ' (Progressive aside)' : ''}. Add the Rx first for progressives.`);
+  else {
+    bits.push(needsAddition(rx) ? 'Progressive, from the ADD on the prescription' : 'Single vision, from the prescription');
+    if (strongestSphere(rx) > HIGH_RX_SPHERE) bits[0] += '; high-index where the tier has it';
+    bits[0] += '.';
+  }
+  bits.push(frame
+    ? `Prices include ${frame.placeholder ? 'the frame quoted' : 'the frame on the order'}, as the order will charge them — a set’s own lens prices too.`
+    : 'No frame, so prices are for lenses in the client’s own frame.');
+  return bits.join(' ');
 }
 
 const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
 
-/** A care tier: what it adds, and what that comes to. The lenses on the order stay. */
-function CareRow({ result, onPick }) {
-  const { tier, items } = result;
-  const total = items.reduce((t, i) => t + (i.price ?? 0), 0);
-  const notes = result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`);
-  return html`<${Row} title=${tier.tier} detail=${items.length ? 'Accessories only — the lenses on the order stay' : 'Nothing on hand'}
-    sub=${html`${tier.tierBlurb && html`<span class="preset-line">${tier.tierBlurb}</span>`}
-      ${items.length > 0 && html`<span class="preset-adds">${items.map((i) => html`<span class="chip">${itemText(i)}</span>`)}</span>`}
-      ${notes.length > 0 && html`<span class="preset-note">${notes.join(' · ')}</span>`}`}
-    end=${total ? money(total) : null} off=${!items.length} chev=${items.length > 0} onClick=${items.length ? () => onPick(result) : null} />`;
+/** The chips under a tier: Plus Protection and the accessories, priced. */
+function adds(result, price) {
+  return [
+    ...result.extras.map((e) => (e.percent ? `Plus Protection${price?.plus ? ` · ${money(price.plus)}` : ''}` : e.description)),
+    ...result.items.map(itemText),
+  ];
 }
 
-function TierRow({ result, onPick }) {
+/** Notes under a tier: the set it uses or leaves, what it skipped. */
+function notesOf(result, price) {
+  const out = [...(result.notes ?? [])];
+  if (price?.setLens) out.push(`${price.setLens.setName}: ${price.setLens.name}${price.setLens.price ? ` +${money(price.setLens.price)}` : ', included'}`);
+  if (price?.outsideSet) out.push(`Not on ${price.outsideSet.setName}’s table — the frame goes at its own price`);
+  if (price?.pending) out.push('The lens price is still to confirm');
+  for (const s of result.skipped ?? []) out.push(`No ${s.label.toLowerCase()} — ${s.why}`);
+  return out;
+}
+
+function TierRow({ result, price, applied, onPick }) {
   const { tier, lens } = result;
-  if (result.care) return html`<${CareRow} result=${result} onPick=${onPick} />`;
-  if (!lens) return html`<${Row} title=${tier.tier} detail=${result.why} off />`;
-  const adds = [...result.extras.map((e) => (e.percent ? 'Plus Protection' : e.description)), ...result.items.map(itemText)];
-  const notes = [...result.notes, ...result.skipped.map((s) => `No ${s.label.toLowerCase()} — ${s.why}`)];
-  return html`<${Row} title=${tier.tier} detail=${html`${lens.displayName}${makersOf(lens).map((m) => html` <${Maker} name=${m} />`)}`}
-    sub=${html`${tier.tierBlurb && html`<span class="preset-line">${tier.tierBlurb}</span>`}
-      ${adds.length > 0 && html`<span class="preset-adds">${adds.map((a) => html`<span class="chip">${a}</span>`)}</span>`}
+  const on = offers(result);
+  const chips = on ? adds(result, price) : [];
+  const notes = on ? notesOf(result, price) : [];
+  // what it is, in a line; then the lens exactly, with its maker
+  let what;
+  if (!on) what = result.why ?? (result.care ? 'Nothing on hand' : 'Not in the catalogue right now.');
+  else if (result.contact) what = html`${lens.displayName} · a box for each eye`;
+  else if (result.care) what = 'Care only — the lenses on the order stay';
+  else what = html`${lens.displayName}${makersOf(lens).map((m) => html` <${Maker} name=${m} />`)}`;
+  if (result.contact && on) {
+    const fit = result.eyes[0]?.fit;
+    const ready = result.eyes.every((e) => fitComplete(fit, e.measures));
+    notes.unshift(ready ? `Fitting from the prescription: OD ${result.eyes[0].power} · OS ${result.eyes[1].power}` : `Add the fitting (${CL_FITS[fit]?.fields.map((f) => f.label).join(', ')}) on the order`);
+  }
+  return html`<${Row} title=${html`<span class="tier-n">${tier.tier}</span>${applied ? html`<span class="tier-on"><${Icon} name="check" />On the order</span>` : ''}`}
+    detail=${tier.tierBlurb || null}
+    sub=${html`<span class="preset-lens">${what}</span>
+      ${chips.length > 0 && html`<span class="preset-adds">${chips.map((a) => html`<span class="chip">${a}</span>`)}</span>`}
       ${notes.length > 0 && html`<span class="preset-note">${notes.join(' · ')}</span>`}`}
-    end=${money(lens.priceCents)} chev onClick=${() => onPick(result)} />`;
+    end=${on && price ? html`<span class="tier-price">${money(price.total)}</span>` : null} off=${!on} chev=${on} onClick=${on ? () => onPick(result) : null} />`;
+}
+
+/** A preset as a tile: its glyph, its name, its line and its lowest price here. */
+function PresetTile({ g, open, applied, onToggle }) {
+  const live = g.results.some(offers);
+  const why = !live ? (g.results.find((r) => r.why)?.why ?? 'Not for this prescription').replace(/ —.*$/, '') : null;
+  return html`<button type="button" class=${'preset-tile' + (open ? ' open' : '') + (live ? '' : ' off')} aria-expanded=${open ? 'true' : 'false'} aria-controls="preset-tiers"
+    onClick=${onToggle}>
+    <span class="pt-top"><${Icon} name=${PRESET_ICON[g.id] ?? 'spark'} />${applied && html`<span class="pt-on" aria-label="On the order"><${Icon} name="check" /></span>`}</span>
+    <span class="pt-n">${g.name}</span>
+    ${g.blurb && html`<span class="pt-b">${g.blurb}</span>`}
+    <span class="pt-p">${live ? (g.from != null ? html`<span class="k">From</span> ${money(g.from)}` : 'Price at the register') : why}</span>
+  </button>`;
 }
 
 /**
@@ -65,28 +115,51 @@ function TierRow({ result, onPick }) {
 export function PresetSheet({ onClose, toQuote }) {
   const catalogue = useApp((s) => s.catalogue);
   const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
+  const contactRx = useApp((s) => clientById(s.draft.clientId, s)?.contactRx ?? null);
   const draftFrame = useApp((s) => s.draft.lines.find((l) => l.kind === 'frame') ?? null);
   const hasPair = useApp((s) => s.draft.lines.some((l) => isPair(l)));
+  const claimed = useApp((s) => s.draft.claimed);
+  const appliedKey = useApp((s) => s.draft.lines.filter((l) => l.preset).map((l) => l.preset).join(';'));
   const orderId = useApp((s) => s.draft.id); // picks the accessories' colours, the same each time for this order
-  // A preset with nothing for this prescription (Progressive, for single vision) goes to the end.
-  const groups = useMemo(() => {
-    const all = presetGroups(catalogue).map((g) => ({ ...g, results: g.tiers.map((t) => resolvePreset(catalogue, t, rx, { seed: orderId })) }));
-    const offers = (g) => g.results.some((r) => r.lens || (r.care && r.items.length));
-    return [...all.filter(offers), ...all.filter((g) => !offers(g))];
-  }, [catalogue, rx, orderId]);
-  const anyCare = groups.some((g) => g.tiers.some(isCareOnly));
-  const anyMfOnly = groups.some((g) => g.tiers.some(isProgressiveOnly));
   const [step, setStep] = useState(toQuote ? 'frame' : 'lens');
   const [frame, setFrame] = useState(null); // null: keep the order's · false: none · a line: this one
   const [waiting, setWaiting] = useState(null); // a tier waiting for its brand
   const chosen = frame === null ? draftFrame : frame || null;
+  const applied = useMemo(() => new Set(appliedKey ? appliedKey.split(';') : []), [appliedKey]);
+
+  // Every tier read against this prescription and this frame, and priced; a
+  // preset with nothing for this prescription (Progressive, for single vision) goes to the end.
+  const groups = useMemo(() => {
+    const opts = { seed: orderId, frame: chosen, contactRx, claimed: claimed ?? [] };
+    const all = presetGroups(catalogue).map((g) => {
+      const results = g.tiers.map((t) => resolvePreset(catalogue, t, rx, opts));
+      const prices = results.map((r) => tierPrice(catalogue, r, opts));
+      const totals = prices.filter(Boolean).map((p) => p.total);
+      return { ...g, results, prices, from: totals.length ? Math.min(...totals) : null };
+    });
+    const live = (g) => g.results.some(offers);
+    return [...all.filter(live), ...all.filter((g) => !live(g))];
+  }, [catalogue, rx, orderId, chosen, contactRx, claimed]);
+  const anyMfOnly = groups.some((g) => g.tiers.some(isProgressiveOnly));
+  // The preset already on the order opens by itself; otherwise every tile is closed.
+  const [openId, setOpenId] = useState(() => groups.find((g) => g.tiers.some((t) => applied.has(presetKey(t))))?.id ?? null);
+  const panel = useRef(null);
+  const grid = useRef(null);
+  useEffect(() => {
+    // the opened tile goes to the top when its tiers would run off the screen
+    const p = panel.current;
+    if (!openId || !p) return;
+    if (p.getBoundingClientRect().bottom <= window.innerHeight - 24) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    grid.current?.querySelector('.preset-tile.open')?.scrollIntoView?.({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+  }, [openId]);
 
   const finish = async (result, f = frame) => {
     if (result) await applyPreset(result, f);
     else if (f !== null) await setOrderFrame(f);
     onClose();
     if (toQuote) { await toQuote(); return; }
-    toast(result ? `${result.tier.preset} · ${result.tier.tier} on the order` : 'Frame on the order');
+    toast(result ? `${tierName(result.tier)} on the order` : 'Frame on the order');
   };
   const pick = (result) => {
     if (result.care) { finish(result); return; }
@@ -100,6 +173,11 @@ export function PresetSheet({ onClose, toQuote }) {
   const steps = toQuote ? [{ id: 'frame', label: 'Frame' }, { id: 'lens', label: 'Lenses' }] : [];
   const at = step === 'frame' ? 0 : 1;
   const title = step === 'brand' ? 'Choose the brand' : toQuote ? 'Add an option' : 'Lifestyle presets';
+
+  // the open preset's tiers go right after the row its tile is on
+  const openAt = groups.findIndex((g) => g.id === openId);
+  const after = openAt < 0 ? -1 : Math.min(openAt | 1, groups.length - 1);
+  const opened = openAt >= 0 ? groups[openAt] : null;
 
   return html`<${Sheet} title=${title} onClose=${onClose} full>
     <div class="stack">
@@ -117,16 +195,22 @@ export function PresetSheet({ onClose, toQuote }) {
       ${step === 'lens' && html`
         ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? 'Any frame of the set' : 'Quoted by brand') : chosen ? 'The frame for this option' : 'This option has no frame'}
           end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>Change</button>`} /></div>`}
-        <p class="para pad">${rxBasis(rx, anyMfOnly)} A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex.${anyCare ? ' A contact lens preset adds only its solution and case.' : ''}</p>
+        <p class="para pad">${basis(rx, anyMfOnly, chosen)}</p>
         ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title="Keep the lenses on the order" detail="Add this frame with what the order has" chev onClick=${() => finish(null)} /></div>`}
         ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
-        ${groups.map((g) => html`<section class="section" key=${g.id}>
-          <div class="preset-head"><div class="n">${g.name}</div>${g.blurb && html`<div class="b">${g.blurb}</div>`}</div>
-          <div class="list">${g.results.map((r) => html`<${TierRow} key=${presetKey(r.tier)} result=${r} onPick=${pick} />`)}</div>
-        </section>`)}`}
+        ${groups.length > 0 && html`<div class="preset-grid pad" ref=${grid}>
+          ${groups.map((g, i) => html`
+            <${PresetTile} key=${g.id} g=${g} open=${g.id === openId} applied=${g.tiers.some((t) => applied.has(presetKey(t)))}
+              onToggle=${() => setOpenId(g.id === openId ? null : g.id)} />
+            ${i === after && opened && html`<div class="preset-tiers" id="preset-tiers" key=${'tiers-' + opened.id} ref=${panel} role="region" aria-label=${`${opened.name} tiers`}>
+              <div class="list flush">${opened.results.map((r, j) => html`<${TierRow} key=${presetKey(r.tier)} result=${r} price=${opened.prices[j]}
+                applied=${applied.has(presetKey(r.tier))} onPick=${pick} />`)}</div>
+            </div>`}`)}
+        </div>`}
+        <p class="note pad">A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.</p>`}
 
       ${step === 'brand' && waiting && html`
-        <p class="para pad">${waiting.tier.preset} · ${waiting.tier.tier} goes with a renowned frame. Choose the brand — in a set it takes the set’s price, outside one its lowest catalogue price.</p>
+        <p class="para pad">${tierName(waiting.tier)} goes with a renowned frame. Choose the brand — in a set it takes the set’s price, outside one its lowest catalogue price.</p>
         <${FramePicker} only=${waiting.brands} onPick=${(line) => finish(waiting, line)} />
         <div class="pad"><button type="button" class="btn quiet" onClick=${() => { setWaiting(null); setStep('lens'); }}>Back to the presets</button></div>`}
     </div>
@@ -138,13 +222,16 @@ export function PresetSheet({ onClose, toQuote }) {
 
 const FIELDS = [
   { key: 'presetId', label: 'Preset id', required: true, placeholder: 'e.g. digital', group: 'Preset' },
-  { key: 'preset', label: 'Preset name', required: true, placeholder: 'e.g. Digital nomad', group: 'Preset' },
-  { key: 'blurb', label: 'Preset line', placeholder: 'Who it is for', group: 'Preset' },
-  { key: 'tier', label: 'Tier', required: true, placeholder: 'e.g. Accessible', group: 'Tier' },
+  { key: 'preset', label: 'Preset name', required: true, placeholder: 'e.g. Digital', group: 'Preset' },
+  { key: 'blurb', label: 'Preset line', placeholder: 'Who it is for — one line, it goes on the tile', group: 'Preset' },
+  { key: 'tier', label: 'Tier', required: true, placeholder: 'Lite, Essential, Plus, Pro or Ultra', group: 'Tier',
+    hint: TIERS.map((t) => `${t.name} — ${t.rule}`).join(' · ') + '. On the order the preset and the tier read as one name: Digital Pro.' },
   { key: 'tierBlurb', label: 'Tier line', placeholder: 'What it leads with', group: 'Tier' },
   { key: 'sv', label: 'Single vision', placeholder: 'SV|*POLY|ND|*BLANCO|BLC|ARC', caps: true, group: 'Lens',
-    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything. The cheapest match is taken; a strong prescription takes a high-index match when there is one. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a care preset (contact lenses) — it adds only its accessories and leaves the lenses on the order alone.' },
+    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens).' },
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
+  { key: 'cl', label: 'Contact lens', placeholder: '5200|HM,MT|*', caps: true, group: 'Lens',
+    hint: 'Only with both lenses above blank. material|product|colour codes, as in the contact lens list: the cheapest after the campaign’s discount goes on for both eyes, a box each, its fitting started from the prescription — a multifocal one needs an ADD. Blank: a care preset, which adds only its accessories and leaves the lenses on the order alone.' },
   { key: 'extras', label: 'Extras', placeholder: 'e.g. 600500800203', group: 'Adds', hint: 'Extra codes, separated by commas — Plus Protection is one.' },
   { key: 'items', label: 'Accessories', type: 'textarea', placeholder: 'Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172', group: 'Adds',
     hint: 'Label: barcodes, separated by ;. Each order takes one of the codes on hand at the first one’s price — colours and models vary from order to order, the price does not; with none on hand, the first in the price list. A * after the label marks a cleaning solution, which is never added to Crizal, Transitions or Polarex.' },
@@ -162,16 +249,16 @@ export function PresetsAdminScreen() {
     if (!g) { g = { id: t.presetId, name: t.preset, tiers: [] }; groups.push(g); }
     g.tiers.push(t);
   }
-  const blank = { presetId: '', preset: '', blurb: '', tier: '', tierBlurb: '', sv: '', mf: '', extras: '', items: '', brands: '' };
-  const asForm = (t) => ({ ...t, extras: (t.extras ?? []).join(', '), items: itemsText(t.items), brands: (t.brands ?? []).join(', ') });
+  const blank = { presetId: '', preset: '', blurb: '', tier: '', tierBlurb: '', sv: '', mf: '', cl: '', extras: '', items: '', brands: '' };
+  const asForm = (t) => ({ ...t, cl: t.cl ?? '', extras: (t.extras ?? []).join(', '), items: itemsText(t.items), brands: (t.brands ?? []).join(', ') });
   return html`
     <${Bar} backTo="#/me/data" title="Lifestyle presets" trail=${html`<button class="bar-btn round" aria-label="Add" onClick=${() => setOpen({ t: blank })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">Each preset has tiers — an accessible price, the better value. A tier names its lens for single vision and for progressives, the extras (Plus Protection) and the accessories it adds — and, for Luxury, the frame brands it goes with. A tier with no lens is a care preset: contact lens solution and case.</p>
+        <p class="para pad">Each preset has five tiers, from the lowest price up: Lite and Essential add only the lens and free gifts (a $0.01 cloth, a kids’ strap); Plus, Pro and Ultra add Plus Protection and one or two paid accessories. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.</p>
         ${groups.map((g) => html`<section class="section">
           <div class="section-head"><div class="eyebrow">${g.name}</div></div>
-          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || 'Accessories only'} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
+          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || t.cl || 'Accessories only'} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
             chev onClick=${() => setOpen({ t: asForm(t), key: presetKey(t) })} />`)}</div>
         </section>`)}
       </div>
@@ -183,6 +270,7 @@ export function PresetsAdminScreen() {
         const t = {
           presetId: x.presetId.trim().toLowerCase().replace(/\s+/g, '-'), preset: x.preset.trim(), blurb: x.blurb.trim(),
           tier: x.tier.trim(), tierBlurb: x.tierBlurb.trim(), sv: x.sv.trim().toUpperCase(), mf: x.mf.trim().toUpperCase(),
+          ...(String(x.cl ?? '').trim() ? { cl: String(x.cl).trim().toUpperCase() } : {}),
           extras: x.extras.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean), items: parseItems(x.items),
           ...(brands.length ? { brands } : {}),
         };

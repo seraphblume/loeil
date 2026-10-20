@@ -20,7 +20,7 @@ import {
 import { PresetSheet } from './presets.js';
 import { go } from './router.js';
 
-/** A preset's name says more than the lens's: `First glasses · Accessible`. */
+/** A preset's name says more than the lens's: `First Glasses Lite`. */
 const optionTitle = (order) => order.lines.find((l) => l.presetName)?.presetName ?? orderTitle(order);
 
 export async function addOrderToQuote() {

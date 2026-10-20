@@ -9,7 +9,8 @@ import * as db from './db.js';
 import { Catalogue } from '../core/catalogue.js';
 import { open, WrongPasscode } from '../core/crypto.js';
 import { APP_BUILD, DATA_PATH, FETCH_TIMEOUT_MS } from '../config.js';
-import { newOrder, pairLine, extraLine, isPair } from '../core/orders.js';
+import { newOrder, isPair } from '../core/orders.js';
+import { tierLines, tierName } from '../core/presets.js';
 import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { withShowcase, isShowcase, SHOWCASE_ID } from '../core/showcase.js';
@@ -260,36 +261,20 @@ export async function setDraftClient(clientId) {
  * there, and what an earlier preset added goes, so tapping another preset
  * swaps cleanly. Frames, contact lenses and what he added by hand stay.
  *
- * A care preset (contact lenses: solution and case) only swaps what an earlier
- * care preset added; the spectacle lenses and their preset stay, and the other
- * way round.
+ * A contact lens tier (care: solution and case; or the lenses themselves for
+ * both eyes with their care) only swaps what an earlier contact lens tier
+ * added; the spectacle lenses and their preset stay, and the other way round.
  */
 export async function applyPreset(result, frame = null) {
   const tag = `${result.tier.presetId}|${result.tier.tier}`;
-  if (result.care) {
-    const keep = state.draft.lines.filter((l) => l.presetKind !== 'care' && !(frame !== null && l.kind === 'frame'));
-    if (frame) keep.unshift(frame);
-    const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
-    const mark = { preset: tag, presetKind: 'care', presetName: `${result.tier.preset} · ${result.tier.tier}` };
-    const lines = [
-      ...keep,
-      ...result.extras.filter((e) => !have.has(e.id)).map((e) => ({ ...extraLine(e.id, e.description, 1, null, e.percent), ...mark })),
-      ...result.items.filter((i) => !have.has(i.sku)).map((i) => ({ ...extraLine(i.sku, i.description, 1, i.stock), ...mark })),
-    ];
-    setState({ draft: { ...state.draft, lines } });
-    await saveDraft();
-    return;
-  }
+  const mark = { preset: tag, presetName: tierName(result.tier), ...(result.care ? { presetKind: 'care' } : {}) };
   // frame: null keeps the order's frame, false leaves none, a line takes its place.
-  const keep = state.draft.lines.filter((l) => (!l.preset || l.presetKind === 'care') && !isPair(l) && !(frame !== null && l.kind === 'frame'));
+  const keep = state.draft.lines.filter((l) => !(frame !== null && l.kind === 'frame') && (result.care
+    ? l.presetKind !== 'care'
+    : (!l.preset || l.presetKind === 'care') && !isPair(l)));
   if (frame) keep.unshift(frame);
   const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
-  const lines = [
-    ...keep,
-    { ...pairLine(result.lens), preset: tag, presetName: `${result.tier.preset} · ${result.tier.tier}` },
-    ...result.extras.filter((e) => !have.has(e.id)).map((e) => ({ ...extraLine(e.id, e.description, 1, null, e.percent), preset: tag })),
-    ...result.items.filter((i) => !have.has(i.sku)).map((i) => ({ ...extraLine(i.sku, i.description, 1, i.stock), preset: tag })),
-  ];
+  const lines = [...keep, ...tierLines(result).filter((l) => l.kind !== 'extra' || !have.has(l.code)).map((l) => ({ ...l, ...mark }))];
   setState({ draft: { ...state.draft, lines } });
   await saveDraft();
 }

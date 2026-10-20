@@ -272,6 +272,7 @@ export function readBackend(sheets, report = new Report()) {
       presetId: cellText(r.preset_id).trim(), preset: cellText(r.preset).trim(), blurb: cellText(r.blurb).trim(),
       tier: cellText(r.tier).trim(), tierBlurb: cellText(r.tier_blurb).trim(),
       sv: cellText(r.single_vision).trim(), mf: cellText(r.progressive).trim(),
+      ...(cellText(r.contact_lens).trim() ? { cl: cellText(r.contact_lens).trim().toUpperCase() } : {}),
       extras: cellText(r.extras).split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean),
       items: parseItems(cellText(r.items)),
       ...(cellText(r.brands).trim() ? { brands: cellText(r.brands).split(',').map((x) => x.trim()).filter(Boolean) } : {}),

@@ -721,10 +721,43 @@ a.dash-card:active { transform: scale(.985); background: var(--cell-press); }
 
 /* ---------- lifestyle presets ---------- */
 
+/* tiles, two to a row; the open one in the opposite tone, its tiers right below its row */
+.preset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.preset-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-height: 148px; padding: 14px 15px 15px;
+  background: var(--sheet-cell); border-radius: 22px; color: var(--label); text-align: left;
+  transition: transform .18s var(--spring), background-color .2s var(--ease), color .2s var(--ease);
+}
+.preset-tile:active { transform: scale(.96); }
+.preset-tile .pt-top { display: flex; justify-content: space-between; align-items: center; align-self: stretch; margin-bottom: 8px; }
+.preset-tile .pt-top svg { width: 24px; height: 24px; stroke-width: 1.6; color: var(--label-2); }
+.preset-tile .pt-on { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; align-items: center; justify-content: center; background: var(--accent); }
+.preset-tile .pt-on svg { width: 12px; height: 12px; stroke-width: 2.6; color: var(--on-accent); }
+.preset-tile .pt-n { font: 600 17px/1.2 var(--display); letter-spacing: -0.015em; }
+.preset-tile .pt-b { font-size: 13px; line-height: 1.32; color: var(--label-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.preset-tile .pt-p { margin-top: auto; padding-top: 10px; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.preset-tile .pt-p .k { font-weight: 400; color: var(--label-2); }
+.preset-tile.open { background: var(--accent); color: var(--on-accent); }
+.preset-tile.open .pt-top svg, .preset-tile.open .pt-b, .preset-tile.open .pt-p .k { color: var(--on-accent); opacity: .78; }
+.preset-tile.open .pt-on { background: var(--on-accent); }
+.preset-tile.open .pt-on svg { color: var(--accent); opacity: 1; }
+.preset-tile.off:not(.open) .pt-n, .preset-tile.off:not(.open) .pt-p { color: var(--label-3); font-weight: 500; }
+@media (hover: hover) { .preset-tile:not(.open):hover { background: var(--cell-press); } }
+.preset-tiers { grid-column: 1 / -1; scroll-margin: 12px; animation: tiers-in .32s var(--ease-out); }
+.preset-tiers .list { background: var(--sheet-cell); }
+@keyframes tiers-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .preset-tiers { animation: none; } .preset-tile { transition: none; } }
+.tier-n { font-weight: 600; }
+.tier-on { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--label-2); vertical-align: 1px; }
+.tier-on svg { width: 12px; height: 12px; stroke-width: 2.6; }
+.tier-price { font-weight: 600; color: var(--label); white-space: nowrap; }
+
 .preset-head { padding: 0 calc(var(--gutter) + 16px); display: flex; flex-direction: column; gap: 2px; }
 .preset-head .n { font: 600 20px/1.25 var(--display); letter-spacing: 0; }
 .preset-head .b { font-size: 15px; color: var(--label-2); }
 .preset-line { display: block; color: var(--label-2); font-size: 13px; }
+.preset-lens { display: block; color: var(--label-3); font-size: 13px; line-height: 1.35; }
+.preset-tile { scroll-margin-top: 10px; }
 .preset-adds { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .preset-adds .chip { font-size: 12px; padding: 2px 9px; }
 .preset-note { display: block; margin-top: 5px; font-size: 12px; color: var(--label-3); }

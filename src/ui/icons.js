@@ -48,6 +48,12 @@ const P = {
   text: html`<path d="M5 7h14M5 12h14M5 17h9"/>`,
   arrowUp: html`<path d="M12 19V6M7 11l5-5 5 5"/>`,
   cloud: html`<path d="M7 18.5a4 4 0 0 1-.6-8 5.5 5.5 0 0 1 10.6-1.3A4.5 4.5 0 0 1 17 18.5z"/>`,
+  // the lifestyle presets
+  display: html`<rect x="3.5" y="5" width="17" height="11" rx="1.5"/><path d="M9 19.5h6M12 16v3.5"/>`,
+  sun: html`<circle cx="12" cy="12" r="3.8"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6 18 18M6 18l1.4-1.4M16.6 7.4 18 6"/>`,
+  wheel: html`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/><path d="M4 12h5.8M14.2 12H20M12 14.2V20"/>`,
+  halfsun: html`<circle cx="12" cy="12" r="7.5"/><path fill="currentColor" stroke="none" d="M12 4.5a7.5 7.5 0 0 1 0 15z" opacity=".35"/><path d="M12 4.5v15"/>`,
+  balloon: html`<path d="M12 3.8c2.9 0 5 2.3 5 5.2 0 3.4-2.5 6.3-5 6.3s-5-2.9-5-6.3c0-2.9 2.1-5.2 5-5.2z"/><path d="m11 16.5 1-1.2 1 1.2zM12 16.5c0 1.6 1.4 2.1.8 3.7"/>`,
   gift: html`<rect x="4" y="9" width="16" height="4" rx="1"/><path d="M5.5 13v6.5h13V13M12 9v10.5"/><path d="M12 9C10.4 5.4 6.4 5.6 6.8 7.9 7.1 9.3 9.6 9 12 9zM12 9c1.6-3.6 5.6-3.4 5.2-1.1-.3 1.4-2.8 1.1-5.2 1.1z"/>`,
 };
 

@@ -116,6 +116,24 @@ export function sphericalEquivalent(sphere, cylinder = 0) {
   return Math.round(se * 4) / 4;
 }
 
+const quarter = (v) => (v == null || v === '' ? null : Math.round(Number(v) * 4) / 4);
+
+/**
+ * Where a fitting starts. Gas permeable: the client's GP record. Multifocal:
+ * SE and ADD from the contact lens prescription, else the glasses one.
+ */
+export function startingFit(fit, side, cl, rx) {
+  const blank = blankFit(fit);
+  if (fit === 'gp') return cl?.gp ? Object.fromEntries(Object.keys(blank).map((k) => [k, cl[side]?.[k] ?? null])) : blank;
+  if (cl && !cl.gp && !contactIsBlank(cl)) {
+    return { se: sphericalEquivalent(cl[side].sphere, cl[side].cylinder), addition: Number(cl.addition) ? quarter(cl.addition) : null };
+  }
+  if (rx && !rxIsBlank(rx)) {
+    return { se: sphericalEquivalent(rx[side].sphere, rx[side].cylinder), addition: Number(rx[side].addition) ? quarter(rx[side].addition) : null };
+  }
+  return blank;
+}
+
 /** How he sizes up a client, as Alpha's CRM does. */
 export const QUALITIES = ['Easygoing', 'Regular', 'Demanding', 'Difficult'];
 

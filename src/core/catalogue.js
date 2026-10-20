@@ -27,6 +27,16 @@ export class LensCode {
   get isNone() { return this.code === 'N/A' || this.code === ''; }
 }
 
+/**
+ * POLAREX (XPERIO) IS INCOMPATIBLE WITH CRIZAL. The price list carries a few
+ * Polarex rows with a Crizal coating (and the prescription sun offer prices
+ * one); the lab does not make them. They are held: shown greyed with this
+ * reason, never offered, never on an order. HD anti-reflective is the best
+ * coating a Polarex lens takes.
+ */
+export const POLAREX_CRIZAL = 'Polarex can’t take Crizal';
+export const isPolarexCrizal = (filterGroup, coatingGroup) => filterGroup === 'POLAR' && coatingGroup === 'CRIZAL';
+
 const KIND_OF_FIELD = {
   SV: { category: 'category', material: 'material', design: 'design', colour: 'colour', treatment: 'treatment' },
   MF: { category: 'category', material: 'material', type: 'lens_type', design: 'design', colour: 'colour', treatment: 'treatment' },
@@ -136,6 +146,8 @@ export class Catalogue {
     for (const [field, kind] of Object.entries(kinds)) row[field] = this.parse(kind, r[field]);
     const parts = Object.keys(kinds).filter((f) => f !== 'category').map((f) => row[f].code);
     row.id = family + '-' + parts.join('-');
+    // Polarex (Xperio) cannot take Crizal: the price list prices it, the lab does not make it.
+    if (family !== 'CL' && isPolarexCrizal(row.category.group, row.treatment.group)) { row.available = false; row.held = POLAREX_CRIZAL; }
     return row;
   }
 

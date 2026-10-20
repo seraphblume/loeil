@@ -21,7 +21,7 @@ import { addOrderToQuote } from './quote.js';
 import { OrderGifts } from './gifts.js';
 import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
-import { solutionClash, clashParts } from '../core/presets.js';
+import { solutionClash, clashParts, polarexCrizalLines, POLAREX_CRIZAL } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
 import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
@@ -262,6 +262,7 @@ export function OrderScreen() {
   const aob = needsAob(draft, catalogue);
   const missing = aobMissing(draft, catalogue);
   const clash = solutionClash(draft, catalogue);
+  const heldPairs = polarexCrizalLines(draft, catalogue);
   const noFit = draft.lines.filter((l) => lineFit(l, catalogue) && !fitComplete(lineFit(l, catalogue), l.measures));
   const claimable = claimableDiscounts(catalogue);
   const claimed = new Set(draft.claimed ?? []);
@@ -284,6 +285,15 @@ export function OrderScreen() {
             <div class="caution-t">Voids the ${clashParts(draft, catalogue)} warranty</div>
             <div class="caution-d">Cleaning solutions damage the coating. Offer a microfibre cloth instead.</div>
             <div class="caution-items">${clash.map((l) => html`<div class="caution-item" key=${l.id}><span>${l.description}</span>
+              <button type="button" class="caution-btn" onClick=${() => { removeLine(l.id); toast('Removed from the order'); }}>Remove</button></div>`)}</div>
+          </div>
+        </div></div>`}
+        ${heldPairs.length > 0 && html`<div class="pad"><div class="caution" role="alert">
+          <${Icon} name="warning" />
+          <div class="caution-main">
+            <div class="caution-t">${POLAREX_CRIZAL}</div>
+            <div class="caution-d">The lab does not make Polarex with a Crizal coating. HD anti-reflective is the best coating Polarex takes — or Transitions, for Crizal.</div>
+            <div class="caution-items">${heldPairs.map((l) => html`<div class="caution-item" key=${l.id}><span>${l.lens.displayName}</span>
               <button type="button" class="caution-btn" onClick=${() => { removeLine(l.id); toast('Removed from the order'); }}>Remove</button></div>`)}</div>
           </div>
         </div></div>`}

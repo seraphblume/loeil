@@ -9,6 +9,8 @@ import { parseCodeLabel, brandKey } from './util.js';
 import { stockKind } from './stock.js';
 import { PRICE_BOUNDS, EMPLOYEE_NUMBER_DIGITS, TRUE_SKU_DIGITS } from '../config.js';
 import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO } from './sets.js';
+import { isPolarexCrizal, POLAREX_CRIZAL } from './catalogue.js';
+import { clMatches } from './presets.js';
 
 export const VOCAB_KINDS = [
   'category', 'material', 'lens_type', 'design', 'colour', 'treatment',
@@ -79,6 +81,8 @@ export function validateBundle(b, report = new Report()) {
   // --- lenses
   const used = new Map();
   let unavailable = 0;
+  const groupOf = new Map(b.vocabulary.map((v) => [v.kind + '|' + v.code, v.group || '']));
+  let held = 0;
   for (const list of ['single', 'multifocal', 'contact']) {
     const fam = FAMILY_OF[list];
     const [lo, hi] = PRICE_BOUNDS[fam];
@@ -92,12 +96,14 @@ export function validateBundle(b, report = new Report()) {
         if (!code) { report.error(SHEET_OF[list], `${key}: ${f} is blank.`); continue; }
         used.set(kind + '|' + code, (used.get(kind + '|' + code) ?? 0) + 1);
       }
+      if (list !== 'contact' && isPolarexCrizal(groupOf.get('category|' + parseCodeLabel(row.category).code), groupOf.get('treatment|' + parseCodeLabel(row.treatment).code))) { held++; continue; }
       if (!row.available) { unavailable++; continue; }
       if (!row.price || row.price <= 0) report.error(SHEET_OF[list], `${key} is available but has no price.`);
       else if (row.price < lo * 100 || row.price > hi * 100) report.error(SHEET_OF[list], `${key} is priced ${row.price / 100}, outside ${lo}–${hi}.`);
     }
   }
   if (unavailable) report.note('Lenses', `${unavailable} row${unavailable > 1 ? 's are' : ' is'} listed but marked unavailable — shown greyed, never added to an order.`);
+  if (held) report.note('Lenses', `${held} Polarex row${held > 1 ? 's carry' : ' carries'} a Crizal coating. ${POLAREX_CRIZAL}, so ${held > 1 ? 'they are' : 'it is'} held back — shown greyed with the reason, never offered or added to an order.`);
 
   if (b.vocabulary.length) {
     const byKind = {};
@@ -211,6 +217,8 @@ export function validateBundle(b, report = new Report()) {
 /** Lifestyle presets: named, each tier landing on a real lens, its extras and stock known. */
 function validatePresets(b, report, { facts, lookup }) {
   const keys = new Set();
+  // contact lens rows as clMatches reads them: { material: { code }, product: { code }, colour: { code } }
+  const contacts = b.lenses.contact.map((r) => Object.fromEntries(['material', 'product', 'colour'].map((k) => [k, { code: parseCodeLabel(r[k]).code }])));
   const extras = new Set(b.extras.map((e) => e.id));
   const stock = new Set(b.inventory.map((i) => i.sku));
   for (const t of b.presets ?? []) {
@@ -221,10 +229,15 @@ function validatePresets(b, report, { facts, lookup }) {
     if (keys.has(k)) report.error('Lifestyle presets', `${where} is listed twice.`);
     keys.add(k);
     // No lens at all is a care preset (contact lenses): it must add something, then.
-    if (!t.sv && !t.mf && !(t.items?.length || t.extras?.length)) report.error('Lifestyle presets', `${where} names no lens and no accessories.`);
+    if (!t.sv && !t.mf && !t.cl && !(t.items?.length || t.extras?.length)) report.error('Lifestyle presets', `${where} names no lens and no accessories.`);
+    if (t.cl && (t.sv || t.mf)) report.warn('Lifestyle presets', `${where} names spectacle lenses and a contact lens — the contact lens is ignored.`);
     for (const [label, spec] of [['single vision', t.sv], ['progressive', t.mf]]) {
-      if (spec && !facts.some((f) => factsMatch(lookup, spec, f))) report.warn('Lifestyle presets', `${where}: the ${label} lens matches nothing in the catalogue.`);
+      if (!spec) continue;
+      const hits = facts.filter((f) => factsMatch(lookup, spec, f));
+      if (!hits.length) report.warn('Lifestyle presets', `${where}: the ${label} lens matches nothing in the catalogue.`);
+      else if (hits.every((f) => f.held)) report.warn('Lifestyle presets', `${where}: the ${label} lens is Polarex with Crizal only. ${POLAREX_CRIZAL}, so the tier never lands on a lens.`);
     }
+    if (t.cl && !t.sv && !t.mf && !contacts.some((r) => clMatches(t.cl, r))) report.warn('Lifestyle presets', `${where}: the contact lens (${t.cl}) matches nothing in the catalogue.`);
     for (const id of t.extras ?? []) if (!extras.has(id)) report.warn('Lifestyle presets', `${where}: extra ${id} is not in the extras list.`);
     for (const i of t.items ?? []) if (!i.skus.some((s) => stock.has(s))) report.warn('Lifestyle presets', `${where}: no ${i.label.toLowerCase()} in the stock list (${i.skus.join(', ')}).`);
     const known = new Set(b.frames.map((f) => brandKey(f.brand)));
@@ -261,9 +274,11 @@ function validateSets(b, report) {
   const lookup = { codesInGroup: (kind, g) => groups.get(kind + '|' + g) ?? new Set() };
   const KIND = { material: 'material', design: 'design', filter: 'category', colour: 'colour', coating: 'treatment' };
   const families = new Set(['SV', ...(vocab.get('lens_type') ?? [])]);
+  const groupOf = new Map(b.vocabulary.map((v) => [v.kind + '|' + v.code, v.group || '']));
+  const withHeld = (f) => ({ ...f, held: isPolarexCrizal(groupOf.get('category|' + f.filter), groupOf.get('treatment|' + f.coating)) });
   const facts = [
-    ...b.lenses.single.map((r) => ({ family: 'SV', material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
-    ...b.lenses.multifocal.map((r) => ({ family: parseCodeLabel(r.type).code, material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
+    ...b.lenses.single.map((r) => withHeld({ family: 'SV', material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
+    ...b.lenses.multifocal.map((r) => withHeld({ family: parseCodeLabel(r.type).code, material: parseCodeLabel(r.material).code, design: parseCodeLabel(r.design).code, filter: parseCodeLabel(r.category).code, colour: parseCodeLabel(r.colour).code, coating: parseCodeLabel(r.treatment).code })),
   ];
 
   /** Codes and groups in a match the vocabulary does not know. */
@@ -323,7 +338,9 @@ function validateSets(b, report) {
     if (d.validFrom && d.validTo && d.validTo < d.validFrom) report.error('Campaign discounts', `${where} ends before it starts.`);
     for (const [i, row] of (d.prices ?? []).entries()) {
       for (const t of unknownTokens(row.match)) report.warn('Campaign discounts', `${where}, price row ${i + 1}: “${t}” is not something the vocabulary knows.`);
-      if (!facts.some((f) => factsMatch(lookup, row.match, f))) report.warn('Campaign discounts', `${where}, price row ${i + 1} (${row.match}) matches no lens in the catalogue.`);
+      const hits = facts.filter((f) => factsMatch(lookup, row.match, f));
+      if (!hits.length) report.warn('Campaign discounts', `${where}, price row ${i + 1} (${row.match}) matches no lens in the catalogue.`);
+      else if (hits.every((f) => f.held)) report.note('Campaign discounts', `${where}, price row ${i + 1} (${row.match}) is for Polarex with Crizal. ${POLAREX_CRIZAL}, so it never applies.`);
       if (row.price != null && !(row.price > 0)) report.error('Campaign discounts', `${where}, price row ${i + 1}: the price must be more than zero.`);
     }
     const toConfirm = (d.prices ?? []).filter((r) => r.price == null).length;

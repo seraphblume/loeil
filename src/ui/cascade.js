@@ -21,7 +21,7 @@ import {
 import { eligibility } from '../core/promotions.js';
 import { money, moneyDelta } from '../core/money.js';
 import { fold, signed } from '../core/util.js';
-import { guidance, rxIsBlank, CL_FITS, blankFit, fitComplete, fitText, blankContactRx, contactIsBlank, sphericalEquivalent } from '../core/crm.js';
+import { guidance, CL_FITS, fitComplete, fitText, blankContactRx, contactIsBlank, rxIsBlank, startingFit } from '../core/crm.js';
 import { lensLine, pairLine, contactFit } from '../core/orders.js';
 import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
 import { addLine, toast, clientById, upsertClient } from '../state/app.js';
@@ -89,7 +89,7 @@ export function CascadeScreen({ family, query }) {
 
         <${List}>
           ${shown.map((o) => html`<${Row} title=${o.label} badge=${o.maker && html`<${Maker} name=${o.maker} />`} detail=${[o.detail, o.blurb].filter(Boolean).join(' · ')}
-            sub=${!o.available ? 'Not sold — the register refuses this one' : (rx?.highRx?.includes(o.code) && step.key === 'material' ? 'Suits this prescription' : null)}
+            sub=${!o.available ? (o.held ?? 'Not sold — the register refuses this one') : (rx?.highRx?.includes(o.code) && step.key === 'material' ? 'Suits this prescription' : null)}
             end=${isLast ? money(o.fromPrice) : null} count=${isLast ? null : o.count} off=${!o.available} onClick=${() => choose(o.code)} />`)}
           ${!shown.length && html`<div class="row"><span class="muted small">Nothing matches “${filter}”.</span></div>`}
         <//>
@@ -125,7 +125,9 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
     <${Bar} backTo=${backTo} title="Lens" trail=${html`<button class="bar-btn" onClick=${() => setEditing(true)}>Edit</button>`} />
     <${Screen} class="has-dock">
       <div class="stack pad">
-        ${!lens.available && html`<${Flag}>This lens is on the printed table but the register will not take it. The price is here so you can explain why, but it cannot go on an order.<//>`}
+        ${!lens.available && (lens.held
+          ? html`<${Flag}>${lens.held}. The price list carries this one, but the lab does not make it, so it cannot go on an order. HD anti-reflective is the best coating Polarex takes.<//>`
+          : html`<${Flag}>This lens is on the printed table but the register will not take it. The price is here so you can explain why, but it cannot go on an order.<//>`)}
 
         <div class="gap-s">
           <${Eyebrow}>${lens.posCode ? 'POS product code' : 'Component codes'}<//>
@@ -201,24 +203,6 @@ export function LineEditorSheet({ lens, onClose, onAdded }) {
 }
 
 const EYE_CHOICES = [{ value: 'both', label: 'Both eyes' }, { value: 'od', label: 'OD' }, { value: 'os', label: 'OS' }];
-const quarter = (v) => (v == null || v === '' ? null : Math.round(Number(v) * 4) / 4);
-
-/**
- * Where a fitting starts. Gas permeable: the client's GP record. Multifocal:
- * SE and ADD from the contact lens prescription, else the glasses one.
- */
-function startingFit(fit, side, cl, rx) {
-  const blank = blankFit(fit);
-  if (fit === 'gp') return cl?.gp ? Object.fromEntries(Object.keys(blank).map((k) => [k, cl[side]?.[k] ?? null])) : blank;
-  if (cl && !cl.gp && !contactIsBlank(cl)) {
-    return { se: sphericalEquivalent(cl[side].sphere, cl[side].cylinder), addition: Number(cl.addition) ? quarter(cl.addition) : null };
-  }
-  if (rx && !rxIsBlank(rx)) {
-    return { se: sphericalEquivalent(rx[side].sphere, rx[side].cylinder), addition: Number(rx[side].addition) ? quarter(rx[side].addition) : null };
-  }
-  return blank;
-}
-
 /**
  * A contact lens fitted per eye — gas permeable (SPH, K1, K2, RC, DIA) or
  * multifocal (SE, ADD): the figures the register asks for. Both eyes at once.

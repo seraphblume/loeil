@@ -70,8 +70,8 @@ export function options(catalogue, familyId, chosen, stepKey) {
   rows.forEach((row, i) => {
     const v = row[stepKey];
     const hit = seen.get(v.code);
-    if (hit) { hit.count++; hit.available ||= row.available; hit.minPrice = Math.min(hit.minPrice, row.price); }
-    else seen.set(v.code, { value: v, count: 1, available: row.available, first: i, minPrice: row.price });
+    if (hit) { hit.count++; hit.available ||= row.available; hit.minPrice = Math.min(hit.minPrice, row.price); hit.held ??= row.held; }
+    else seen.set(v.code, { value: v, count: 1, available: row.available, first: i, minPrice: row.price, held: row.held });
   });
   return [...seen.values()]
     .sort((a, b) => (a.value.rank ?? Infinity) - (b.value.rank ?? Infinity) || a.first - b.first)
@@ -88,6 +88,8 @@ export function options(catalogue, familyId, chosen, stepKey) {
       highRx: o.value.highRx,
       maker: o.value.maker,
       fromPrice: o.minPrice,
+      // why nothing behind it can be sold, when the catalogue knows (Polarex with Crizal)
+      held: o.available ? null : o.held ?? null,
     }));
 }
 
@@ -159,6 +161,7 @@ export function resolve(catalogue, row) {
     priceCents: row.price,
     attributes: attrs,
     available: row.available,
+    ...(row.held ? { held: row.held } : {}),
     promoKey: promoKeyFor(catalogue, row),
   };
 }

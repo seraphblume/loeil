@@ -175,10 +175,12 @@ computer, the way an order does (`#/orders/delivery/<Sell ID>`, `#/orders/follow
 
 ## Brand gifts
 
-When a brand gives something away with its frames — Converse, Carrera, Tommy and
-Nautica now, while stock lasts — it is a promotion of kind **gift** (Catalogue data →
+When a brand gives something away with its frames — Converse, Carrera, Tommy,
+Nautica and Guess (a bag) now, while stock lasts — it is a promotion of kind **gift** (Catalogue data →
 Promotions): `brand_in` names the brands, and `gift: 61004341/61004340` the items to
-hand over, from the accessory list's Brand Gift collection. A gift shows beside
+hand over, from the accessory list's Brand Gift collection. A gift whose item is
+not in the stock report or the price list yet (Tommy, Nautica, Guess) shows without
+its item until the barcode is added. A gift shows beside
 the brand's frames in every list, on the frame, and on an order carrying one, with
 a tap to put the gift item on the ticket; **Me → Brand gifts** lists them all.
 A gift has no end date unless it is given one: it runs while the stock lasts, and
@@ -215,23 +217,59 @@ standing one, which a new campaign's dates leave alone.
 
 **Lifestyle preset** at the top of the order's Add list puts a whole lens on the
 order in one tap — single vision, or progressive when the prescription has an ADD;
-high-index when the sphere is strong and the preset has one — with Plus Protection
-and the accessories that go with it (an Estuche Nube pouch, a microfibre cloth,
-cleaning solution; for Kids a case, a Xikú keychain — conchita or aguacate — and a
-strap). Each preset has tiers: an accessible price and the better value (Kids adds
-myopia control). Tapping another preset swaps the lens and what the last preset
-added; frames and anything added by hand stay.
+high-index when the sphere is strong and the tier has one — with Plus Protection
+and the accessories that go with it. The quote's **Add an option** opens the same
+presets after the frame.
+
+The presets are **tiles**, two to a row: First Glasses, Digital, Everyday, Kids,
+Driver, Outdoor, Luxury, Clarity, Contacts and Progressive, each with its line and
+the lowest price it comes to **for this prescription and this frame**. Tapping a
+tile opens its tiers right below it (tapping it again closes it); the preset
+already on the order opens by itself, its tier marked *On the order*. A preset with
+nothing for this prescription (Progressive, for single vision) goes greyed to the end.
+
+Every preset has the same five tiers, from the lowest price up:
+
+| Tier | Paid accessories | Plus Protection | Lens |
+|---|---|---|---|
+| **Lite** | — (gifts only) | — | low-tier: CR-39, the plainest coating |
+| **Essential** | — (gifts only) | — | polycarbonate, the lens the sets price (anti-reflective is included in most) |
+| **Plus** | 1 | ✓ | mid-tier: HD anti-reflective, blue light, extended-design progressives |
+| **Pro** | 1 | ✓ | Essilor: Crizal, Eyezen, Varilux Comfort, Transitions |
+| **Ultra** | 1–2 | ✓ | Essilor's best: Crizal Prevencia or Natural Look, Varilux Physio or Xdesign, Stellest |
+
+Every tier also takes the free gifts — a gift microfibre cloth ($0.01; Ultra and Luxury have the Toalla Maravillosa instead), and for Kids a strap — so Lite and Essential are never empty-handed.
+
+On the order, the quote and the toast a tier reads as one name: **Digital Pro**,
+**Kids Lite**. Contacts has three: **Lite** (Devlyn Multiplus 120 ml and a lens
+case), **Plus** (ReNu Advanced 355 ml and the case) and **Pro**, which puts
+**multifocal contact lenses** on the order — a box for each eye, the cheapest after
+the campaign's discount (HydraGlyde Multifocal while its 30% runs), its fitting (SE,
+ADD) started from the prescription — with the ReNu and the case. It needs an ADD;
+without a prescription the fitting is added on the order.
+
+**Each tier is priced the way the order will price it, with the frame in hand**:
+the frame, the lens, Plus Protection and the accessories. Of the lenses a tier
+names, it takes the one the client pays least for: in a set frame, the set's row
+(a lens the set's table does not name would take the frame out of its set — the
+tier says so), in a sunglasses frame the prescription sun price, otherwise the
+price list. So Plus takes HD anti-reflective with a blue-light filter in a set,
+where the set includes it, and Everyday Plus takes Transitions where a set makes it
+cheaper than a photochromic. With no frame the prices are for the client's own frame.
 
 **Every order gets its own accessories.** An accessory lists its alternatives —
-the six Estuche Nube colours, both gift cloths, a dozen straps, both kids' cases and
-keychains — and each order takes one of those on hand at the first one's price,
-weighted by stock so the shelves empty evenly. The price never moves; the colour
-does, and the same order always shows the same one.
+the six Estuche Nube colours, both kids' cases and keychains — and each order takes
+one of those on hand at the first one's price, weighted by stock so the shelves
+empty evenly. The price never moves; the colour does, and the same order always
+shows the same one.
 
-**Contact lenses** is a care preset: no lens, only a solution and a lens case —
-Devlyn Multiplus 120 ml (Accessible) or ReNu Advanced 355 ml (Value) with the Xikú
-lens case. It leaves every lens on the order as it is, and a spectacle preset
-leaves it as it is.
+**Polarex (Xperio) cannot take Crizal.** The price list carries a few Polarex rows
+with Crizal Natural Look, and the prescription sun offer prices one; the lab does
+not make them. The catalogue holds them back: greyed on the lens steps with
+*Polarex can't take Crizal*, never an upgrade, never on a preset, and an order
+that carries one (saved before, or found by search) is flagged with a Remove.
+HD anti-reflective is the best coating Polarex takes. Validation notes the rows and
+the offer's price row, and warns about a preset that could only land on one.
 
 **Cleaning solutions damage Crizal (any of them), Transitions and Polarex**, and void
 their warranty. A preset never adds one to those lenses, whatever its data says,
@@ -243,20 +281,22 @@ never touch spectacle lenses and are not.
 
 Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 `presets` tab of the workbook): a row per tier with its single vision and
-progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`), the extra
-codes, and the accessories as `Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172`
+progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`; several
+separated by `;`), or — with both blank — a contact lens (`contact_lens`,
+`material|product|colour`: `5200|HM,MT|*`) or nothing at all for a care tier; the
+extra codes; and the accessories as `Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172`
 — the alternatives an order picks from (with none on hand, the first in the price list), a `*` marking a
-cleaning solution. A tier with no lens at all is a care preset. A tier can also name its **frame brands** (comma-separated):
+cleaning solution. A tier can also name its **frame brands** (comma-separated):
 choosing it then asks for a frame of one of them, unless the option already has one.
+**Luxury** is built that way, with Versace, Carolina Herrera, Michael Kors, Emporio
+Armani, Tous, Prada, Gucci, Tom Ford and the rest of its list.
 
-**Luxury** is built that way: value and premium lenses only, with a renowned frame —
-Versace, Carolina Herrera, Michael Kors, Emporio Armani, Tous, Prada, Gucci,
-Tom Ford and the rest of its list.
+**Progressive** is listed first and has no single vision lens, so it is progressive
+only. With no prescription yet it is priced as a progressive; for a prescription
+with no ADD it is shown greyed out at the end.
 
-**Progressive** is listed first and has no single vision lens, so it is progressive only.
-It has four tiers: a progressive with anti-reflective (high-index when the sphere is strong),
-then three Varilux tiers, each with a Crizal coating. With no prescription yet it is priced as a progressive.
-For a prescription with no ADD it is shown greyed out at the end of the list.
+The Follow Up's preset list comes from Alpha (Config, the Follow Up messages), so
+it keeps Alpha's names until those are renamed there too.
 
 ## Maker badges
 

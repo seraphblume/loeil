@@ -57,8 +57,8 @@ export function bundleToWorkbooks(b, XLSX) {
     ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo,
       priceTableText(d.prices), d.requires ?? ''])],
     [10, 30, 8, 12, 40, 50, 11, 11, 56, 28]);
-  add(backend, 'presets', [['preset_id', 'preset', 'blurb', 'tier', 'tier_blurb', 'single_vision', 'progressive', 'extras', 'items', 'brands'],
-    ...(b.presets ?? []).map((t) => [t.presetId, t.preset, t.blurb, t.tier, t.tierBlurb, t.sv, t.mf, (t.extras ?? []).join(', '), itemsText(t.items), (t.brands ?? []).join(', ')])], [12, 18, 40, 14, 40, 34, 34, 16, 70, 60]);
+  add(backend, 'presets', [['preset_id', 'preset', 'blurb', 'tier', 'tier_blurb', 'single_vision', 'progressive', 'contact_lens', 'extras', 'items', 'brands'],
+    ...(b.presets ?? []).map((t) => [t.presetId, t.preset, t.blurb, t.tier, t.tierBlurb, t.sv, t.mf, t.cl ?? '', (t.extras ?? []).join(', '), itemsText(t.items), (t.brands ?? []).join(', ')])], [12, 18, 40, 14, 40, 34, 34, 18, 16, 70, 60]);
   add(backend, 'store', [['field', 'value'], ...STORE_FIELDS.map((f) => [f.key, b.store?.[f.key] ?? ''])], [16, 70]);
 
   const catalogue = XLSX.utils.book_new();
