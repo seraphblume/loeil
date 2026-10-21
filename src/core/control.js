@@ -77,12 +77,16 @@ export function fillMessage(template, row, messages = DEFAULT_MESSAGES) {
     .replaceAll('{review}', messages.reviewLink ?? DEFAULT_MESSAGES.reviewLink);
 }
 
-/** A Mexican mobile as wa.me wants it: 52 and the ten digits. */
+/**
+ * A chat with a Mexican mobile (52 and the ten digits), the message filled in.
+ * Straight to api.whatsapp.com: the wa.me short link redirects there and the
+ * redirect mangles four-byte characters, so every emoji arrived as �.
+ */
 export function whatsappLink(phone, message = null) {
   const d = digits(phone);
   if (d.length < 10) return null;
   const n = d.length === 10 ? '52' + d : d;
-  return `https://wa.me/${n}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+  return `https://api.whatsapp.com/send?phone=${n}${message ? `&text=${encodeURIComponent(message)}` : ''}`;
 }
 
 /** The row's WhatsApp: the link and what it does. */
