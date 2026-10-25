@@ -222,7 +222,7 @@ function ReceiptStage({ order, client, rx }) {
         status=${{
           printing: register ? 'Printing the register copy' : 'Printing the customer copy',
           done: register ? 'Ready for the register' : 'Customer copy ready',
-          detail: `Receipt #${r.number} · ${money(r.totals.total)}`,
+          detail: r.totals.alliance ? `Receipt #${r.number} · ${money(r.totals.alliance.clientPays)} to pay` : `Receipt #${r.number} · ${money(r.totals.total)}`,
         }} />
       ${!r.store && html`<p class="note">The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.</p>`}
       ${register && html`<div class=${'after' + (printer.done ? ' in' : '')}><${CopyList} r=${r} /></div>`}

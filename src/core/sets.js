@@ -23,6 +23,7 @@
 // Several matches separate with `;`. A row with no match is chosen by hand.
 
 import { brandKey, dayToDate, startOfDay } from './util.js';
+import { resolveAlliance, applyAlliance, cfePair } from './alliances.js';
 
 export const SET_GROUPS = ['Single vision', 'Progressive (poly)', 'Varilux Comfort', 'Varilux Physio'];
 
@@ -306,23 +307,28 @@ export function claimableDiscounts(catalogue, on = new Date()) {
  * The k-th frame on the order goes with the k-th pair of spectacle lenses.
  */
 export function resolveOrder(order, catalogue, on = new Date()) {
+  // An alliance that does not combine prices the order without sets or campaign discounts (core/alliances.js).
+  const ally = resolveAlliance(order, catalogue);
+  const promos = !ally || ally.combines;
   const lines = order.lines.map((l) => {
     const c = { ...l };
-    delete c.set; delete c.setLens; delete c.auto; delete c.offer; delete c.setAvailable; delete c.hasLenses; delete c.setExcluded; delete c.outsideSet;
+    delete c.set; delete c.setLens; delete c.auto; delete c.offer; delete c.setAvailable; delete c.hasLenses; delete c.setExcluded; delete c.outsideSet; delete c.ally;
     // an accessory takes its price from the price list (a saved order keeps the one it had)
     if (c.kind === 'extra' && !(Number(c.percent) > 0) && c.priceCents === undefined) c.priceCents = catalogue.itemPrice?.(c.code) ?? null;
     return c;
   });
   const frames = lines.filter((l) => l.kind === 'frame');
   const pairs = lines.filter((l) => l.kind === 'lens' && l.lens.family !== 'CL');
+  const voucher = cfePair(ally, lines); // a CFE voucher prices its lens itself, so that pair and its frame stay out of a set
   frames.forEach((f, i) => {
+    if (!promos) return;
     const named = f.setId ? catalogue.setsById?.get(f.setId) : null;
     const set = (named && isCurrent(named, on) ? named : null) ?? setForFrame(catalogue, frameFacts(catalogue, f), on);
     const lens = pairs[i];
     if (lens) f.hasLenses = true;
     if (!set) return;
     f.setAvailable = { id: set.id, name: set.name, price: set.price };
-    if (f.noSet) return;
+    if (f.noSet || (voucher && lens === voucher)) return;
     if (!lens) { f.set = f.setAvailable; return; }
     const chosen = lens.setLensId ? { def: catalogue.setLensesById.get(lens.setLensId), entry: priceIn(catalogue, set.id, lens.setLensId) } : null;
     const hit = chosen?.def && chosen.entry ? chosen : setLensFor(catalogue, set, lens.lens);
@@ -337,7 +343,7 @@ export function resolveOrder(order, catalogue, on = new Date()) {
     lens.setLens = { setId: set.id, setName: set.name, id: hit.def.id, name: hit.def.name, group: hit.def.group, price: hit.entry.price, special: Boolean(hit.entry.special), auto: hit !== chosen };
   });
   const claimed = new Set(order.claimed ?? []);
-  for (const l of lines) {
+  for (const l of promos ? lines : []) {
     const pair = pairs.indexOf(l);
     const ctx = { claimed, ...(pair >= 0 ? { frame: frames[pair] ?? null } : {}) };
     const d = autoDiscountFor(catalogue, l, on, ctx);
@@ -345,7 +351,10 @@ export function resolveOrder(order, catalogue, on = new Date()) {
     l.offer = d; // what applies without the seller — shown even when he chose otherwise
     if (typeof l.discount !== 'number') l.auto = d;
   }
-  return { ...order, lines };
+  applyAlliance(ally, lines);
+  const out = { ...order, lines };
+  if (ally) out.ally = ally; else delete out.ally;
+  return out;
 }
 
 /** Promotion numbers the register needs for this order, in order of appearance. */
@@ -353,6 +362,7 @@ export function promoNumbers(order) {
   const out = new Map();
   for (const l of order.lines) {
     if (l.set) out.set(l.set.id, l.set.name);
+    if (l.ally?.packaged) out.set(l.ally.convenio, l.ally.name);
     if (l.auto && typeof l.discount !== 'number') out.set(l.auto.id, l.auto.name);
   }
   return [...out.entries()].map(([id, name]) => ({ id, name }));

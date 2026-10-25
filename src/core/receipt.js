@@ -16,6 +16,7 @@
 import { priceOrder, lineQuantity, isPair, isShare, needsAob } from './orders.js';
 import { lensCodeText } from './lens.js';
 import { promoNumbers } from './sets.js';
+import { allianceCodes } from './alliances.js';
 import { rxIsBlank, eyeIsBlank } from './crm.js';
 import { money } from './money.js';
 import { amountWords } from './words.js';
@@ -159,6 +160,7 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
   const setEnds = order.lines.map((l) => l.set?.id).filter(Boolean)
     .map((id) => catalogue?.setsById.get(id)?.validTo).filter(Boolean).sort()[0] ?? null;
   const fields = rxFields(rx, order.aob ?? null);
+  const ally = order.ally ?? null;
 
   const groups = [
     { n: 1, title: 'Frame SKU', items: frames.map((r) => ({
@@ -170,8 +172,9 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
       note: i === 0 && r.line.lens.family === 'CL' && r.line.power ? `${r.line.eye} ${r.line.power}`
         : i === 0 && r.line.setLens?.id ? `${r.line.setLens.setName} · ${r.line.setLens.name}` : i === 0 && r.pending ? (r.line.setLens ? 'set row not chosen' : `${r.line.auto?.id ?? ''} upgrade price to confirm`.trim()) : '',
     }))) },
-    { n: 3, title: 'Set / discount', items: [
+    { n: 3, title: ally ? 'Convenio and authorization' : 'Set / discount', items: [
       ...promos.map((x) => ({ copy: x.id, text: x.name })),
+      ...allianceCodes(ally),
       ...manual.map((r) => ({ copy: null, text: `${r.discount}% off ${r.line.kind === 'frame' ? 'the frame' : 'the lenses'} (no promotion number)` })),
     ] },
     { n: 4, title: 'Extras', items: extras.map((r) => ({
@@ -190,7 +193,11 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
     client: client || order.clientNameAtSale ? { name: client?.name || order.clientNameAtSale || '', phone: client?.phone || '' } : null,
     discounts: [...promos.map((x) => x.id), ...manual.filter((r) => !r.auto).map((r) => `${r.discount}%`)],
     items: ticketItems(rows, catalogue),
-    totals: { list: p.list, off: p.off, total: p.total, pending: p.pending.length, unpriced: p.unpriced.length },
+    totals: {
+      list: p.list, off: p.off, total: p.total, pending: p.pending.length, unpriced: p.unpriced.length,
+      // Under an alliance: what the payer covers and what the client pays, with the plan and authorization.
+      alliance: p.alliance ? { ...p.alliance, extras: ally?.extras ?? [], authorization: ally?.authorization ?? '', voucher: ally?.vale != null } : null,
+    },
     words: amountWords(p.total),
     validUntil: setEnds,
     barcode: frames[0]?.line.sku ?? null,
@@ -223,6 +230,14 @@ export function receiptText(r) {
   out.push('');
   if (r.totals.off) out.push(`Before discounts ${money(r.totals.list)} · discounts −${money(r.totals.off)}`);
   out.push(`Total ${money(r.totals.total)}`);
+  const a = r.totals.alliance;
+  if (a) {
+    out.push(`${a.payer} · ${a.plan}${a.authorization ? ` · ${a.voucher ? 'voucher' : 'authorization'} ${a.authorization}` : ''}`);
+    if (a.copay) out.push(`Copay ${money(a.copay)}`);
+    for (const x of a.extras) out.push(`${x.label} +${money(x.amount)}`);
+    out.push(`${a.payer} covers −${money(a.covered)}`);
+    out.push(`Client pays ${money(a.clientPays)}`);
+  }
   if (r.seller) out.push(`${r.seller.number} ${r.seller.name}`.trim());
   return out.join('\n');
 }

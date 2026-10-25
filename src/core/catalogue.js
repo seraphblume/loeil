@@ -120,6 +120,8 @@ export class Catalogue {
     this.discounts = bundle?.discounts ?? [];
     this.store = bundle?.store ?? null;
     this.presets = bundle?.presets ?? [];
+    // alliances: insurers and employers (see core/alliances.js)
+    this.alliances = bundle?.alliances ?? [];
   }
 
   get isEmpty() { return !this.bundle || this.lensCount === 0; }

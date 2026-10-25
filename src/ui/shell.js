@@ -9,7 +9,7 @@ import { html, useState, useEffect } from './html.js';
 import { useApp, useResolvedDraft } from './hooks.js';
 import { staffMember } from '../state/app.js';
 import { money } from '../core/money.js';
-import { orderTotal } from '../core/orders.js';
+import { priceOrder, clientPays } from '../core/orders.js';
 import { useRoute, tabHref, linkProps } from './router.js';
 import { Icon } from './icons.js';
 import { Wordmark } from './kit.js';
@@ -21,6 +21,7 @@ import { ScanScreen } from './scan.js';
 import { SetsScreen, SetScreen } from './sets.js';
 import { CheckoutScreen, SavedReceiptScreen } from './receipt.js';
 import { SetsAdminScreen, SetAdminScreen, SetLensesScreen, DiscountsScreen } from './data/sets.js';
+import { AlliancesAdminScreen, AllianceAdminScreen } from './data/alliances.js';
 import { OrderScreen } from './order.js';
 import { QuoteScreen } from './quote.js';
 import { PresetsAdminScreen } from './presets.js';
@@ -85,7 +86,7 @@ function TopNav({ route }) {
     </nav>
     <div class="tn-end">
       ${draft.lines.length > 0 && html`<a ...${linkProps('#/find/order')} class=${'tn-order' + (onOrder ? ' on' : '')} aria-label="Order in progress">
-        <span class="k">Order</span><span class="v">${money(orderTotal(draft))}</span>
+        ${(() => { const p = priceOrder(draft); return html`<span class="k">${p.alliance ? 'To pay' : 'Order'}</span><span class="v">${money(clientPays(p))}</span>`; })()}
       </a>`}
       ${seller && html`<a ...${linkProps(tabHref('me', route))} class="tn-me" title=${`${seller.name} · ${seller.employeeNumber}`} aria-label=${seller.name}>${initials || 'Me'}</a>`}
     </div>
@@ -187,6 +188,7 @@ function screenFor(route) {
       if (b === 'sets') return route.parts[3] ? html`<${SetAdminScreen} id=${decodeURIComponent(route.parts[3])} />` : html`<${SetsAdminScreen} />`;
       if (b === 'setlenses') return html`<${SetLensesScreen} />`;
       if (b === 'discounts') return html`<${DiscountsScreen} />`;
+      if (b === 'alliances') return route.parts[3] ? html`<${AllianceAdminScreen} id=${decodeURIComponent(route.parts[3])} />` : html`<${AlliancesAdminScreen} />`;
       return html`<${DataHome} />`;
     }
     if (a === 'promotions') return html`<${PromotionsScreen} />`;

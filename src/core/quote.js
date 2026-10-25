@@ -91,7 +91,9 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
     rows,
     subtotal: p.list,
     save: p.off,
-    total: p.total,
+    // Under an alliance the option's total to pay is the client's part.
+    total: p.alliance ? p.alliance.clientPays : p.total,
+    alliance: p.alliance,
     pending: p.pending.length,
     unpriced: p.unpriced.length,
     validUntil: validUntil(order, catalogue, on),
@@ -167,6 +169,7 @@ export function quoteText(q) {
     out.push('', `Option ${o.n}`);
     for (const r of o.rows) out.push(`  ${r.label}: ${r.desc}${r.qty ? ` ×${r.qty}` : ''}${r.included ? '  in the set' : r.price != null ? `  ${r.from ? 'from ' : ''}${pesos(r.price)}` : r.label === 'Treatments' ? '' : '  at the register'}`);
     if (o.save) out.push(`  Subtotal ${pesos(o.subtotal)} · you save ${pesos(o.save)}`);
+    if (o.alliance) out.push(`  ${o.alliance.payer} covers ${pesos(o.alliance.covered)}${o.alliance.copay ? ` · copay ${pesos(o.alliance.copay)}` : ''}`);
     out.push(`  Total to pay ${o.from ? 'from ' : ''}${pesos(o.total)}`);
   }
   return out.join('\n');

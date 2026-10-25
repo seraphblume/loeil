@@ -50,6 +50,16 @@ export function receiptBlocks(r) {
   B.push({ t: 'amount', k: 'Amount', v: amount(r.totals.total) });
   B.push({ t: 'words', text: `** ${r.words} **` });
   if (r.totals.off) B.push({ t: 'fine', text: `Before discounts ${amount(r.totals.list)} · you save ${amount(r.totals.off)}` });
+  const a = r.totals.alliance;
+  if (a) {
+    B.push({ t: 'gap' });
+    B.push({ t: 'field', k: 'Alliance', v: `${a.payer} · ${a.plan}`.toUpperCase() });
+    if (a.authorization) B.push({ t: 'field', k: a.voucher ? 'Voucher' : 'Authorization', v: a.authorization });
+    if (a.copay) B.push({ t: 'pair', k: 'Copay', v: amount(a.copay) });
+    for (const x of a.extras) B.push({ t: 'pair', k: x.label, v: amount(x.amount) });
+    B.push({ t: 'pair', k: `Covered by ${a.payer.split(' (')[0]}`, v: `-${amount(a.covered)}` });
+    B.push({ t: 'amount', k: 'Client pays', v: amount(a.clientPays) });
+  }
   if (r.totals.pending) B.push({ t: 'fine', text: 'A lens price is not settled yet (its set row or an upgrade) — amount so far' });
   if (r.totals.unpriced) B.push({ t: 'fine', text: `${r.totals.unpriced} item${r.totals.unpriced === 1 ? '' : 's'} priced at the register (reg.)` });
 
@@ -116,6 +126,11 @@ export function quoteBlocks(q) {
     const fromText = o.from ? 'from ' : '';
     B.push({ t: 'pair', k: 'Subtotal:', v: fromText + amount(o.subtotal) });
     B.push({ t: 'pair', k: 'You save:', v: amount(o.save) });
+    if (o.alliance) {
+      if (o.alliance.copay) B.push({ t: 'pair', k: 'Copay:', v: amount(o.alliance.copay) });
+      if (o.alliance.surcharges) B.push({ t: 'pair', k: 'Added to the package:', v: amount(o.alliance.surcharges) });
+      B.push({ t: 'pair', k: `${o.alliance.payer.split(' (')[0]} covers:`, v: `-${amount(o.alliance.covered)}` });
+    }
     B.push({ t: 'amount', k: 'Total to pay', v: fromText + amount(o.total) });
     if (o.from) B.push({ t: 'fine', text: 'Frame quoted by brand, from its lowest price — the final price is the frame you choose.', left: true });
     if (o.pending) B.push({ t: 'fine', text: 'A lens price is not settled yet (its set row or an upgrade) — total so far', left: true });

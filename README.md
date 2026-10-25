@@ -213,6 +213,44 @@ The seller's own 40% or 50% on a line replaces all of these. Every discount is d
 what it applies to, what the client shows, and its dates — both blank for a
 standing one, which a new campaign's dates leave alone.
 
+## Alliances
+
+Insurers and employers whose members get glasses as a benefit — Seguros Centauro
+(and Centauro-MetLife), Dentegra (its own plans, Mapfre and Quálitas), Dentalia-Mapfre,
+CFE. Ask from the first contact: **Alliance or insurance** on the order picks the
+alliance and the plan, and the order prices itself.
+
+- **Package or own choice.** A plan's package (a frame up to an amount with the plan's
+  lenses, or its contact lenses) is covered: the client pays the copay and any
+  surcharge the package names (a 2nd series). Anything else is **Own choice**: every
+  line at the plan's percentage off its list price (15%, under the plan's convenio),
+  the coverage paid towards the frame and lenses, the client pays the copay and the
+  rest. A package the order does not fit — a frame above its limit, a piece missing —
+  is priced as Own choice and says why.
+- **Promotions.** Centauro, Centauro-MetLife and Dentegra do not combine: under them
+  the order goes without sets, campaign discounts, Sam's Club or the seller's own line
+  discount. Dentalia-Mapfre and CFE combine: the sets and discounts price the order
+  first and the coverage pays towards it.
+- **CFE.** The voucher's lens is chosen from CFE's price table and prices the pair; the
+  frame is part of the voucher; another lens takes 15% off (6513). The amount the
+  voucher authorizes is typed on the alliance (default $4,300).
+- **What the client pays** is the order's headline under an alliance (the dock, the
+  receipt, the quote); the total stays the sale — products, copay and surcharges.
+- **The register.** The package or outside-the-plan convenio goes with the set and
+  discount numbers; the authorization and policy number are listed to copy. Dentalia-
+  Mapfre is two orders: the copay's SKU in order 1, the plan's convenio and its copay
+  adjustment (AJ) in order 2.
+- **Paperwork.** What to collect, what is signed and what goes to Billing are ticked on
+  the order. The order also says when an authorization is missing, and when the same
+  alliance already paid for the client in the last 12 months (one per policy year).
+
+Alliances are catalogue data, encrypted with the rest (Catalogue data → Alliances): each
+alliance's paperwork and whether it combines, and per plan the coverage, copay,
+packages (`convenio | glasses or contacts | frame up to | covers | price | surcharges`),
+the percentage and convenio outside the plan, for other contact lenses and for
+sunglasses, and CFE's lens prices. Workbooks do not carry them. The source is the
+Devlyn circulares, kept privately beside the backend files, never in this repository.
+
 ## Lifestyle presets
 
 **Lifestyle preset** at the top of the order's Add list puts a whole lens on the
@@ -450,6 +488,7 @@ src/core/             pure logic, shared with tools/publish.mjs
   catalogue.js        runtime catalogue, frames, stock, vocabulary
   lens.js             cascades, POS code, upgrades, search
   promotions.js       promo matching (families come from the vocabulary)
+  alliances.js        insurers and employers: coverage, copay, packages, paperwork
   orders.js crm.js rxticket.js backup.js
   alpha.js control.js the Alpha workbook: its CRM, and Control (Delivery, Follow Up)
 src/state/            storage, sync, the working copy, updates

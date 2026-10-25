@@ -7,9 +7,10 @@ import { money } from './money.js';
 import { STORE_FIELDS } from './store.js';
 import { itemsText } from './presets.js';
 import { priceTableText } from './sets.js';
+import { optionsText, lensesText, linesText } from './alliances.js';
 
 const lensLabel = (list) => (r) => LENS_FIELDS[list].map(([f]) => parseCodeLabel(r[f]).code).filter((c) => c && c !== 'N/A').join(' · ');
-const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), fit: (v) => ({ gp: 'gas-permeable fitting', mf: 'multifocal fitting' })[v] ?? 'no fitting', active: (v) => (v ? 'active' : 'inactive') };
+const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), fit: (v) => ({ gp: 'gas-permeable fitting', mf: 'multifocal fitting' })[v] ?? 'no fitting', active: (v) => (v ? 'active' : 'inactive'), benefit: (v) => (v == null ? '—' : money(v)), contactLensBenefit: (v) => (v == null ? '—' : money(v)), copay: (v) => (v == null ? '—' : money(v)), combines: (v) => (v ? 'combines with promotions' : 'no promotions') };
 const show = (field, v) => (fmt[field] ? fmt[field](v) : v === null || v === undefined || v === '' ? '—' : String(v));
 
 const lensSpec = (list) => ({
@@ -36,6 +37,12 @@ export const SPECS = [
   { title: 'Campaign discounts', get: (b) => (b.discounts ?? []).map((d) => ({ ...d, pricesText: priceTableText(d.prices) })), key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'pricesText', 'requires', 'validFrom', 'validTo'] },
   { title: 'Lifestyle presets', get: (b) => (b.presets ?? []).map((t) => ({ ...t, itemsText: itemsText(t.items), extrasText: (t.extras ?? []).join(', '), brandsText: (t.brands ?? []).join(', ') })), key: (t) => `${t.presetId}|${t.tier}`, label: (t) => `${t.preset} · ${t.tier}`, fields: ['preset', 'blurb', 'tierBlurb', 'sv', 'mf', 'cl', 'extrasText', 'itemsText', 'brandsText'] },
   { title: 'Store', get: (b) => STORE_FIELDS.filter((f) => b.store?.[f.key]).map((f) => ({ field: f.key, label: f.label, value: b.store[f.key] })), key: (x) => x.field, label: (x) => x.label, fields: ['value'] },
+  { title: 'Alliances', get: (b) => (b.alliances ?? []).map((a) => ({ ...a, authorizeText: linesText(a.authorize), collectText: linesText(a.collect), signaturesText: linesText(a.signatures), sendText: linesText(a.send), atRegisterText: linesText(a.atRegister), rulesText: linesText(a.rules) })),
+    key: (a) => a.id, label: (a) => a.name || a.id, fields: ['name', 'combines', 'authorizeText', 'collectText', 'fillIn', 'signaturesText', 'sendText', 'atRegisterText', 'rulesText'] },
+  { title: 'Alliance plans', get: (b) => (b.alliances ?? []).flatMap((a) => (a.plans ?? []).map((p) => ({ ...p, allianceId: a.id, allianceName: a.name,
+      optionsText: optionsText(p.options), lensesText: lensesText(p.lenses), outsideText: p.outside ? `${p.outside.convenio ?? '—'} ${p.outside.percent}%${p.outside.minimumList ? ` from ${money(p.outside.minimumList)}` : ''}` : '—',
+      contactsText: p.contacts ? `${p.contacts.convenio ?? '—'} ${p.contacts.percent}%` : '—', sunText: p.sun ? `${p.sun.convenio ?? '—'} ${p.sun.percent}%${p.sun.benefit ? ' with the benefit' : ''}` : '—', notesText: linesText(p.notes) }))),
+    key: (p) => `${p.allianceId}|${p.id}`, label: (p) => `${p.allianceName} · ${p.name}`, fields: ['name', 'benefit', 'contactLensBenefit', 'copay', 'optionsText', 'lensesText', 'outsideText', 'contactsText', 'sunText', 'convenio', 'copaySku', 'copayAdjustment', 'active', 'notesText'] },
   { title: 'Promo lines', get: (b) => b.promoLensMap, key: (l) => `${l.promoId}|${l.package}|${l.matchKey}`, label: (l) => `${l.promoId} ${l.matchKey}`, fields: ['lensDescription'] },
 ];
 

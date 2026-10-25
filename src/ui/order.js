@@ -14,11 +14,13 @@ import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
   lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
-  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder, lineFit,
+  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder, lineFit, clientPays,
 } from '../core/orders.js';
 import { OrderRxSheet, rxSummary, FitEye } from './rx.js';
 import { addOrderToQuote } from './quote.js';
 import { OrderGifts } from './gifts.js';
+import { AllianceRow, AllianceSheet, AlliancePaperwork, AllianceTotals } from './alliance.js';
+import { allianceFlags } from '../core/alliances.js';
 import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
 import { solutionClash, clashParts, polarexCrizalLines, POLAREX_CRIZAL } from '../core/presets.js';
@@ -62,6 +64,8 @@ export function LinesPanel({ order, editable }) {
   const [open, setOpen] = useState(null);
   const catalogue = useApp((s) => s.catalogue);
   const p = priceOrder(order);
+  // An alliance that does not combine takes the seller's own line discount off too.
+  const noDiscounts = Boolean(order.ally && !order.ally.combines);
   return html`<section class="gap-s">
     <${Eyebrow}>${p.rows.length === 1 ? '1 line' : `${p.rows.length} lines`}<//>
     <${Panel} tight>
@@ -69,7 +73,8 @@ export function LinesPanel({ order, editable }) {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
         const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
-        const via = l.setExcluded ? `${l.setExcluded.name} doesn’t include these lenses · ${l.placeholder ? 'from its lowest catalogue price' : 'frame at its full price'}`
+        const via = l.ally?.packaged ? 'In the plan’s package'
+          : l.setExcluded ? `${l.setExcluded.name} doesn’t include these lenses · ${l.placeholder ? 'from its lowest catalogue price' : 'frame at its full price'}`
           : l.outsideSet ? `Not in ${l.outsideSet.setName}’s table · its own price`
           : l.placeholder && !l.set ? 'Quoted by brand · from its lowest catalogue price'
           : l.placeholder && l.set ? `${l.set.name} · any frame of the set, with single vision lenses`
@@ -94,7 +99,8 @@ export function LinesPanel({ order, editable }) {
                 ? html`<button type="button" class=${'chip' + (fitComplete(lineFit(l, catalogue), l.measures) ? '' : ' warn')} onClick=${() => setOpen({ kind: 'fit', r })}>${fitComplete(lineFit(l, catalogue), l.measures) ? 'Fitting' : 'Add the fitting'}</button>`
                 : !fitComplete(lineFit(l, catalogue), l.measures) && html`<span class="chip warn">Fitting missing</span>`)}
               ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${l.auto.id} · price to confirm</button>`}
-              ${discountable(l) && !r.pending && (editable
+              ${l.ally?.packaged && html`<span class="chip on">Package ${l.ally.convenio}</span>`}
+              ${discountable(l) && !r.pending && (editable && !noDiscounts
                 ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? 'Discount'}</button>`
                 : discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`)}
               ${!discountable(l) && discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`}
@@ -214,12 +220,14 @@ function SetRowSheet({ line, onClose }) {
 export function TotalBlock({ order, figure = true }) {
   const p = priceOrder(order);
   const rest = p.unpriced;
-  if (!figure && !p.pending.length && !p.off && !rest.length) return null;
+  if (!figure && !p.pending.length && !p.off && !rest.length && !p.alliance) return null;
   return html`<div class="gap-m">
     ${p.pending.some((l) => l.setLens) && html`<${Flag}>${p.pending.filter((l) => l.setLens).length === 1 ? 'A lens in a set has' : 'Lenses in a set have'} no row of the set’s table yet. Choose it on the line to finish the price.<//>`}
     ${p.pending.some((l) => !l.setLens) && html`<${Flag}>${p.pending.filter((l) => !l.setLens).map((l) => `${l.auto.id} ${l.auto.name}`)[0]}: this lens’s price under the offer is not known yet. Confirm it at the register.<//>`}
-    ${figure && html`<${Figure} value=${money(p.total)} caption=${p.pending.length ? 'Total so far' : 'Total'} size=${40} />`}
-    ${p.off > 0 && html`<${Panel}>
+    ${figure && html`<${Figure} value=${money(clientPays(p))} caption=${p.alliance ? 'Client pays' : p.pending.length ? 'Total so far' : 'Total'} size=${40} />`}
+    ${p.alliance?.minimumMissing && html`<${Flag}>Below ${money(order.ally.outside.minimumList)} at list price, so the ${order.ally.outside.percent}% outside the plan does not apply yet.<//>`}
+    ${p.alliance && html`<${AllianceTotals} order=${order} p=${p} />`}
+    ${p.off > 0 && !p.alliance && html`<${Panel}>
       <${KV} k="Before discounts" v=${money(p.list)} />
       <${KV} k="Discounts" v=${'−' + money(p.off)} />
     <//>`}
@@ -264,8 +272,11 @@ export function OrderScreen() {
   const clash = solutionClash(draft, catalogue);
   const heldPairs = polarexCrizalLines(draft, catalogue);
   const noFit = draft.lines.filter((l) => lineFit(l, catalogue) && !fitComplete(lineFit(l, catalogue), l.measures));
-  const claimable = claimableDiscounts(catalogue);
+  // A discount the client claims (Sam's) does not combine with an alliance that does not combine.
+  const claimable = draft.ally && !draft.ally.combines ? [] : claimableDiscounts(catalogue);
   const claimed = new Set(draft.claimed ?? []);
+  const history = useApp((s) => s.orders);
+  const allyFlags = allianceFlags(draft, catalogue, history.filter((o) => o.clientId && o.clientId === draft.clientId));
 
   return html`
     <${Bar} backTo="#/find" title="Order" trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
@@ -276,6 +287,7 @@ export function OrderScreen() {
           <${Row} icon="eye" title="Prescription" detail=${rxSummary(rx) ?? 'Enter the prescription for this job'} one
             end=${aob ? (missing ? html`<span class="badge warn">AOB</span>` : html`<span class="badge">AOB ${draft.aob.od} · ${draft.aob.os}</span>`) : null}
             chev onClick=${() => setSheet('rx')} />
+          <${AllianceRow} order=${draft} p=${p} onOpen=${() => setSheet('alliance')} />
           ${claimable.map((d) => html`<${Row} key=${d.id} icon="tag" title=${d.name} detail=${`Shows: ${d.requires} · ${d.id}`}
             end=${html`<${Toggle} on=${claimed.has(d.id)} label=${d.name} onChange=${(on) => { setDraftClaim(d.id, on); toast(on ? `${d.name}: ${d.percent ? `${d.percent}% off` : 'on'} what no set or other discount covers` : `${d.name} off`); }} />`} />`)}
         <//>
@@ -300,14 +312,16 @@ export function OrderScreen() {
         ${draft.lines.some(isPlaceholder) && html`<div class="pad"><${Flag} icon="glasses">The frame is quoted ${draft.lines.find(isPlaceholder).setId ? 'by its set' : 'by brand'} — scan the frame the client chooses; it takes its place, then Checkout.<//></div>`}
         <${OrderGifts} order=${draft} />
         ${noFit.length > 0 && html`<div class="pad"><${Flag}>${noFit.length === 1 ? 'A contact lens needs its' : 'Contact lenses need their'} fitting (${[...new Set(noFit.map((l) => CL_FITS[lineFit(l, catalogue)].fields.map((f) => f.label).join(' ')))].join('; ')}). Tap “Add the fitting” on the line.<//></div>`}
+        ${allyFlags.map((f) => html`<div class="pad"><${Flag} icon="shield">${f}<//></div>`)}
         ${missing && html`<div class="pad"><${Flag}>${pairCount(draft) > 1 ? 'Lenses on this order need' : 'The lens on this order needs'} the AOB of each eye. <button type="button" class="link" onClick=${() => setSheet('aob')}>Add the AOB</button><//></div>`}
 
         ${has
           ? html`<div class="pad stack">
               <${LinesPanel} order=${draft} editable />
               <${TotalBlock} order=${draft} figure=${false} />
-              <${OrderPromotions} order=${draft} />
-            </div>`
+              ${!(draft.ally && !draft.ally.combines) && html`<${OrderPromotions} order=${draft} />`}
+            </div>
+            ${draft.alliance && html`<${AlliancePaperwork} order=${draft} editable />`}`
           : html`<div class="pad"><${Empty} title="Nothing on this order yet">Scan a frame, walk a lens, or add a case. When it is ready, Checkout prints the receipt with every code the register needs.<//></div>`}
 
         <${Section} title="Add">
@@ -326,7 +340,7 @@ export function OrderScreen() {
       </div>
     <//>
     ${has && html`<${Dock}>
-      <div class="dock-total"><span class="v" key=${p.total}>${money(p.total)}</span><span class="k">${p.pending.length ? 'So far' : 'Total'}</span></div>
+      <div class="dock-total"><span class="v" key=${clientPays(p)}>${money(clientPays(p))}</span><span class="k">${p.alliance ? 'Client pays' : p.pending.length ? 'So far' : 'Total'}</span></div>
       ${draft.lines.some(isPlaceholder)
         ? html`<${Anchor} icon="barcode" onClick=${() => go('#/find/scan')}>Scan the frame<//>`
         : html`<${Anchor} icon="receipt" onClick=${() => go('#/find/checkout')}>Checkout<//>`}
@@ -339,6 +353,7 @@ export function OrderScreen() {
     ${sheet === 'save' && html`<${SaveSheet} onClose=${() => setSheet(null)} />`}
     ${(sheet === 'rx' || sheet === 'aob') && html`<${OrderRxSheet} start=${sheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'preset' && html`<${PresetSheet} onClose=${() => setSheet(null)} />`}
+    ${sheet === 'alliance' && html`<${AllianceSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'framepick' && html`<${FramePickSheet} title="Frame brand or set" start="brand" onClose=${() => setSheet(null)}
       onPick=${async (line) => { await setOrderFrame(line); toast(`${line.brand || line.description} on the order`); }} />`}`;
 }

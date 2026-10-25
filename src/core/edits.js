@@ -291,3 +291,34 @@ export function brandFromDescription(description, brands) {
   const d = brandKey(description);
   return [...brands].sort((a, b) => b.length - a.length).find((br) => d.startsWith(brandKey(br))) ?? '';
 }
+
+// ---------------------------------------------------------------------------
+// Alliances (core/alliances.js): the alliance with its paperwork, and its plans.
+
+const alliancesOf = (b) => b.alliances ?? [];
+
+export function upsertAlliance(b, a, originalId) {
+  const list = alliancesOf(b);
+  const at = list.findIndex((x) => x.id === (originalId ?? a.id));
+  const keep = at >= 0 ? list[at] : { plans: [] };
+  const next = { ...keep, ...a, plans: a.plans ?? keep.plans ?? [] };
+  return { ...b, alliances: at >= 0 ? list.map((x, i) => (i === at ? next : x)) : [...list, next] };
+}
+
+export const deleteAlliance = (b, id) => ({ ...b, alliances: alliancesOf(b).filter((a) => a.id !== id) });
+
+export function upsertAlliancePlan(b, allianceId, p, originalId) {
+  return {
+    ...b,
+    alliances: alliancesOf(b).map((a) => {
+      if (a.id !== allianceId) return a;
+      const at = a.plans.findIndex((x) => x.id === (originalId ?? p.id));
+      return { ...a, plans: at >= 0 ? a.plans.map((x, i) => (i === at ? { ...x, ...p } : x)) : [...a.plans, p] };
+    }),
+  };
+}
+
+export const deleteAlliancePlan = (b, allianceId, planId) => ({
+  ...b,
+  alliances: alliancesOf(b).map((a) => (a.id === allianceId ? { ...a, plans: a.plans.filter((p) => p.id !== planId) } : a)),
+});

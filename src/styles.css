@@ -1044,3 +1044,15 @@ a.dash-card:active { transform: scale(.985); background: var(--cell-press); }
   .bar-btn:hover { filter: brightness(1.15); }
   .btn.secondary:hover { background: var(--fill-2); }
 }
+
+/* ---------------------------------------------------------------------------
+   Alliances: the paperwork ticked on the order, and the plan's notes */
+.row.ally-check { align-items: flex-start; gap: 12px; min-height: 0; padding-top: 12px; padding-bottom: 12px; }
+.row.ally-check::before { left: 50px; }
+.ally-check .tick { width: 22px; height: 22px; border-radius: 999px; border: 1.5px solid var(--label-3); flex: none; display: flex; align-items: center; justify-content: center; margin-top: 1px; color: var(--on-accent); transition: background-color .15s ease-out, border-color .15s ease-out; }
+.ally-check .tick svg { width: 13px; height: 13px; stroke-width: 2.6; }
+.ally-check.done .tick { background: var(--accent); border-color: var(--accent); }
+.ally-check .t { font-size: 15px; line-height: 1.38; }
+.ally-check.done .t { color: var(--label-3); }
+.ally-text { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+.ally-text p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--label-2); }

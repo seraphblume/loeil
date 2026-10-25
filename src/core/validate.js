@@ -11,6 +11,7 @@ import { PRICE_BOUNDS, EMPLOYEE_NUMBER_DIGITS, TRUE_SKU_DIGITS } from '../config
 import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO } from './sets.js';
 import { isPolarexCrizal, POLAREX_CRIZAL } from './catalogue.js';
 import { clMatches } from './presets.js';
+import { validateAlliances } from './alliances.js';
 
 export const VOCAB_KINDS = [
   'category', 'material', 'lens_type', 'design', 'colour', 'treatment',
@@ -57,6 +58,7 @@ export function counts(b) {
     'Campaign discounts': (b.discounts ?? []).length,
     'Store fields': Object.keys(b.store ?? {}).length,
     'Preset tiers': (b.presets ?? []).length,
+    'Alliance plans': (b.alliances ?? []).reduce((n, a) => n + (a.plans ?? []).length, 0),
     Vocabulary: b.vocabulary.length,
   };
 }
@@ -211,6 +213,7 @@ export function validateBundle(b, report = new Report()) {
   }
 
   validateSets(b, report);
+  validateAlliances(b, report);
   return report.done(counts(b));
 }
 

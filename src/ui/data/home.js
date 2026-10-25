@@ -74,6 +74,7 @@ export function DataHome() {
           <${Row} to="#/me/data/presets" icon="spark" title="Lifestyle presets" detail="A lens, Plus Protection and accessories for each way of life" count=${n(new Set((bundle?.presets ?? []).map((t) => t.presetId)).size)} chev />
           <${Row} to="#/me/data/sets" icon="doc" title="Sets" detail="Set prices, ID Maestro, brands, lens rows, campaign discounts" count=${n(bundle?.sets?.length ?? 0)} chev />
           <${Row} to="#/me/data/promos" icon="doc" title="Promotions" count=${n(bundle?.promotions.length ?? 0)} chev />
+          <${Row} to="#/me/data/alliances" icon="shield" title="Alliances" detail="Insurers and employers: coverage, copays, packages, paperwork" count=${n((bundle?.alliances ?? []).reduce((t, a) => t + a.plans.length, 0))} chev />
           <${Row} to="#/me/data/staff" icon="people" title="Staff" count=${n(bundle?.staff.length ?? 0)} chev />
           <${Row} to="#/me/data/store" icon="store" title="Store" detail=${bundle?.store?.branchName ?? 'The branch on the receipt'} chev />
         <//>

@@ -300,6 +300,29 @@ export async function setDraftClaim(id, on) {
   await saveDraft();
 }
 
+/** The alliance on the order in progress (core/alliances.js): a selection to set, or null to remove it. */
+export async function setDraftAlliance(alliance) {
+  const draft = { ...state.draft };
+  if (alliance) draft.alliance = alliance; else delete draft.alliance;
+  setState({ draft });
+  await saveDraft();
+}
+
+/** Change part of the alliance on the order: its package, surcharges, authorization, voucher. */
+export async function patchDraftAlliance(patch) {
+  if (!state.draft.alliance) return;
+  setState({ draft: { ...state.draft, alliance: { ...state.draft.alliance, ...patch } } });
+  await saveDraft();
+}
+
+/** Tick or untick one item of the alliance's paperwork. */
+export async function setDraftAllianceCheck(id, on) {
+  const a = state.draft.alliance;
+  if (!a) return;
+  setState({ draft: { ...state.draft, alliance: { ...a, checks: { ...(a.checks ?? {}), [id]: on } } } });
+  await saveDraft();
+}
+
 /** AOB per eye, in mm: measured for the job, so it lives on the order, never on the client. */
 export async function setDraftAob(aob) {
   setState({ draft: { ...state.draft, aob } });

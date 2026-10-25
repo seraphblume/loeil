@@ -28,6 +28,7 @@ import { uid, plural } from './util.js';
 import { money } from './money.js';
 import { lensCodeText } from './lens.js';
 import { promoNumbers } from './sets.js';
+import { allianceTotals } from './alliances.js';
 
 export const STATUSES = [
   { id: 'draft', label: 'Draft' },
@@ -165,7 +166,7 @@ export function priceOrder(order) {
     r.net = r.list - r.off;
   }
   const priced = rows.filter((r) => r.net != null);
-  return {
+  const out = {
     rows,
     byId: new Map(rows.map((r) => [r.line.id, r])),
     list: sum(priced, 'list'),
@@ -173,8 +174,19 @@ export function priceOrder(order) {
     total: sum(priced, 'net'),
     unpriced: rows.filter((r) => r.net == null && !r.pending).map((r) => r.line),
     pending: rows.filter((r) => r.pending).map((r) => r.line),
+    alliance: null,
   };
+  // Under an alliance the total is the sale — products, copay and surcharges —
+  // and `alliance` says what the payer covers and what the client pays.
+  if (order.ally) {
+    const a = allianceTotals(order.ally, rows);
+    return { ...out, off: Math.max(0, out.list - a.products), total: a.total, alliance: { ...a, payer: order.ally.name, plan: order.ally.plan } };
+  }
+  return out;
 }
+
+/** What the client pays at the counter: the total, less what an alliance covers. */
+export const clientPays = (p) => (p.alliance ? p.alliance.clientPays : p.total);
 
 export const orderTotal = (o) => priceOrder(o).total;
 export const unpriced = (o) => priceOrder(o).unpriced;
@@ -250,6 +262,13 @@ export function ticketText(order, clientName) {
     out.push(`Discounts: −${money(p.off)}`);
   }
   out.push(`Total: ${money(p.total)}`);
+  if (p.alliance) {
+    const a = p.alliance;
+    out.push(`${a.payer} · ${a.plan}${order.ally?.authorization ? ` · ${order.ally.authorization}` : ''}`);
+    if (a.copay) out.push(`Copay: ${money(a.copay)}`);
+    out.push(`${a.payer} covers: −${money(a.covered)}`);
+    out.push(`Client pays: ${money(a.clientPays)}`);
+  }
   if (p.unpriced.length) {
     out.push('');
     out.push('Priced at the register:');
