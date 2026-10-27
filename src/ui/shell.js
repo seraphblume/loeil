@@ -36,6 +36,7 @@ import { LensPricesScreen, AddCoatingScreen } from './data/lenses.js';
 import { AdjustScreen } from './data/adjust.js';
 import { VocabScreen, FramesAdminScreen, BrandsScreen, StockAdminScreen, ExtrasScreen, AccessoriesScreen, StaffAdminScreen, StoreAdminScreen } from './data/records.js';
 import { PromosScreen, PromoScreen } from './data/promos.js';
+import { tr } from '../i18n.js';
 
 const TAB_ITEMS = [
   { id: 'find', label: 'Find', icon: 'search' },
@@ -49,12 +50,12 @@ function TabBar({ route }) {
   const draftLines = useApp((s) => s.draft.lines.length);
   const quoted = useApp((s) => s.quote.options.length);
   const i = TAB_ITEMS.findIndex((t) => t.id === route.tab);
-  return html`<nav class="tabbar" aria-label="Sections" style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
+  return html`<nav class="tabbar" aria-label=${tr('Sections')} style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
     <i class="tab-pill" aria-hidden="true"></i>
     ${TAB_ITEMS.map((t) => html`<a ...${linkProps(tabHref(t.id, route))} class=${route.tab === t.id ? 'on' : ''} aria-current=${route.tab === t.id ? 'page' : null}>
-      <${Icon} name=${t.icon} />${t.label}
-      ${t.id === 'find' && draftLines > 0 && route.parts[1] !== 'order' && html`<i class="dot" aria-label="Order in progress"></i>`}
-      ${t.id === 'quote' && quoted > 0 && route.tab !== 'quote' && html`<i class="dot" aria-label="Quote in progress"></i>`}
+      <${Icon} name=${t.icon} />${tr(t.label)}
+      ${t.id === 'find' && draftLines > 0 && route.parts[1] !== 'order' && html`<i class="dot" aria-label=${tr('Order in progress')}></i>`}
+      ${t.id === 'quote' && quoted > 0 && route.tab !== 'quote' && html`<i class="dot" aria-label=${tr('Quote in progress')}></i>`}
     </a>`)}
   </nav>`;
 }
@@ -71,24 +72,24 @@ function TopNav({ route }) {
   const open = useApp((s) => s.orders.filter((o) => o.status === 'draft' || o.status === 'presented').length);
   const quoted = useApp((s) => s.quote.options.length);
   const onOrder = route.parts[0] === 'find' && (route.parts[1] === 'order' || route.parts[1] === 'checkout');
-  const hint = { quote: quoted ? `${quoted} on the quote` : null, orders: open ? `${open} open` : null, clients: clients ? `${clients}` : null };
+  const hint = { quote: quoted ? tr('{n} on the quote', { n: quoted }) : null, orders: open ? tr('{n} open', { n: open }) : null, clients: clients ? `${clients}` : null };
   const i = TAB_ITEMS.findIndex((t) => t.id === route.tab);
   const initials = (seller?.name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return html`<header class="topnav">
-    <a ...${linkProps(tabHref('find', route))} class="tn-brand" aria-label="L’Œil, home"><${Wordmark} size=${26} /></a>
-    <nav class="tn-pill" aria-label="Sections" style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
+    <a ...${linkProps(tabHref('find', route))} class="tn-brand" aria-label=${tr('L’Œil, home')}><${Wordmark} size=${26} /></a>
+    <nav class="tn-pill" aria-label=${tr('Sections')} style=${{ '--i': i, '--n': TAB_ITEMS.length }}>
       <i class="tn-thumb" aria-hidden="true"></i>
       ${TAB_ITEMS.map((t) => html`<a ...${linkProps(tabHref(t.id, route))} class=${route.tab === t.id ? 'on' : ''} aria-current=${route.tab === t.id ? 'page' : null}
-          aria-label=${hint[t.id] ? `${t.label}, ${hint[t.id]}` : t.label} title=${t.label}>
+          aria-label=${hint[t.id] ? `${tr(t.label)}, ${hint[t.id]}` : tr(t.label)} title=${tr(t.label)}>
         <${Icon} name=${t.icon} />
         ${t.id === 'quote' && quoted > 0 && route.tab !== 'quote' && html`<i class="dot"></i>`}
       </a>`)}
     </nav>
     <div class="tn-end">
-      ${draft.lines.length > 0 && html`<a ...${linkProps('#/find/order')} class=${'tn-order' + (onOrder ? ' on' : '')} aria-label="Order in progress">
-        ${(() => { const p = priceOrder(draft); return html`<span class="k">${p.alliance ? 'To pay' : 'Order'}</span><span class="v">${money(clientPays(p))}</span>`; })()}
+      ${draft.lines.length > 0 && html`<a ...${linkProps('#/find/order')} class=${'tn-order' + (onOrder ? ' on' : '')} aria-label=${tr('Order in progress')}>
+        ${(() => { const p = priceOrder(draft); return html`<span class="k">${p.alliance ? tr('To pay') : tr('Order')}</span><span class="v">${money(clientPays(p))}</span>`; })()}
       </a>`}
-      ${seller && html`<a ...${linkProps(tabHref('me', route))} class="tn-me" title=${`${seller.name} · ${seller.employeeNumber}`} aria-label=${seller.name}>${initials || 'Me'}</a>`}
+      ${seller && html`<a ...${linkProps(tabHref('me', route))} class="tn-me" title=${`${seller.name} · ${seller.employeeNumber}`} aria-label=${seller.name}>${initials || tr('Me')}</a>`}
     </div>
   </header>`;
 }
@@ -112,13 +113,13 @@ function Panes({ route }) {
   const [tab, a, b] = route.parts;
   if (tab === 'clients') {
     return html`<div class="pane list-pane"><${ClientsScreen} selected=${a} /></div>
-      <div class="pane detail-pane">${a ? html`<${ClientScreen} id=${a} embedded key=${a} />` : html`<${Placeholder} icon="people" text="Choose a client" />`}</div>`;
+      <div class="pane detail-pane">${a ? html`<${ClientScreen} id=${a} embedded key=${a} />` : html`<${Placeholder} icon="people" text=${tr('Choose a client')} />`}</div>`;
   }
   if (tab === 'orders') {
     // Delivery and Follow Up open their rows beside the list too: #/orders/delivery/<Sell ID>.
     const control = a === 'delivery' || a === 'followup' ? a : null;
     const view = control ?? route.query.get('view');
-    const empty = { delivery: 'Choose a delivery', followup: 'Choose a follow-up' }[view] ?? 'Choose an order';
+    const empty = { delivery: tr('Choose a delivery'), followup: tr('Choose a follow-up') }[view] ?? tr('Choose an order');
     const detail = control
       ? (b ? (control === 'delivery' ? html`<${DeliveryScreen} saleId=${b} embedded key=${'d' + b} />` : html`<${FollowUpScreen} saleId=${b} embedded key=${'f' + b} />`)
         : html`<${Placeholder} icon="doc" text=${empty} />`)
@@ -203,6 +204,7 @@ export function App() {
   const booted = useApp((s) => s.booted);
   const catalogue = useApp((s) => s.catalogue);
   const identity = useApp((s) => s.identity);
+  useApp((s) => s.lang); // a new language re-renders every screen
   const wide = useWide();
 
   if (!booted) {

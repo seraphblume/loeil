@@ -8,6 +8,7 @@ import { Bar, Screen, Eyebrow, Empty, Anchor, Row, List, SearchField } from './k
 import { BarcodeCamera } from './camera.js';
 import { go } from './router.js';
 import { stockLabel, showsStock, STOCK_KIND_LABEL } from '../core/catalogue.js';
+import { tr } from '../i18n.js';
 
 export function ScanScreen() {
   const catalogue = useApp((s) => s.catalogue);
@@ -29,23 +30,23 @@ export function ScanScreen() {
 
   const digits = typed.replace(/\D/g, '');
   const matches = digits.length >= 4
-    ? [...catalogue.frames.filter((f) => f.sku.includes(digits)).slice(0, 6).map((f) => ({ sku: f.sku, title: f.description, detail: f.sku + ' · frame', to: '#/find/frame/' + f.sku })),
-       ...catalogue.inventory.filter((i) => !i.inCatalogue && i.sku.includes(digits)).slice(0, 6).map((i) => ({ sku: i.sku, title: i.description, detail: `${i.sku} · ${showsStock(i.kind) ? stockLabel(i.stock) : (STOCK_KIND_LABEL[i.kind] ?? 'stock item').toLowerCase()}`, to: '#/find/stock/' + i.sku }))]
+    ? [...catalogue.frames.filter((f) => f.sku.includes(digits)).slice(0, 6).map((f) => ({ sku: f.sku, title: f.description, detail: f.sku + ' · ' + tr('frame'), to: '#/find/frame/' + f.sku })),
+       ...catalogue.inventory.filter((i) => !i.inCatalogue && i.sku.includes(digits)).slice(0, 6).map((i) => ({ sku: i.sku, title: i.description, detail: `${i.sku} · ${showsStock(i.kind) ? stockLabel(i.stock) : tr(STOCK_KIND_LABEL[i.kind] ?? 'stock item').toLowerCase()}`, to: '#/find/stock/' + i.sku }))]
     : [];
 
   return html`
-    <${Bar} backTo="#/find" title="Scan barcode" />
+    <${Bar} backTo="#/find" title=${tr('Scan barcode')} />
     <${Screen}>
       <div class="stack">
-        <div class="pad"><${BarcodeCamera} onCodes=${onCodes} hint="Hold the barcode inside the frame" /></div>
+        <div class="pad"><${BarcodeCamera} onCodes=${onCodes} hint=${tr('Hold the barcode inside the frame')} /></div>
         ${missed && html`<div class="pad gap-s">
-          <${Eyebrow}>Barcode ${missed}<//>
-          <${Empty} title="Not in the catalogue or stock">Nothing carries this barcode. The stock list is a snapshot and the shelf moves, so this may simply be newer than the last publish. Keep scanning, or look it up by hand.<//>
+          <${Eyebrow}>${tr('Barcode {a}', { a: missed })}<//>
+          <${Empty} title=${tr('Not in the catalogue or stock')}>${tr('Nothing carries this barcode. The stock list is a snapshot and the shelf moves, so this may simply be newer than the last publish. Keep scanning, or look it up by hand.')}<//>
         </div>`}
         <section class="gap-s">
-          <div class="pad"><${Eyebrow}>Type it instead<//></div>
-          <div class="pad"><${SearchField} value=${typed} onInput=${setTyped} placeholder="Eight barcode digits" icon="barcode" /></div>
-          ${digits.length === 8 && !matches.length && html`<p class="para pad">No frame or stock item has barcode ${digits}.</p>`}
+          <div class="pad"><${Eyebrow}>${tr('Type it instead')}<//></div>
+          <div class="pad"><${SearchField} value=${typed} onInput=${setTyped} placeholder=${tr('Eight barcode digits')} icon="barcode" /></div>
+          ${digits.length === 8 && !matches.length && html`<p class="para pad">${tr('No frame or stock item has barcode {a}.', { a: digits })}</p>`}
           ${matches.length > 0 && html`<${List}>${matches.map((m) => html`<${Row} to=${m.to} title=${m.title} detail=${m.detail} one mono />`)}<//>`}
         </section>
       </div>

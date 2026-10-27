@@ -29,6 +29,7 @@
 // a saved order keeps the terms it was sold under.
 
 import { money } from './money.js';
+import { tr } from '../i18n.js';
 
 const isPairLine = (l) => l.kind === 'lens' && l.lens?.family !== 'CL';
 const isContactLine = (l) => l.kind === 'lens' && l.lens?.family === 'CL';
@@ -166,10 +167,10 @@ export function packagedLines(ally, lines) {
 export function packageMiss(ally, lines) {
   const o = ally?.option;
   if (!o) return null;
-  if (o.kind === 'contacts') return lines.some(isContactLine) ? null : 'The package is contact lenses — add them to the order.';
+  if (o.kind === 'contacts') return lines.some(isContactLine) ? null : tr('The package is contact lenses — add them to the order.');
   const frame = lines.find((l) => l.kind === 'frame' && !isSunFrame(l));
-  if (!frame || !lines.some(isPairLine)) return 'The package is a frame with its lenses — both need to be on the order.';
-  if (o.frameUpTo && frame.priceCents > o.frameUpTo) return `The frame (${money(frame.priceCents)}) is above the package’s ${money(o.frameUpTo)}.`;
+  if (!frame || !lines.some(isPairLine)) return tr('The package is a frame with its lenses — both need to be on the order.');
+  if (o.frameUpTo && frame.priceCents > o.frameUpTo) return tr('The frame ({price}) is above the package’s {max}.', { price: money(frame.priceCents), max: money(o.frameUpTo) });
   return null;
 }
 
@@ -306,26 +307,26 @@ export function allianceFlags(order, catalogue, history = [], now = new Date()) 
   const sel = order.alliance;
   if (!sel) return [];
   const hit = findPlan(catalogue, sel);
-  if (!hit) return ['This alliance or plan is no longer in the catalogue. Choose it again.'];
+  if (!hit) return [tr('This alliance or plan is no longer in the catalogue. Choose it again.')];
   const ally = order.ally;
   const out = [];
-  if (!sel.option && !hit.plan.lenses?.length && hit.plan.options.length) out.push('Choose the plan’s package or Own choice.');
-  if (!ally?.authorization && !hit.plan.lenses?.length) out.push('No authorization number yet.');
-  if (ally?.packageMiss) out.push(`${ally.packageMiss} Priced as Own choice until it fits.`);
-  if (ally?.lens && !order.lines.some(isPairLine)) out.push('The voucher’s lens prices a pair of spectacle lenses — add the lens to the order.');
+  if (!sel.option && !hit.plan.lenses?.length && hit.plan.options.length) out.push(tr('Choose the plan’s package or Own choice.'));
+  if (!ally?.authorization && !hit.plan.lenses?.length) out.push(tr('No authorization number yet.'));
+  if (ally?.packageMiss) out.push(`${ally.packageMiss} ${tr('Priced as Own choice until it fits.')}`);
+  if (ally?.lens && !order.lines.some(isPairLine)) out.push(tr('The voucher’s lens prices a pair of spectacle lenses — add the lens to the order.'));
   if (ally?.lens) {
     // The voucher names its material; the lens on the order should be that material.
     const pair = order.lines.find(isPairLine);
     const mat = (pair?.lens?.attributes ?? []).find((a) => a.key === 'material');
     const group = mat ? catalogue?.meta?.('material', mat.code)?.group : null;
     const want = /polycarbonat/i.test(ally.lens.lens) ? 'POLY' : /ultralite|cr-?39/i.test(ally.lens.lens) ? 'CR39' : null;
-    if (want && group && group !== want) out.push(`The voucher authorizes ${ally.lens.lens}, but the lens on the order is ${mat.label}. Put the voucher’s lens on the order, or choose “Another lens”.`);
+    if (want && group && group !== want) out.push(tr('The voucher authorizes {want}, but the lens on the order is {have}. Put the voucher’s lens on the order, or choose “Another lens”.', { want: ally.lens.lens, have: mat.label }));
   }
   if (hit.plan.eventsPerYear && order.clientId) {
     const year = now.getTime() - 365 * 864e5;
     const used = history.find((o) => o.id !== order.id && o.status === 'sold' && o.alliance?.allianceId === sel.allianceId
       && new Date(o.closedOn ?? o.createdOn).getTime() >= year);
-    if (used) out.push(`${hit.alliance.name} already paid for this client on ${new Date(used.closedOn ?? used.createdOn).toLocaleDateString('en-GB')} — one per policy year.`);
+    if (used) out.push(tr('{name} already paid for this client on {date} — one per policy year.', { name: hit.alliance.name, date: new Date(used.closedOn ?? used.createdOn).toLocaleDateString('en-GB') }));
   }
   return out;
 }

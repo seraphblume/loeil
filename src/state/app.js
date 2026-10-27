@@ -22,6 +22,8 @@ import {
 } from '../core/control.js';
 import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
 import { uid } from '../core/util.js';
+import { readStats } from '../core/stats.js';
+import { setLanguage, tr } from '../i18n.js';
 
 // ---------------------------------------------------------------------------
 // Store
@@ -41,6 +43,8 @@ let state = {
   toast: null,
   update: false,
   working: null,
+  lang: 'en',
+  stats: null,
 };
 
 const listeners = new Set();
@@ -62,10 +66,14 @@ export function toast(message) {
 // Boot
 
 export async function boot() {
-  const [bundle, passcode, store, identity, draft, quote, control] = await Promise.all([
+  const [bundle, passcode, store, identity, draft, quote, control, lang, stats] = await Promise.all([
     db.get('bundle'), db.get('passcode'), db.get('store'), db.get('identity'), db.get('draft'), db.get('quote'), db.get('control'),
+    db.get('lang'), db.get('stats'),
   ]);
+  setLanguage(lang ?? 'en');
   setState({
+    lang: lang ?? 'en',
+    stats: stats ?? null,
     booted: true,
     catalogue: new Catalogue(bundle ?? null),
     passcode: passcode ?? null,
@@ -132,9 +140,9 @@ export async function refresh() {
 /** First run, or a changed passcode: open the published file with this passcode. */
 export async function unlock(passcode) {
   const got = await fetchEnvelope();
-  if (got.offline) throw new Error('Can’t reach the catalogue right now. Connect once to unlock — after that it works offline.');
-  if (got.missing) throw new Error('Nothing has been published yet. An admin publishes the first catalogue from “Set up as admin”.');
-  if ((got.envelope.minAppBuild ?? 1) > APP_BUILD) throw new Error('This catalogue needs a newer app. Reload the page to update.');
+  if (got.offline) throw new Error(tr('Can’t reach the catalogue right now. Connect once to unlock — after that it works offline.'));
+  if (got.missing) throw new Error(tr('Nothing has been published yet. An admin publishes the first catalogue from “Set up as admin”.'));
+  if ((got.envelope.minAppBuild ?? 1) > APP_BUILD) throw new Error(tr('This catalogue needs a newer app. Reload the page to update.'));
   const bundle = await open(got.envelope, passcode.trim());
   await db.set('passcode', passcode.trim());
   setState({ passcode: passcode.trim() });
@@ -157,6 +165,15 @@ export async function lockDevice() {
   await db.del('passcode');
   await db.del('working');
   setState({ catalogue: new Catalogue(null), passcode: null, working: null, sync: { status: 'idle', note: null, checkedAt: null } });
+}
+
+// ---------------------------------------------------------------------------
+// Language: the app's words only (i18n.js). Kept on this phone.
+
+export async function chooseLanguage(id) {
+  setLanguage(id);
+  setState({ lang: id });
+  await db.set('lang', id);
 }
 
 // ---------------------------------------------------------------------------
@@ -356,10 +373,10 @@ async function saveQuote() { await db.set('quote', state.quote); }
 export async function addToQuote() {
   const q = state.quote;
   const draft = resolvedDraft();
-  if (!draft.lines.length) return { error: 'The order is empty — add a frame or a lens first.' };
-  if (q.options.length >= QUOTE_OPTIONS) return { error: `The quote already has ${QUOTE_OPTIONS} options. Remove one first.` };
+  if (!draft.lines.length) return { error: tr('The order is empty — add a frame or a lens first.') };
+  if (q.options.length >= QUOTE_OPTIONS) return { error: tr('The quote already has {n} options. Remove one first.', { n: QUOTE_OPTIONS }) };
   if (q.clientId && draft.clientId && q.clientId !== draft.clientId) {
-    return { error: `This quote is for ${clientById(q.clientId)?.name ?? 'another client'}. Clear it to quote someone else.` };
+    return { error: tr('This quote is for {name}. Clear it to quote someone else.', { name: clientById(q.clientId)?.name ?? tr('another client') }) };
   }
   const seller = staffMember();
   const order = {
@@ -441,10 +458,12 @@ export function previewAlpha(book) {
       here: { deliveries: state.control.deliveries.length, followUps: state.control.followUps.length },
     };
   }
-  if (!alpha && !control) throw new Error('This workbook has no CRM or Control sheet.');
+  // Alpha's own figures (History, Dashboard): this seller's month and pay, and the store against its goals.
+  const stats = b.history || b.dashboard ? readStats({ history: b.history, dashboard: b.dashboard }, seller, staffMember()?.name?.split(' ')[0] ?? null) : null;
+  if (!alpha && !control && !stats) throw new Error(tr('This workbook has no CRM or Control sheet.'));
   const clients = admin ? alpha : null;
   const counts = clients ? mergeAlpha({ clients: state.clients, orders: state.orders }, clients).counts : null;
-  return { source: 'Alpha', alpha: clients, crm: Boolean(alpha), counts, control, admin };
+  return { source: 'Alpha', alpha: clients, crm: Boolean(alpha), counts, control, admin, stats };
 }
 
 /** Bring the workbook in: the CRM merged (admin's phone), this seller's Control replaced by the workbook's. */
@@ -468,6 +487,11 @@ export async function importAlpha(parsed) {
     await saveControl();
     done.deliveries = c.deliveries.length;
     done.followUps = c.followUps.length;
+  }
+  if (parsed.stats) {
+    setState({ stats: parsed.stats });
+    await db.set('stats', parsed.stats);
+    done.stats = true;
   }
   return done;
 }

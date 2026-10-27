@@ -26,6 +26,7 @@ import { FormSheet } from './data/form.js';
 import { useWorking } from './data/home.js';
 import { edit } from '../state/working.js';
 import { upsertPreset, deletePreset } from '../core/edits.js';
+import { tr } from '../i18n.js';
 
 /** A glyph for each preset's tile; a preset added later takes the sparkle. */
 const PRESET_ICON = {
@@ -36,19 +37,20 @@ const PRESET_ICON = {
 /** What the prescription and the frame decide before any preset is chosen, said once. */
 function basis(rx, anyMfOnly, frame) {
   const bits = [];
-  if (!rx || rxIsBlank(rx)) bits.push(`No prescription on the order, so these are single vision${anyMfOnly ? ' (Progressive aside)' : ''}. Add the Rx first for progressives.`);
+  if (!rx || rxIsBlank(rx)) bits.push(anyMfOnly ? tr('No prescription on the order, so these are single vision (Progressive aside). Add the Rx first for progressives.') : tr('No prescription on the order, so these are single vision. Add the Rx first for progressives.'));
   else {
-    bits.push(needsAddition(rx) ? 'Progressive, from the ADD on the prescription' : 'Single vision, from the prescription');
-    if (strongestSphere(rx) > HIGH_RX_SPHERE) bits[0] += '; high-index where the tier has it';
-    bits[0] += '.';
+    const high = strongestSphere(rx) > HIGH_RX_SPHERE;
+    bits.push(needsAddition(rx)
+      ? (high ? tr('Progressive, from the ADD on the prescription; high-index where the tier has it.') : tr('Progressive, from the ADD on the prescription.'))
+      : (high ? tr('Single vision, from the prescription; high-index where the tier has it.') : tr('Single vision, from the prescription.')));
   }
   bits.push(frame
-    ? `Prices include ${frame.placeholder ? 'the frame quoted' : 'the frame on the order'}, as the order will charge them — a set’s own lens prices too.`
-    : 'No frame, so prices are for lenses in the client’s own frame.');
+    ? (frame.placeholder ? tr('Prices include the frame quoted, as the order will charge them — a set’s own lens prices too.') : tr('Prices include the frame on the order, as the order will charge them — a set’s own lens prices too.'))
+    : tr('No frame, so prices are for lenses in the client’s own frame.'));
   return bits.join(' ');
 }
 
-const itemText = (i) => (i.price == null ? i.label : i.price <= 1 ? `${i.label} · gift` : `${i.label} · ${money(i.price)}`);
+const itemText = (i) => (i.price == null ? tr(i.label) : i.price <= 1 ? `${tr(i.label)} · ${tr('gift')}` : `${tr(i.label)} · ${money(i.price)}`);
 
 /** The chips under a tier: Plus Protection and the accessories, priced. */
 function adds(result, price) {
@@ -60,11 +62,11 @@ function adds(result, price) {
 
 /** Notes under a tier: the set it uses or leaves, what it skipped. */
 function notesOf(result, price) {
-  const out = [...(result.notes ?? [])];
-  if (price?.setLens) out.push(`${price.setLens.setName}: ${price.setLens.name}${price.setLens.price ? ` +${money(price.setLens.price)}` : ', included'}`);
-  if (price?.outsideSet) out.push(`Not on ${price.outsideSet.setName}’s table — the frame goes at its own price`);
-  if (price?.pending) out.push('The lens price is still to confirm');
-  for (const s of result.skipped ?? []) out.push(`No ${s.label.toLowerCase()} — ${s.why}`);
+  const out = (result.notes ?? []).map((n) => tr(n));
+  if (price?.setLens) out.push(`${price.setLens.setName}: ${price.setLens.name}${price.setLens.price ? ` +${money(price.setLens.price)}` : ', ' + tr('included')}`);
+  if (price?.outsideSet) out.push(tr('Not on {set}’s table — the frame goes at its own price', { set: price.outsideSet.setName }));
+  if (price?.pending) out.push(tr('The lens price is still to confirm'));
+  for (const s of result.skipped ?? []) out.push(tr('No {what} — {why}', { what: tr(s.label).toLowerCase(), why: tr(s.why) }));
   return out;
 }
 
@@ -75,16 +77,16 @@ function TierRow({ result, price, applied, onPick }) {
   const notes = on ? notesOf(result, price) : [];
   // what it is, in a line; then the lens exactly, with its maker
   let what;
-  if (!on) what = result.why ?? (result.care ? 'Nothing on hand' : 'Not in the catalogue right now.');
-  else if (result.contact) what = html`${lens.displayName} · a box for each eye`;
-  else if (result.care) what = 'Care only — the lenses on the order stay';
+  if (!on) what = result.why ? tr(result.why) : (result.care ? tr('Nothing on hand') : tr('Not in the catalogue right now.'));
+  else if (result.contact) what = html`${lens.displayName} · ${tr('a box for each eye')}`;
+  else if (result.care) what = tr('Care only — the lenses on the order stay');
   else what = html`${lens.displayName}${makersOf(lens).map((m) => html` <${Maker} name=${m} />`)}`;
   if (result.contact && on) {
     const fit = result.eyes[0]?.fit;
     const ready = result.eyes.every((e) => fitComplete(fit, e.measures));
-    notes.unshift(ready ? `Fitting from the prescription: OD ${result.eyes[0].power} · OS ${result.eyes[1].power}` : `Add the fitting (${CL_FITS[fit]?.fields.map((f) => f.label).join(', ')}) on the order`);
+    notes.unshift(ready ? tr('Fitting from the prescription: OD {od} · OS {os}', { od: result.eyes[0].power, os: result.eyes[1].power }) : tr('Add the fitting ({fields}) on the order', { fields: CL_FITS[fit]?.fields.map((f) => f.label).join(', ') }));
   }
-  return html`<${Row} title=${html`<span class="tier-n">${tier.tier}</span>${applied ? html`<span class="tier-on"><${Icon} name="check" />On the order</span>` : ''}`}
+  return html`<${Row} title=${html`<span class="tier-n">${tier.tier}</span>${applied ? html`<span class="tier-on"><${Icon} name="check" />${tr('On the order')}</span>` : ''}`}
     detail=${tier.tierBlurb || null}
     sub=${html`<span class="preset-lens">${what}</span>
       ${chips.length > 0 && html`<span class="preset-adds">${chips.map((a) => html`<span class="chip">${a}</span>`)}</span>`}
@@ -95,13 +97,13 @@ function TierRow({ result, price, applied, onPick }) {
 /** A preset as a tile: its glyph, its name, its line and its lowest price here. */
 function PresetTile({ g, open, applied, onToggle }) {
   const live = g.results.some(offers);
-  const why = !live ? (g.results.find((r) => r.why)?.why ?? 'Not for this prescription').replace(/ —.*$/, '') : null;
+  const why = !live ? tr(g.results.find((r) => r.why)?.why ?? 'Not for this prescription').replace(/ —.*$/, '') : null;
   return html`<button type="button" class=${'preset-tile' + (open ? ' open' : '') + (live ? '' : ' off')} aria-expanded=${open ? 'true' : 'false'} aria-controls="preset-tiers"
     onClick=${onToggle}>
-    <span class="pt-top"><${Icon} name=${PRESET_ICON[g.id] ?? 'spark'} />${applied && html`<span class="pt-on" aria-label="On the order"><${Icon} name="check" /></span>`}</span>
+    <span class="pt-top"><${Icon} name=${PRESET_ICON[g.id] ?? 'spark'} />${applied && html`<span class="pt-on" aria-label=${tr('On the order')}><${Icon} name="check" /></span>`}</span>
     <span class="pt-n">${g.name}</span>
     ${g.blurb && html`<span class="pt-b">${g.blurb}</span>`}
-    <span class="pt-p">${live ? (g.from != null ? html`<span class="k">From</span> ${money(g.from)}` : 'Price at the register') : why}</span>
+    <span class="pt-p">${live ? (g.from != null ? html`<span class="k">${tr('price::From')}</span> ${money(g.from)}` : tr('Price at the register')) : why}</span>
   </button>`;
 }
 
@@ -159,7 +161,7 @@ export function PresetSheet({ onClose, toQuote }) {
     else if (f !== null) await setOrderFrame(f);
     onClose();
     if (toQuote) { await toQuote(); return; }
-    toast(result ? `${tierName(result.tier)} on the order` : 'Frame on the order');
+    toast(result ? tr('{name} on the order', { name: tierName(result.tier) }) : tr('Frame on the order'));
   };
   const pick = (result) => {
     if (result.care) { finish(result); return; }
@@ -168,11 +170,11 @@ export function PresetSheet({ onClose, toQuote }) {
     if (brands.length && !theirs) { setWaiting(result); setStep('brand'); return; }
     finish(result);
   };
-  const frameText = (f) => (f ? `${f.brand || f.description}${f.placeholder ? ` · ${f.priceSource === 'from' ? 'from ' : ''}${money(f.priceCents)}` : ''}` : 'No frame');
+  const frameText = (f) => (f ? `${f.brand || f.description}${f.placeholder ? ` · ${f.priceSource === 'from' ? tr('from {price}', { price: money(f.priceCents) }) : money(f.priceCents)}` : ''}` : tr('No frame'));
 
   const steps = toQuote ? [{ id: 'frame', label: 'Frame' }, { id: 'lens', label: 'Lenses' }] : [];
   const at = step === 'frame' ? 0 : 1;
-  const title = step === 'brand' ? 'Choose the brand' : toQuote ? 'Add an option' : 'Lifestyle presets';
+  const title = step === 'brand' ? tr('Choose the brand') : toQuote ? tr('Add an option') : tr('Lifestyle presets');
 
   // the open preset's tiers go right after the row its tile is on
   const openAt = groups.findIndex((g) => g.id === openId);
@@ -182,22 +184,22 @@ export function PresetSheet({ onClose, toQuote }) {
   return html`<${Sheet} title=${title} onClose=${onClose} full>
     <div class="stack">
       ${steps.length > 0 && step !== 'brand' && html`<ol class="steps-bar" style=${{ '--n': steps.length, '--i': at }}>
-        ${steps.map((s, i) => html`<li class=${i <= at ? 'on' : ''}><button type="button" onClick=${() => setStep(s.id)}>${s.label}</button></li>`)}
+        ${steps.map((s, i) => html`<li class=${i <= at ? 'on' : ''}><button type="button" onClick=${() => setStep(s.id)}>${tr(s.label)}</button></li>`)}
       </ol>`}
 
       ${step === 'frame' && html`
         <div class="list">
-          ${draftFrame && html`<${Row} icon="glasses" title=${`Keep ${frameText(draftFrame)}`} detail="The frame on the order" chev onClick=${() => { setFrame(null); setStep('lens'); }} />`}
-          <${Row} icon="x" title="No frame" detail="Lenses and extras only" chev onClick=${() => { setFrame(false); setStep('lens'); }} />
+          ${draftFrame && html`<${Row} icon="glasses" title=${tr('Keep {frame}', { frame: frameText(draftFrame) })} detail=${tr('The frame on the order')} chev onClick=${() => { setFrame(null); setStep('lens'); }} />`}
+          <${Row} icon="x" title=${tr('No frame')} detail=${tr('Lenses and extras only')} chev onClick=${() => { setFrame(false); setStep('lens'); }} />
         </div>
         <${FramePicker} start="brand" onPick=${(line) => { setFrame(line); setStep('lens'); }} />`}
 
       ${step === 'lens' && html`
-        ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? 'Any frame of the set' : 'Quoted by brand') : chosen ? 'The frame for this option' : 'This option has no frame'}
-          end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>Change</button>`} /></div>`}
+        ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? tr('Any frame of the set') : tr('Quoted by brand')) : chosen ? tr('The frame for this option') : tr('This option has no frame')}
+          end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>${tr('Change')}</button>`} /></div>`}
         <p class="para pad">${basis(rx, anyMfOnly, chosen)}</p>
-        ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title="Keep the lenses on the order" detail="Add this frame with what the order has" chev onClick=${() => finish(null)} /></div>`}
-        ${groups.length === 0 && html`<div class="pad"><${Flag}>No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.<//></div>`}
+        ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title=${tr('Keep the lenses on the order')} detail=${tr('Add this frame with what the order has')} chev onClick=${() => finish(null)} /></div>`}
+        ${groups.length === 0 && html`<div class="pad"><${Flag}>${tr('No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.')}<//></div>`}
         ${groups.length > 0 && html`<div class="preset-grid pad" ref=${grid}>
           ${groups.map((g, i) => html`
             <${PresetTile} key=${g.id} g=${g} open=${g.id === openId} applied=${g.tiers.some((t) => applied.has(presetKey(t)))}
@@ -207,12 +209,12 @@ export function PresetSheet({ onClose, toQuote }) {
                 applied=${applied.has(presetKey(r.tier))} onPick=${pick} />`)}</div>
             </div>`}`)}
         </div>`}
-        <p class="note pad">A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.</p>`}
+        <p class="note pad">${tr('A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.')}</p>`}
 
       ${step === 'brand' && waiting && html`
-        <p class="para pad">${tierName(waiting.tier)} goes with a renowned frame. Choose the brand — in a set it takes the set’s price, outside one its lowest catalogue price.</p>
+        <p class="para pad">${tr('{a} goes with a renowned frame. Choose the brand — in a set it takes the set’s price, outside one its lowest catalogue price.', { a: tierName(waiting.tier) })}</p>
         <${FramePicker} only=${waiting.brands} onPick=${(line) => finish(waiting, line)} />
-        <div class="pad"><button type="button" class="btn quiet" onClick=${() => { setWaiting(null); setStep('lens'); }}>Back to the presets</button></div>`}
+        <div class="pad"><button type="button" class="btn quiet" onClick=${() => { setWaiting(null); setStep('lens'); }}>${tr('Back to the presets')}</button></div>`}
     </div>
   <//>`;
 }
@@ -252,18 +254,18 @@ export function PresetsAdminScreen() {
   const blank = { presetId: '', preset: '', blurb: '', tier: '', tierBlurb: '', sv: '', mf: '', cl: '', extras: '', items: '', brands: '' };
   const asForm = (t) => ({ ...t, cl: t.cl ?? '', extras: (t.extras ?? []).join(', '), items: itemsText(t.items), brands: (t.brands ?? []).join(', ') });
   return html`
-    <${Bar} backTo="#/me/data" title="Lifestyle presets" trail=${html`<button class="bar-btn round" aria-label="Add" onClick=${() => setOpen({ t: blank })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Lifestyle presets')} trail=${html`<button class="bar-btn round" aria-label=${tr('Add')} onClick=${() => setOpen({ t: blank })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">Each preset has five tiers, from the lowest price up: Lite and Essential add only the lens and free gifts (a $0.01 cloth, a kids’ strap); Plus, Pro and Ultra add Plus Protection and one or two paid accessories. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.</p>
+        <p class="para pad">${tr('Each preset has five tiers, from the lowest price up: Lite and Essential add only the lens and free gifts (a $0.01 cloth, a kids’ strap); Plus, Pro and Ultra add Plus Protection and one or two paid accessories. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.')}</p>
         ${groups.map((g) => html`<section class="section">
           <div class="section-head"><div class="eyebrow">${g.name}</div></div>
-          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || t.cl || 'Accessories only'} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
+          <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || t.cl || tr('Accessories only')} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}
             chev onClick=${() => setOpen({ t: asForm(t), key: presetKey(t) })} />`)}</div>
         </section>`)}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.key ? `${open.t.preset} · ${open.t.tier}` : 'New tier'} initial=${open.t} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.key ? `${open.t.preset} · ${open.t.tier}` : tr('New tier')} initial=${open.t} onClose=${() => setOpen(null)}
       fields=${FIELDS}
       onSave=${(x) => {
         const brands = String(x.brands ?? '').split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean);
@@ -275,8 +277,8 @@ export function PresetsAdminScreen() {
           ...(brands.length ? { brands } : {}),
         };
         const key = presetKey(t);
-        if (key !== open.key && tiers.some((y) => presetKey(y) === key)) return `${t.preset} already has a tier called ${t.tier}.`;
-        edit((b) => upsertPreset(b, t, open.key)); toast('Saved to the working copy');
+        if (key !== open.key && tiers.some((y) => presetKey(y) === key)) return tr('{preset} already has a tier called {tier}.', { preset: t.preset, tier: t.tier });
+        edit((b) => upsertPreset(b, t, open.key)); toast(tr('Saved to the working copy'));
       }}
-      onDelete=${open.key ? () => { edit((b) => deletePreset(b, open.key)); toast('Removed'); } : null} />`}`;
+      onDelete=${open.key ? () => { edit((b) => deletePreset(b, open.key)); toast(tr('Removed')); } : null} />`}`;
 }

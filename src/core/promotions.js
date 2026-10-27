@@ -25,6 +25,7 @@
 
 import { dayToDate, startOfDay, brandKey } from './util.js';
 import { designCodeOf } from './lens.js';
+import { tr } from '../i18n.js';
 
 export const ANY = '*ANY';
 
@@ -135,8 +136,8 @@ export function eligibility(catalogue, lens, on = new Date()) {
     return {
       packages: [], counterparts: [],
       explanation: lens.family === 'CL'
-        ? 'The promo table covers spectacle lenses only. Contact-lens offers are brand and quantity deals — check the promotions list.'
-        : 'This lens has no promo family in the vocabulary, so nothing can be matched against it.',
+        ? tr('The promo table covers spectacle lenses only. Contact-lens offers are brand and quantity deals — check the promotions list.')
+        : tr('This lens has no promo family in the vocabulary, so nothing can be matched against it.'),
     };
   }
   const packages = packagesMatching(catalogue, key, on);
@@ -150,8 +151,8 @@ export function eligibility(catalogue, lens, on = new Date()) {
   if (!packages.length && !counterparts.length) {
     const ever = catalogue.promoLensMap.some((l) => keyMatches(catalogue, parseKey(l.matchKey), key));
     explanation = ever
-      ? 'No promotions apply today. This lens is in the promo table, but every campaign covering it has ended.'
-      : 'No promotions apply. Nothing in the current promo table covers this combination.';
+      ? tr('No promotions apply today. This lens is in the promo table, but every campaign covering it has ended.')
+      : tr('No promotions apply. Nothing in the current promo table covers this combination.');
   }
   return { packages, counterparts, counterpartCode: other, explanation };
 }

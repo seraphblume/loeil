@@ -14,6 +14,7 @@ import { diffBundles, changeCount } from '../core/diff.js';
 import { stamp, emptyBundle } from '../core/ingest.js';
 import { seal, open, toBase64, fromBase64 } from '../core/crypto.js';
 import { DATA_PATH } from '../config.js';
+import { tr } from '../i18n.js';
 
 let saveTimer = null;
 let catalogueCache = { bundle: null, catalogue: null };
@@ -77,7 +78,7 @@ const headers = (token) => ({ Authorization: `Bearer ${token}`, Accept: 'applica
 
 export class Conflict extends Error {
   constructor(remoteVersion) {
-    super(`Someone published version ${remoteVersion} after this working copy was started. Publishing now would overwrite it.`);
+    super(tr('Someone published version {v} after this working copy was started. Publishing now would overwrite it.', { v: remoteVersion }));
     this.name = 'Conflict';
     this.remoteVersion = remoteVersion;
   }
@@ -87,8 +88,8 @@ export class Conflict extends Error {
 async function remoteFile(gh) {
   const r = await fetch(`${api(gh, `/contents/${DATA_PATH}`)}?ref=${encodeURIComponent(gh.branch)}`, { headers: headers(gh.token), cache: 'no-store' });
   if (r.status === 404) return { sha: null, version: null };
-  if (r.status === 401) throw new Error('GitHub refused the token. Check it has not expired.');
-  if (!r.ok) throw new Error(`GitHub answered ${r.status} when reading the published file.`);
+  if (r.status === 401) throw new Error(tr('GitHub refused the token. Check it has not expired.'));
+  if (!r.ok) throw new Error(tr('GitHub answered {status} when reading the published file.', { status: r.status }));
   const j = await r.json();
   let version = null;
   try { if (j.content) version = JSON.parse(new TextDecoder().decode(fromBase64(j.content.replace(/\n/g, '')))).dataVersion ?? null; } catch { /* unreadable: treat as unknown */ }
@@ -101,26 +102,26 @@ async function remoteFile(gh) {
  */
 export async function publishWorking({ passcode, gh, force = false, onStep = () => {} }) {
   const w = getState().working;
-  if (!w) throw new Error('There is nothing to publish.');
+  if (!w) throw new Error(tr('There is nothing to publish.'));
   const report = validateBundle(w.bundle);
-  if (!report.ok) throw new Error('The gate found errors. Fix them before publishing.');
+  if (!report.ok) throw new Error(tr('The gate found errors. Fix them before publishing.'));
 
-  onStep('Checking GitHub…');
+  onStep(tr('Checking GitHub…'));
   const remote = await remoteFile(gh);
   if (!force && remote.version && remote.version !== w.baseVersion) throw new Conflict(remote.version);
 
-  onStep('Encrypting…');
+  onStep(tr('Encrypting…'));
   const bundle = stamp(w.bundle);
   const text = JSON.stringify(await seal(bundle, passcode));
 
-  onStep('Uploading…');
+  onStep(tr('Uploading…'));
   const body = { message: `Publish catalogue ${bundle.dataVersion}`, branch: gh.branch, content: toBase64(new TextEncoder().encode(text)), ...(remote.sha ? { sha: remote.sha } : {}) };
   const res = await fetch(api(gh, `/contents/${DATA_PATH}`), { method: 'PUT', headers: { ...headers(gh.token), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    if (res.status === 409) throw new Error('The published file changed while uploading. Try again.');
-    if (res.status === 403 || res.status === 404) throw new Error(`The token cannot write to ${gh.owner}/${gh.repo}. Give it Contents: Read and write.`);
-    throw new Error(detail.message || `GitHub answered ${res.status}.`);
+    if (res.status === 409) throw new Error(tr('The published file changed while uploading. Try again.'));
+    if (res.status === 403 || res.status === 404) throw new Error(tr('The token cannot write to {a}/{b}. Give it Contents: Read and write.', { a: gh.owner, b: gh.repo }));
+    throw new Error(detail.message || tr('GitHub answered {status}.', { status: res.status }));
   }
   const url = (await res.json()).commit?.html_url;
   await adopt(bundle, { passcode });
@@ -147,11 +148,11 @@ export async function loadLatestPublished(passcode, gh) {
   let envelope;
   if (gh?.token) {
     const r = await fetch(`${api(gh, `/contents/${DATA_PATH}`)}?ref=${encodeURIComponent(gh.branch)}`, { headers: { ...headers(gh.token), Accept: 'application/vnd.github.raw+json' }, cache: 'no-store' });
-    if (!r.ok) throw new Error(`GitHub answered ${r.status} when reading the published file.`);
+    if (!r.ok) throw new Error(tr('GitHub answered {status} when reading the published file.', { status: r.status }));
     envelope = await r.json();
   } else {
     const res = await fetch(DATA_PATH, { cache: 'no-cache' });
-    if (!res.ok) throw new Error('Could not fetch the published catalogue.');
+    if (!res.ok) throw new Error(tr('Could not fetch the published catalogue.'));
     envelope = await res.json();
   }
   const bundle = await open(envelope, passcode);

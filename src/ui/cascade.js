@@ -25,6 +25,7 @@ import { guidance, CL_FITS, fitComplete, fitText, blankContactRx, contactIsBlank
 import { lensLine, pairLine, contactFit } from '../core/orders.js';
 import { liveSets, setLensFor, rowPriceText, autoDiscountFor } from '../core/sets.js';
 import { addLine, toast, clientById, upsertClient } from '../state/app.js';
+import { tr, trn } from '../i18n.js';
 
 function chosenFrom(family, query) {
   const out = {};
@@ -40,7 +41,7 @@ export function CascadeScreen({ family, query }) {
   const [filter, setFilter] = useState('');
   const lastDepth = useRef(Object.keys(chosen).length);
 
-  if (!fam) return html`<${Bar} backTo="#/find" title="Lens" /><${Screen}><div class="pad"><${Empty} title="Unknown family" /></div><//>`;
+  if (!fam) return html`<${Bar} backTo="#/find" title=${tr('Lens')} /><${Screen}><div class="pad"><${Empty} title=${tr('Unknown family')} /></div><//>`;
 
   const step = currentStep(family, chosen);
   const depth = Object.keys(chosen).length;
@@ -49,7 +50,7 @@ export function CascadeScreen({ family, query }) {
 
   if (!step) {
     const row = matches(catalogue, family, chosen)[0];
-    if (!row) return html`<${Bar} backTo="#/find" title=${fam.label} /><${Screen}><div class="pad"><${Empty} title="Not in the catalogue">That combination is no longer sold. Step back and choose again.<//></div><//>`;
+    if (!row) return html`<${Bar} backTo="#/find" title=${tr(fam.label)} /><${Screen}><div class="pad"><${Empty} title=${tr('Not in the catalogue')}>${tr('That combination is no longer sold. Step back and choose again.')}<//></div><//>`;
     return html`<${LensScreen} rowId=${row.id} backTo=${href(['find', 'browse', family], clearFrom(family, chosen, fam.steps[fam.steps.length - 1].key))} />`;
   }
 
@@ -67,31 +68,31 @@ export function CascadeScreen({ family, query }) {
   };
 
   return html`
-    <${Bar} backTo="#/find" title=${fam.label} />
+    <${Bar} backTo="#/find" title=${tr(fam.label)} />
     <${Screen}>
       <div class=${'stack ' + dir} key=${step.key}>
         <div class="pad gap-s">
-          <${ScreenTitle} eyebrow=${`Step ${position} of ${steps.length}`} title=${step.title}
-            detail=${remaining === 1 ? '1 option left' : `${remaining} options left`} />
+          <${ScreenTitle} eyebrow=${tr('Step {n} of {m}', { n: position, m: steps.length })} title=${tr(step.title)}
+            detail=${trn(remaining, '1 option left', '{n} options left')} />
           <div class="step-bar" aria-hidden="true"><i style=${{ width: `${((position - 1) / steps.length) * 100}%` }}></i></div>
-          ${depth > 0 && html`<div class="trail-chips" aria-label="Chosen so far">
-            ${steps.filter((s) => chosen[s.key] != null).map((s) => html`<button type="button" class="chip" title=${`Change ${s.title.toLowerCase()}`}
+          ${depth > 0 && html`<div class="trail-chips" aria-label=${tr('Chosen so far')}>
+            ${steps.filter((s) => chosen[s.key] != null).map((s) => html`<button type="button" class="chip" title=${tr('Change {what}', { what: tr(s.title).toLowerCase() })}
               onClick=${() => go(href(['find', 'browse', family], clearFrom(family, chosen, s.key)))}>${chosenLabel(catalogue, family, chosen, s.key)}<${Icon} name="x" /></button>`)}
           </div>`}
         </div>
 
         ${rx && position === 1 && rx.reasons.length > 0 && html`<div class="pad"><${Flag} icon="doc">
-          <strong style="font-weight:500">From the prescription.</strong> ${rx.reasons.join(' ')}
-          ${rx.family && rx.family !== family ? ' This order may need the other lens family.' : ''}
+          <strong style="font-weight:500">${tr('From the prescription.')}</strong> ${rx.reasons.join(' ')}
+          ${rx.family && rx.family !== family ? ' ' + tr('This order may need the other lens family.') : ''}
         <//></div>`}
 
-        ${step.filter && all.length > 8 && html`<div class="pad"><${SearchField} icon="filter" value=${filter} onInput=${setFilter} placeholder="Filter" /></div>`}
+        ${step.filter && all.length > 8 && html`<div class="pad"><${SearchField} icon="filter" value=${filter} onInput=${setFilter} placeholder=${tr('Filter')} /></div>`}
 
         <${List}>
           ${shown.map((o) => html`<${Row} title=${o.label} badge=${o.maker && html`<${Maker} name=${o.maker} />`} detail=${[o.detail, o.blurb].filter(Boolean).join(' · ')}
-            sub=${!o.available ? (o.held ?? 'Not sold — the register refuses this one') : (rx?.highRx?.includes(o.code) && step.key === 'material' ? 'Suits this prescription' : null)}
+            sub=${!o.available ? (o.held ? tr(o.held) : tr('Not sold — the register refuses this one')) : (rx?.highRx?.includes(o.code) && step.key === 'material' ? tr('Suits this prescription') : null)}
             end=${isLast ? money(o.fromPrice) : null} count=${isLast ? null : o.count} off=${!o.available} onClick=${() => choose(o.code)} />`)}
-          ${!shown.length && html`<div class="row"><span class="muted small">Nothing matches “${filter}”.</span></div>`}
+          ${!shown.length && html`<div class="row"><span class="muted small">${tr('Nothing matches “{a}”.', { a: filter })}</span></div>`}
         <//>
 
       </div>
@@ -109,7 +110,7 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
   const [adding, setAdding] = useState(false);
   const [copied, copy] = useCopy();
 
-  if (!row) return html`<${Bar} backTo=${backTo} title="Lens" /><${Screen}><div class="pad"><${Empty} title="Not in the catalogue">This lens is not in the current catalogue. It may have been removed in the last publish.<//></div><//>`;
+  if (!row) return html`<${Bar} backTo=${backTo} title=${tr('Lens')} /><${Screen}><div class="pad"><${Empty} title=${tr('Not in the catalogue')}>${tr('This lens is not in the current catalogue. It may have been removed in the last publish.')}<//></div><//>`;
 
   const lens = resolve(catalogue, row);
   const code = lens.posCode || lens.attributes.map((a) => a.code).join('  ');
@@ -117,25 +118,25 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
   // Spectacle lenses go on as the pair; only contacts need an eye and a box count.
   const addPair = async () => {
     await addLine(pairLine(lens));
-    toast('Lens added to the order');
+    toast(tr('Lens added to the order'));
     go('#/find/order');
   };
 
   return html`
-    <${Bar} backTo=${backTo} title="Lens" trail=${html`<button class="bar-btn" onClick=${() => setEditing(true)}>Edit</button>`} />
+    <${Bar} backTo=${backTo} title=${tr('Lens')} trail=${html`<button class="bar-btn" onClick=${() => setEditing(true)}>${tr('Edit')}</button>`} />
     <${Screen} class="has-dock">
       <div class="stack pad">
         ${!lens.available && (lens.held
-          ? html`<${Flag}>${lens.held}. The price list carries this one, but the lab does not make it, so it cannot go on an order. HD anti-reflective is the best coating Polarex takes.<//>`
-          : html`<${Flag}>This lens is on the printed table but the register will not take it. The price is here so you can explain why, but it cannot go on an order.<//>`)}
+          ? html`<${Flag}>${tr('{a}. The price list carries this one, but the lab does not make it, so it cannot go on an order. HD anti-reflective is the best coating Polarex takes.', { a: lens.held })}<//>`
+          : html`<${Flag}>${tr('This lens is on the printed table but the register will not take it. The price is here so you can explain why, but it cannot go on an order.')}<//>`)}
 
         <div class="gap-s">
-          <${Eyebrow}>${lens.posCode ? 'POS product code' : 'Component codes'}<//>
+          <${Eyebrow}>${lens.posCode ? tr('POS product code') : tr('Component codes')}<//>
           <div style="display:flex;align-items:flex-start;gap:8px">
             <div class="pos-code sel" style=${lens.posCode ? '' : 'font-size:18px'}>${code}</div>
-            <button class="icon-btn" aria-label="Copy code" onClick=${() => copy(code)}><${Icon} name=${copied ? 'check' : 'copy'} /></button>
+            <button class="icon-btn" aria-label=${tr('Copy code')} onClick=${() => copy(code)}><${Icon} name=${copied ? 'check' : 'copy'} /></button>
           </div>
-          ${!lens.posCode && html`<p class="note">No combined code has been observed for contact lenses. These are the component codes.</p>`}
+          ${!lens.posCode && html`<p class="note">${tr('No combined code has been observed for contact lenses. These are the component codes.')}</p>`}
           <div class="silver" style="font-size:14px">${lens.displayName}</div>
         </div>
 
@@ -147,10 +148,10 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
           </div>`)}
         <//>
 
-        <${Figure} value=${money(lens.priceCents)} caption=${lens.family === 'CL' ? 'Per box' : 'Per pair'} size=${38} />
+        <${Figure} value=${money(lens.priceCents)} caption=${lens.family === 'CL' ? tr('Per box') : tr('Per pair')} size=${38} />
 
         ${ups.length > 0 && html`<section class="gap-s" style="margin:0 calc(-1 * var(--gutter))">
-          <div class="pad"><${Eyebrow}>Upgrades<//></div>
+          <div class="pad"><${Eyebrow}>${tr('Upgrades')}<//></div>
           <${List}>${ups.map((u) => html`<${Row} title=${u.row.treatment.label} badge=${u.row.treatment.maker && html`<${Maker} name=${u.row.treatment.maker} />`} detail=${u.row.treatment.blurb} end=${moneyDelta(u.delta)}
             onClick=${() => go(href(['find', 'lens', u.row.id]), { replace: true })} />`)}<//>
         </section>`}
@@ -160,8 +161,8 @@ export function LensScreen({ rowId, backTo = '#/find' }) {
       </div>
     <//>
     <${Dock}>
-      <div class="dock-total"><span class="v">${money(lens.priceCents)}</span><span class="k">${lens.family === 'CL' ? 'Per box' : 'Per pair'}</span></div>
-      <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>Add to order<//>
+      <div class="dock-total"><span class="v">${money(lens.priceCents)}</span><span class="k">${lens.family === 'CL' ? tr('Per box') : tr('Per pair')}</span></div>
+      <${Anchor} icon="plus" disabled=${!lens.available} onClick=${lens.family === 'CL' ? () => setAdding(true) : addPair}>${tr('Add to order')}<//>
     <//>
     ${editing && html`<${ConfigureSheet} row=${row} onClose=${() => setEditing(false)} />`}
     ${adding && html`<${LineEditorSheet} lens=${lens} onClose=${() => setAdding(false)} onAdded=${() => { setAdding(false); go('#/find/order'); }} />`}`;
@@ -175,20 +176,20 @@ function ConfigureSheet({ row, onClose }) {
 
   if (attr) {
     const alts = alternatives(catalogue, row.id, attr.key);
-    return html`<${Sheet} title=${attr.name} onClose=${onClose} left=${html`<button class="bar-btn round" aria-label="Back" onClick=${() => setAttr(null)}><${Icon} name="chevL" /></button>`}>
+    return html`<${Sheet} title=${attr.name} onClose=${onClose} left=${html`<button class="bar-btn round" aria-label=${tr('Back')} onClick=${() => setAttr(null)}><${Icon} name="chevL" /></button>`}>
       <${List}>${alts.map((r) => html`<${Row} title=${r[attr.key].label} badge=${r[attr.key].maker && html`<${Maker} name=${r[attr.key].maker} />`} detail=${r[attr.key].code} end=${html`${money(r.price)}${r.id === row.id ? html` <${Icon} name="check" />` : ''}`}
         off=${!r.available} onClick=${() => { onClose(); go(href(['find', 'lens', r.id]), { replace: true }); }} />`)}<//>
     <//>`;
   }
-  return html`<${Sheet} title="Configure" onClose=${onClose} left=${html`<span></span>`} right=${html`<button class="bar-btn strong" onClick=${onClose}>Done</button>`}>
+  return html`<${Sheet} title=${tr('Configure')} onClose=${onClose} left=${html`<span></span>`} right=${html`<button class="bar-btn strong" onClick=${onClose}>${tr('Done')}</button>`}>
     <div class="stack tight">
       <${List}>${lens.attributes.map((a) => {
         const n = alternatives(catalogue, row.id, a.key).length;
-        return html`<${Row} title=${html`<span class="silver" style="font-size:14px">${a.name}</span>`} end=${html`<span style="text-align:right"><div style="color:var(--platinum);font-size:14px">${a.label}</div><div class="mono tiny muted">${a.code}</div></span>`}
+        return html`<${Row} title=${html`<span class="silver" style="font-size:14px">${tr(a.name)}</span>`} end=${html`<span style="text-align:right"><div style="color:var(--platinum);font-size:14px">${a.label}</div><div class="mono tiny muted">${a.code}</div></span>`}
           chev=${n > 1} onClick=${n > 1 ? () => setAttr(a) : null} />`;
       })}<//>
-      <p class="note pad">Only combinations the catalogue actually sells are offered. An attribute with no alternative is not editable.</p>
-      <div class="pad"><${Panel}><${KV} k="Price" v=${money(lens.priceCents)} em /><//></div>
+      <p class="note pad">${tr('Only combinations the catalogue actually sells are offered. An attribute with no alternative is not editable.')}</p>
+      <div class="pad"><${Panel}><${KV} k=${tr('Price')} v=${money(lens.priceCents)} em /><//></div>
     </div>
   <//>`;
 }
@@ -218,36 +219,36 @@ function FitLineSheet({ lens, fit, onClose, onAdded }) {
   const [toClient, setToClient] = useState(Boolean(client) && fit === 'gp');
   const sides = eyes === 'both' ? ['od', 'os'] : [eyes];
   const ready = sides.every((s) => fitComplete(fit, m[s]));
-  const source = fit === 'gp' ? (cl?.gp ? 'Filled in from the client’s record.' : '')
-    : cl && !cl.gp && !contactIsBlank(cl) ? 'Filled in from the contact lens prescription.'
-      : rx && !rxIsBlank(rx) ? 'Filled in from the glasses prescription.' : '';
+  const source = fit === 'gp' ? (cl?.gp ? tr('Filled in from the client’s record.') : '')
+    : cl && !cl.gp && !contactIsBlank(cl) ? tr('Filled in from the contact lens prescription.')
+      : rx && !rxIsBlank(rx) ? tr('Filled in from the glasses prescription.') : '';
   const add = async () => {
     for (const s of sides) await addLine(lensLine(lens, s.toUpperCase(), fitText(fit, m[s]), qty, { ...m[s] }, fit));
     if (fit === 'gp' && toClient && client) {
       const base = cl ?? blankContactRx();
       await upsertClient({ ...client, contactRx: { ...base, gp: true, ...Object.fromEntries(sides.map((s) => [s, { ...base[s], ...m[s] }])) } });
     }
-    toast(sides.length === 2 ? 'OD and OS lines added' : `${sides[0].toUpperCase()} line added`);
+    toast(sides.length === 2 ? tr('OD and OS lines added') : tr('{eye} line added', { eye: sides[0].toUpperCase() }));
     onAdded?.();
   };
-  return html`<${Sheet} title="Add line" onClose=${onClose} full>
+  return html`<${Sheet} title=${tr('Add line')} onClose=${onClose} full>
     <div class="pad stack tight">
-      <${ScreenTitle} eyebrow=${spec.label} title=${lens.displayName} />
-      <${Seg} label="Eyes" value=${eyes} onChange=${setEyes} options=${EYE_CHOICES} />
+      <${ScreenTitle} eyebrow=${tr(spec.label)} title=${lens.displayName} />
+      <${Seg} label=${tr('Eyes')} value=${eyes} onChange=${setEyes} options=${EYE_CHOICES.map((c) => ({ ...c, label: tr(c.label) }))} />
       <div class="rx-entry"><div class="rx-eyes">
         ${sides.map((s) => html`<${FitEye} key=${s} fit=${fit} side=${s} prefix="line" m=${m[s]} onChange=${(v) => setM({ ...m, [s]: v })} />`)}
       </div></div>
       <p class="note">${[spec.note, source].filter(Boolean).join(' ')}</p>
-      <div class="gap-s"><${Eyebrow}>Per eye<//>
-        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label="Per eye" />
+      <div class="gap-s"><${Eyebrow}>${tr('Per eye')}<//>
+        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label=${tr('Per eye')} />
       </div>
       <${Panel}>
-        <${KV} k="Each" v=${money(lens.priceCents)} />
-        <${KV} k=${sides.length === 2 ? 'Both lines' : 'Line total'} v=${money(lens.priceCents * qty * sides.length)} em />
+        <${KV} k=${tr('Each')} v=${money(lens.priceCents)} />
+        <${KV} k=${sides.length === 2 ? tr('Both lines') : tr('Line total')} v=${money(lens.priceCents * qty * sides.length)} em />
       <//>
-      ${client && fit === 'gp' && html`<div class="group"><div class="cell"><span class="k">Save to ${client.name.split(' ')[0]}’s record</span><${Toggle} on=${toClient} onChange=${setToClient} label="Save to the client" /></div></div>`}
-      ${!ready && html`<p class="note">Give ${spec.fields.map((f) => f.label).join(', ').replace(/, ([^,]*)$/, ' and $1')}${sides.length === 2 ? ' for each eye' : ''} to add the line.</p>`}
-      <${Anchor} disabled=${!ready} onClick=${add}>${sides.length === 2 ? 'Add both lines' : 'Add line'}<//>
+      ${client && fit === 'gp' && html`<div class="group"><div class="cell"><span class="k">${tr('Save to {a}’s record', { a: client.name.split(' ')[0] })}</span><${Toggle} on=${toClient} onChange=${setToClient} label=${tr('Save to the client')} /></div></div>`}
+      ${!ready && html`<p class="note">${tr(sides.length === 2 ? 'Give {fields} for each eye to add the line.' : 'Give {fields} to add the line.', { fields: spec.fields.map((f) => f.label).join(', ') })}</p>`}
+      <${Anchor} disabled=${!ready} onClick=${add}>${sides.length === 2 ? tr('Add both lines') : tr('Add line')}<//>
     </div>
   <//>`;
 }
@@ -277,33 +278,33 @@ function SoftLineSheet({ lens, onClose, onAdded }) {
 
   const add = async () => {
     await addLine(lensLine(lens, eye, power.trim(), qty));
-    toast(`${eye} line added`);
+    toast(tr('{eye} line added', { eye }));
     onAdded?.();
   };
 
-  return html`<${Sheet} title="Add line" onClose=${onClose}>
+  return html`<${Sheet} title=${tr('Add line')} onClose=${onClose}>
     <div class="pad stack tight">
-      <${ScreenTitle} eyebrow="Line" title=${lens.displayName} />
-      <p class="para">Contact lenses go on one line per eye. Add the right eye, then the left — they can be different products and usually are different powers.</p>
-      <div class="gap-s"><${Eyebrow}>Eye<//>
-        <${Seg} label="Eye" value=${eye} onChange=${setEye}
+      <${ScreenTitle} eyebrow=${tr('Line')} title=${lens.displayName} />
+      <p class="para">${tr('Contact lenses go on one line per eye. Add the right eye, then the left — they can be different products and usually are different powers.')}</p>
+      <div class="gap-s"><${Eyebrow}>${tr('Eye')}<//>
+        <${Seg} label=${tr('Eye')} value=${eye} onChange=${setEye}
           options=${['OD', 'OS'].map((v) => ({ value: v, label: v }))} />
       </div>
-      <div class="gap-s"><${Eyebrow}>Power<//>
+      <div class="gap-s"><${Eyebrow}>${tr('Power')}<//>
         <label class="field">
           <input inputmode="text" autocomplete="off" placeholder=${suggested ?? 'e.g. -2.50'} value=${power} onInput=${(e) => setPower(e.currentTarget.value)} />
-          ${suggested && !power && html`<button type="button" class="textbtn small" onClick=${() => setPower(suggested)}>Use ${suggested}</button>`}
+          ${suggested && !power && html`<button type="button" class="textbtn small" onClick=${() => setPower(suggested)}>${tr('Use {a}', { a: suggested })}</button>`}
         </label>
       </div>
-      <div class="gap-s"><${Eyebrow}>Boxes<//>
-        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label="Boxes" />
-        <p class="note">The catalogue price is per box. An annual supply is many boxes; a trial is one.</p>
+      <div class="gap-s"><${Eyebrow}>${tr('Boxes')}<//>
+        <${Stepper} value=${qty} min=${1} max=${48} onChange=${setQty} label=${tr('Boxes')} />
+        <p class="note">${tr('The catalogue price is per box. An annual supply is many boxes; a trial is one.')}</p>
       </div>
       <${Panel}>
-        <${KV} k="Per box" v=${money(lens.priceCents)} />
-        <${KV} k="Line total" v=${money(lens.priceCents * qty)} em />
+        <${KV} k=${tr('Per box')} v=${money(lens.priceCents)} />
+        <${KV} k=${tr('Line total')} v=${money(lens.priceCents * qty)} em />
       <//>
-      <${Anchor} onClick=${add}>Add line<//>
+      <${Anchor} onClick=${add}>${tr('Add line')}<//>
     </div>
   <//>`;
 }
@@ -322,12 +323,12 @@ function SetsSection({ lens }) {
   if (!sets.length) return null;
   const hits = sets.map((set) => ({ set, hit: setLensFor(catalogue, set, lens) })).filter((x) => x.hit).sort((a, b) => a.set.price - b.set.price);
   return html`<section class="gap-s" style="margin:0 calc(-1 * var(--gutter))">
-    <div class="pad"><${Eyebrow}>In the sets<//></div>
+    <div class="pad"><${Eyebrow}>${tr('In the sets')}<//></div>
     ${hits.length === 0
-      ? html`<p class="note pad">No set’s table names this lens. With a set frame, choose its row on the order, or price it outside the set.</p>`
+      ? html`<p class="note pad">${tr('No set’s table names this lens. With a set frame, choose its row on the order, or price it outside the set.')}</p>`
       : html`<${List}>${hits.map(({ set, hit }) => html`<${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} + ${hit.def.name}`}
-          detail=${`${rowPriceText(hit.entry, money)} on top · ID Maestro ${set.id}`} end=${money(set.price + hit.entry.price)} chev />`)}<//>
-        <p class="note pad">With a frame from that set’s brands. Plus Protection, if added, is worked out on these prices.</p>`}
+          detail=${`${tr('{price} on top', { price: rowPriceText(hit.entry, money) })} · ID Maestro ${set.id}`} end=${money(set.price + hit.entry.price)} chev />`)}<//>
+        <p class="note pad">${tr('With a frame from that set’s brands. Plus Protection, if added, is worked out on these prices.')}</p>`}
   </section>`;
 }
 
@@ -339,13 +340,13 @@ export function PromotionsSection({ lens }) {
   const catalogue = useApp((s) => s.catalogue);
   const r = eligibility(catalogue, lens);
   return html`<section class="gap-m">
-    <${Eyebrow}>${r.packages.length ? 'Promotions that apply' : 'Promotions'}<//>
+    <${Eyebrow}>${r.packages.length ? tr('Promotions that apply') : tr('Promotions')}<//>
     ${r.explanation && !r.packages.length && html`<p class="para">${r.explanation}</p>`}
     ${r.packages.map((p) => html`<${PromoCard} p=${p} />`)}
-    ${r.packages.length > 0 && html`<p class="note">These are the conditions to check before the number goes into the register. Brand and quantity rules need your judgement — the app does not check them.</p>`}
+    ${r.packages.length > 0 && html`<p class="note">${tr('These are the conditions to check before the number goes into the register. Brand and quantity rules need your judgement — the app does not check them.')}</p>`}
     ${r.counterparts.length > 0 && html`<div class="gap-m" style="border-top:1px solid var(--hair);padding-top:14px">
-      <${Eyebrow}>Same coating, other code<//>
-      <p class="para">${lens.attributes.find((a) => a.key === 'treatment')?.code} and ${r.counterpartCode} are one product under the old and new codes. These promotions name the other code, so they are not counted above — check which one the register wants today.</p>
+      <${Eyebrow}>${tr('Same coating, other code')}<//>
+      <p class="para">${tr('{a} and {b} are one product under the old and new codes. These promotions name the other code, so they are not counted above — check which one the register wants today.', { a: lens.attributes.find((a) => a.key === 'treatment')?.code, b: r.counterpartCode })}</p>
       ${r.counterparts.map((p) => html`<${PromoCard} p=${p} muted />`)}
     </div>`}
   </section>`;
@@ -357,17 +358,17 @@ function PromoCard({ p, muted }) {
     <div class="gap-s">
       <div>
         <div style=${{ fontSize: '14px', fontWeight: 500, color: muted ? 'var(--silver)' : 'var(--platinum)' }}>${p.promo.name}</div>
-        ${p.entryPriceCents != null && html`<div class="note">Package from ${money(p.entryPriceCents)}</div>`}
+        ${p.entryPriceCents != null && html`<div class="note">${tr('Package from {a}', { a: money(p.entryPriceCents) })}</div>`}
       </div>
       <div>
-        <${Eyebrow}>Promo number<//>
+        <${Eyebrow}>${tr('Promo number')}<//>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="mono sel" style=${{ fontSize: '22px', color: muted ? 'var(--silver)' : 'var(--platinum)' }}>${p.promo.id}</span>
-          <button class="icon-btn" aria-label="Copy promo number" onClick=${() => copy(p.promo.id)}><${Icon} name=${copied ? 'check' : 'copy'} /></button>
+          <button class="icon-btn" aria-label=${tr('Copy promo number')} onClick=${() => copy(p.promo.id)}><${Icon} name=${copied ? 'check' : 'copy'} /></button>
         </div>
       </div>
       ${p.promo.description && html`<div class="silver small">${p.promo.description}</div>`}
-      ${p.conditions.length > 0 && html`<div><${Eyebrow}>Conditions<//>${p.conditions.map((c) => html`<div class="silver small">${c}</div>`)}</div>`}
+      ${p.conditions.length > 0 && html`<div><${Eyebrow}>${tr('Conditions')}<//>${p.conditions.map((c) => html`<div class="silver small">${c}</div>`)}</div>`}
       ${p.promo.notes && html`<p class="note">${p.promo.notes}</p>`}
       ${p.matchedLines[0]?.lensDescription && html`<div class="mono tiny muted">${p.matchedLines[0].lensDescription}</div>`}
     </div>

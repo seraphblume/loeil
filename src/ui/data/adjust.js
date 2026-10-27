@@ -9,6 +9,7 @@ import { toast } from '../../state/app.js';
 import { go } from '../router.js';
 import { adjustPrices, fieldValues } from '../../core/edits.js';
 import { money } from '../../core/money.js';
+import { tr, trn } from '../../i18n.js';
 
 const LENS_FILTERS = [['treatment', 'Coating', 'treatment'], ['material', 'Material', 'material'], ['category', 'Filter', 'category'], ['design', 'Design', 'design']];
 const FRAME_FILTERS = [['brand', 'Brand'], ['category', 'Category'], ['material', 'Material'], ['frameType', 'Frame type']];
@@ -39,55 +40,55 @@ export function AdjustScreen() {
 
   const apply = () => {
     edit(() => preview.bundle);
-    toast(`${preview.changes.length} price${preview.changes.length === 1 ? '' : 's'} changed in the working copy`);
+    toast(trn(preview.changes.length, '1 price changed in the working copy', '{n} prices changed in the working copy'));
     go('#/me/data', { replace: true });
   };
 
   return html`
-    <${Bar} backTo="#/me/data" title="Adjust prices" />
+    <${Bar} backTo="#/me/data" title=${tr('Adjust prices')} />
     <${Screen}>
       <div class="stack pad">
-        <${Seg} label="What" value=${target} onChange=${(v) => { setTarget(v); setFilter({}); }} options=${[{ value: 'lenses', label: 'Lenses' }, { value: 'frames', label: 'Frames' }]} />
+        <${Seg} label=${tr('What')} value=${target} onChange=${(v) => { setTarget(v); setFilter({}); }} options=${[{ value: 'lenses', label: tr('Lenses') }, { value: 'frames', label: tr('Frames') }]} />
 
         <div class="form-group">
-          <${Eyebrow}>Which ones<//>
-          ${target === 'lenses' && html`<label class="form-row"><span class="k">Family</span>
+          <${Eyebrow}>${tr('Which ones')}<//>
+          ${target === 'lenses' && html`<label class="form-row"><span class="k">${tr('Family')}</span>
             <select value=${family} onChange=${(e) => { setFamily(e.currentTarget.value); setFilter({}); }}>
-              <option value="all">Spectacle lenses</option><option value="SV">Single vision</option><option value="MF">Multifocal</option><option value="CL">Contact lenses</option>
+              <option value="all">${tr('Spectacle lenses')}</option><option value="SV">${tr('Single vision')}</option><option value="MF">${tr('Multifocal')}</option><option value="CL">${tr('Contact lenses')}</option>
             </select></label>`}
-          ${target === 'lenses' && family !== 'CL' && LENS_FILTERS.map(([f, label, kind]) => html`<label class="form-row"><span class="k">${label}</span>
+          ${target === 'lenses' && family !== 'CL' && LENS_FILTERS.map(([f, label, kind]) => html`<label class="form-row"><span class="k">${tr(label)}</span>
             <select value=${filter[f] ?? ''} onChange=${(e) => setFilter({ ...filter, [f]: e.currentTarget.value })}>
-              <option value="">Any</option>${lensOptions(f, kind).map(([code, name]) => html`<option value=${code}>${name} (${code})</option>`)}
+              <option value="">${tr('Any')}</option>${lensOptions(f, kind).map(([code, name]) => html`<option value=${code}>${name} (${code})</option>`)}
             </select></label>`)}
-          ${target === 'lenses' && family === 'CL' && html`<label class="form-row"><span class="k">Correction</span>
+          ${target === 'lenses' && family === 'CL' && html`<label class="form-row"><span class="k">${tr('Correction')}</span>
             <select value=${filter.material ?? ''} onChange=${(e) => setFilter({ ...filter, material: e.currentTarget.value })}>
-              <option value="">Any</option>${lensOptions('material', 'contact_material').map(([code, name]) => html`<option value=${code}>${name} (${code})</option>`)}
+              <option value="">${tr('Any')}</option>${lensOptions('material', 'contact_material').map(([code, name]) => html`<option value=${code}>${name} (${code})</option>`)}
             </select></label>`}
-          ${target === 'frames' && FRAME_FILTERS.map(([f, label]) => html`<label class="form-row"><span class="k">${label}</span>
+          ${target === 'frames' && FRAME_FILTERS.map(([f, label]) => html`<label class="form-row"><span class="k">${tr(label)}</span>
             <select value=${filter[f] ?? ''} onChange=${(e) => setFilter({ ...filter, [f]: e.currentTarget.value })}>
-              <option value="">Any</option>${frameOptions(f).map((v) => html`<option value=${v}>${v}</option>`)}
+              <option value="">${tr('Any')}</option>${frameOptions(f).map((v) => html`<option value=${v}>${v}</option>`)}
             </select></label>`)}
         </div>
 
         <div class="gap-s">
-          <${Eyebrow}>The change<//>
-          <${Seg} label="Change" value=${mode} onChange=${setMode} options=${[{ value: 'add', label: '+ $' }, { value: 'sub', label: '− $' }, { value: 'percent', label: '%' }, { value: 'set', label: 'Set to' }]} />
+          <${Eyebrow}>${tr('The change')}<//>
+          <${Seg} label=${tr('Change')} value=${mode} onChange=${setMode} options=${[{ value: 'add', label: '+ $' }, { value: 'sub', label: '− $' }, { value: 'percent', label: '%' }, { value: 'set', label: tr('Set to') }]} />
           <label class="field"><span class="unit">${mode === 'percent' ? '%' : '$'}</span>
             <input inputmode="decimal" placeholder=${mode === 'percent' ? 'e.g. 5 or -3' : 'e.g. 200'} value=${amount} onInput=${(e) => setAmount(e.currentTarget.value)} /></label>
-          ${mode === 'percent' && html`<p class="note">A minus sign lowers prices: −3 takes 3% off.</p>`}
-          <${Eyebrow}>Rounding<//>
-          <${Seg} label="Rounding" value=${rounding} onChange=${setRounding} options=${[{ value: 'none', label: 'Exact' }, { value: 'peso', label: 'Whole peso' }, { value: 'nine', label: 'Ends in 9' }]} />
+          ${mode === 'percent' && html`<p class="note">${tr('A minus sign lowers prices: −3 takes 3% off.')}</p>`}
+          <${Eyebrow}>${tr('Rounding')}<//>
+          <${Seg} label=${tr('Rounding')} value=${rounding} onChange=${setRounding} options=${[{ value: 'none', label: tr('Exact') }, { value: 'peso', label: tr('Whole peso') }, { value: 'nine', label: tr('Ends in 9') }]} />
         </div>
 
         ${preview && html`<section class="gap-s">
-          <${Eyebrow}>Preview · ${preview.changes.length} price${preview.changes.length === 1 ? '' : 's'}<//>
-          ${preview.changes.length === 0 ? html`<p class="para">Nothing matches, or nothing would change.</p>` : html`<${Panel} tight>
+          <${Eyebrow}>${trn(preview.changes.length, 'Preview · 1 price', 'Preview · {n} prices')}<//>
+          ${preview.changes.length === 0 ? html`<p class="para">${tr('Nothing matches, or nothing would change.')}</p>` : html`<${Panel} tight>
             ${preview.changes.slice(0, 25).map((c) => html`<div class="kv lined"><span class="k" style="font-size:12px">${c.label}</span><span class="v num" style="white-space:nowrap">${money(c.from)} → ${money(c.to)}</span></div>`)}
-            ${preview.changes.length > 25 && html`<div class="kv lined"><span class="k">and ${preview.changes.length - 25} more</span></div>`}
+            ${preview.changes.length > 25 && html`<div class="kv lined"><span class="k">${tr('and {a} more', { a: preview.changes.length - 25 })}</span></div>`}
           <//>`}
         </section>`}
-        ${preview?.changes.some((c) => c.to <= 0) && html`<${Flag}>Some prices would reach zero. The gate will refuse to publish them.<//>`}
-        <${Anchor} disabled=${!preview || !preview.changes.length} onClick=${apply}>Apply to the working copy<//>
+        ${preview?.changes.some((c) => c.to <= 0) && html`<${Flag}>${tr('Some prices would reach zero. The gate will refuse to publish them.')}<//>`}
+        <${Anchor} disabled=${!preview || !preview.changes.length} onClick=${apply}>${tr('Apply to the working copy')}<//>
       </div>
     <//>`;
 }

@@ -16,6 +16,8 @@ with the order in progress beside it, and Clients and Orders open as a list besi
 the record. **Find** is a dashboard: the order in progress and what it still needs
 before checkout (or the day's sales), shortcuts, the lens and frame catalogues as
 tiles, and the latest orders — beside them on an iPad.
+The day's sales roll in digit by digit, like a subscriber counter, each time the
+app opens, and roll on to the new amount after a sale (still, with reduced motion).
 
 It is drawn in six colours — ink #111111, graphite #333333, stone #777777, sand
 #BEB8AD, linen #E6E1D7, paper #F6F4EE — as paper by day and ink by night,
@@ -172,6 +174,39 @@ computer, the way an order does (`#/orders/delivery/<Sell ID>`, `#/orders/follow
   chat. The preset and Customer ID can be changed here; an earlier workbook's Plan
   ID reads as the preset. Alpha rebuilds the list for the vendor on Control (or
   All): rebuild it for All before importing on the sellers' phones.
+
+## Your figures from Alpha
+
+**Me** shows what the Alpha workbook worked out at its last import — nothing is
+recalculated on the phone, and the figures stay until the next import:
+
+- **The store** this month (Dashboard ▸ Store by month): proceeds against the
+  **Main** and **Soft** goals, the share of each, what is still needed a day, and
+  the days left. Below the Soft goal the commission is 2.5%; at it, 3.5%.
+- **My month** (History, the seller's row by employee number): sales, proceeds,
+  average sale, eye exams, closure, branded, Plus Protection and full tickets —
+  or the **cycle to date**.
+- **My pay**: the tier the store reached this month, then the commission and the
+  yield at each rate. Yield is the base salary plus the commission, as History has
+  it, before any tax. Amounts are before IVA.
+
+The goals and the tier come from Alpha's Config (Main goal, Soft goal); a workbook
+from before the Soft goal shows the Main goal alone.
+
+## Languages
+
+**Me ▸ Language** switches the app between English, Español, 日本語 and 한국어,
+for this phone. It is the app's own words only: tickets, quotes and WhatsApp
+messages are what the client receives and stay as they are, and catalogue names
+(lenses, presets, sets, promotions) are shown as the catalogue has them. The
+publish gate's checks and the workbook import's messages are in English. Dates
+follow the language; money is always pesos.
+
+Every string is written in English in the code and goes through `tr()` (or `trn()`
+for one and many); `src/i18n/es.js`, `ja.js` and `ko.js` hold the translations,
+keyed by the English. A string with no translation yet shows in English. When one
+English word has two meanings, a context before `::` tells them apart
+(`tr('price::From')` — English shows `From`).
 
 ## Brand gifts
 
@@ -491,6 +526,8 @@ src/core/             pure logic, shared with tools/publish.mjs
   alliances.js        insurers and employers: coverage, copay, packages, paperwork
   orders.js crm.js rxticket.js backup.js
   alpha.js control.js the Alpha workbook: its CRM, and Control (Delivery, Follow Up)
+  stats.js            the Alpha workbook's History and Dashboard → the Me figures
+src/i18n.js, src/i18n/  the app's words in English, Spanish, Japanese and Korean
 src/state/            storage, sync, the working copy, updates
 src/ui/               screens; src/ui/data/ is the catalogue editor
 tools/                publish from a computer; deploy stamping

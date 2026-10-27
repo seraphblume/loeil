@@ -5,6 +5,7 @@
 // the purchase history — there is no second model for the two to disagree.
 
 import { uid, addMonths, addDays, signed, dayToDate } from './util.js';
+import { tr } from '../i18n.js';
 import {
   RX_VALID_MONTHS, RX_WARN_MONTHS, HIGH_RX_SPHERE, RECALL_MONTHS, RECALL_WINDOW_DAYS,
 } from '../config.js';
@@ -291,14 +292,16 @@ export function guidance(rx, catalogue) {
   if (needsAddition(rx)) {
     family = 'MF';
     const add = Math.max(Number(rx.od.addition) || 0, Number(rx.os.addition) || 0);
-    reasons.push(`Add of ${signed(add)} — needs a multifocal lens.`);
+    reasons.push(tr('Add of {add} — needs a multifocal lens.', { add: signed(add) }));
   } else {
     family = 'SV';
   }
   if (strongestSphere(rx) > HIGH_RX_SPHERE) {
     highRx = catalogue ? catalogue.highRxMaterials() : [];
-    const list = highRx.length ? ` (${highRx.join(', ')})` : '';
-    reasons.push(`Sphere of ${strongestSphere(rx).toFixed(2)} — needs a high-Rx material${list}.`);
+    const sphere = strongestSphere(rx).toFixed(2);
+    reasons.push(highRx.length
+      ? tr('Sphere of {sphere} — needs a high-Rx material ({list}).', { sphere, list: highRx.join(', ') })
+      : tr('Sphere of {sphere} — needs a high-Rx material.', { sphere }));
   }
   return { family, highRx, reasons };
 }

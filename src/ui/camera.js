@@ -6,6 +6,7 @@
 
 import { html, useEffect, useRef, useState } from './html.js';
 import { Icon } from './icons.js';
+import { tr } from '../i18n.js';
 
 const WANTED = ['code_128', 'ean_8', 'ean_13', 'upc_a', 'upc_e', 'code_39', 'code_93', 'itf', 'codabar'];
 const VENDOR = new URL('../vendor/', import.meta.url);
@@ -13,7 +14,7 @@ const VENDOR = new URL('../vendor/', import.meta.url);
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Could not load the barcode reader.'));
+    s.src = src; s.onload = resolve; s.onerror = () => reject(new Error(tr('Could not load the barcode reader.')));
     document.head.appendChild(s);
   });
 }
@@ -60,7 +61,7 @@ export function BarcodeCamera({ onCodes, hint }) {
     let timer = null;
     (async () => {
       try {
-        if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('This browser has no camera access.'), { name: 'NotSupported' });
+        if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error(tr('This browser has no camera access.')), { name: 'NotSupported' });
         const s = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -87,10 +88,10 @@ export function BarcodeCamera({ onCodes, hint }) {
         tick();
       } catch (e) {
         setError(e.name === 'NotAllowedError'
-          ? 'Camera access was declined. Allow it for this site in the browser settings, or type the barcode below.'
+          ? tr('Camera access was declined. Allow it for this site in the browser settings, or type the barcode below.')
           : e.name === 'NotFoundError' || e.name === 'NotSupported'
-            ? 'No camera is available here. Type the barcode below instead.'
-            : e.message || 'The camera could not start.');
+            ? tr('No camera is available here. Type the barcode below instead.')
+            : e.message || tr('The camera could not start.'));
       }
     })();
     return () => {

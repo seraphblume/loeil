@@ -16,6 +16,7 @@ import {
 import { aobLenses, lineText } from '../core/orders.js';
 import { isoDay } from '../core/util.js';
 import { setDraftRx, setDraftAob, upsertClient, clientById, toast } from '../state/app.js';
+import { tr } from '../i18n.js';
 
 // ---------------------------------------------------------------------------
 // Figures
@@ -78,7 +79,7 @@ export function RxSlider({ kind, label, value, onChange, eye, unit }) {
     <label class="rxs-k" for=${id}>${label}</label>
     <div class="rxs-track">
       <input type="range" min=${L.min} max=${L.max} step=${L.step} value=${v}
-        aria-label=${`${sideName === 'both' ? 'Both eyes' : sideName === 'right' ? 'Right eye' : 'Left eye'} ${label}`}
+        aria-label=${`${sideName === 'both' ? tr('Both eyes') : sideName === 'right' ? tr('Right eye') : tr('Left eye')} ${label}`}
         style=${{ '--a': a, '--b': b }}
         onInput=${(e) => onChange(snap(e.currentTarget.value, L))} />
       <div class="rxs-scale" aria-hidden="true">
@@ -107,18 +108,18 @@ function EyePanel({ side, rx, onEye, onPd, prisms, addition, near }) {
   const set = (k) => (v) => onEye(side, { ...eye, [k]: v });
   const prism = eye.prism ?? { amount: 0, base: 'in' };
   return html`<section class="rx-eye">
-    <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
+    <header><span>${tr(SIDE[side].title)}</span><b>${SIDE[side].short}</b></header>
     <div class="rx-eye-body">
-      <${RxSlider} kind="sphere" label="SPH" eye=${side} value=${eye.sphere} onChange=${set('sphere')} />
-      <${RxSlider} kind="cylinder" label="CYL" eye=${side} value=${eye.cylinder} onChange=${set('cylinder')} />
-      <${RxSlider} kind="axis" label="AXIS" eye=${side} value=${eye.axis} onChange=${set('axis')} unit="°" />
-      ${addition && html`<${RxSlider} kind="addition" label="ADD" eye=${side} value=${eye.addition} onChange=${set('addition')} />`}
-      <${RxSlider} kind="pd" label="PD" eye=${side} value=${monoPd(rx, side, near)} onChange=${(v) => onPd(side, v)} unit="mm" />
+      <${RxSlider} kind="sphere" label=${tr('SPH')} eye=${side} value=${eye.sphere} onChange=${set('sphere')} />
+      <${RxSlider} kind="cylinder" label=${tr('CYL')} eye=${side} value=${eye.cylinder} onChange=${set('cylinder')} />
+      <${RxSlider} kind="axis" label=${tr('AXIS')} eye=${side} value=${eye.axis} onChange=${set('axis')} unit="°" />
+      ${addition && html`<${RxSlider} kind="addition" label=${tr('ADD')} eye=${side} value=${eye.addition} onChange=${set('addition')} />`}
+      <${RxSlider} kind="pd" label=${tr('PD')} eye=${side} value=${monoPd(rx, side, near)} onChange=${(v) => onPd(side, v)} unit=${tr('mm')} />
       ${prisms && html`
-        <${RxSlider} kind="prism" label="PRISM" eye=${side} value=${prism.amount} unit="Δ"
+        <${RxSlider} kind="prism" label=${tr('PRISM')} eye=${side} value=${prism.amount} unit="Δ"
           onChange=${(v) => onEye(side, { ...eye, prism: { ...prism, amount: v } })} />
-        <div class="rxs rxs-base"><span class="rxs-k">BASE</span>
-          <${Seg} small label=${`${SIDE[side].title} prism base`} value=${prism.base} options=${PRISM_BASES}
+        <div class="rxs rxs-base"><span class="rxs-k">${tr('BASE')}</span>
+          <${Seg} small label=${tr('{eye} prism base', { eye: tr(SIDE[side].title) })} value=${prism.base} options=${PRISM_BASES.map((b) => ({ ...b, label: tr(b.label) }))}
             onChange=${(base) => onEye(side, { ...eye, prism: { ...prism, base } })} />
         </div>`}
     </div>
@@ -151,17 +152,17 @@ export function RxEntry({ rx, onChange, dated, addition = true, near = false }) 
   return html`<div class="rx-entry">
     <div class="group">
       ${dated && html`<label class="cell">
-        <span class="k">Issued</span>
+        <span class="k">${tr('Issued')}</span>
         <input type="date" value=${rx.issuedOn ?? ''} max=${isoDay(new Date())} onInput=${(e) => onChange({ ...rx, issuedOn: e.currentTarget.value || null })} />
       </label>
-      <div class="cell"><span class="k">Expires</span><span class="v muted">${exp ? fmtDate(exp) : 'Set the issue date'}</span></div>`}
-      <div class="cell"><span class="k">Add prisms</span><${Toggle} on=${prisms} onChange=${togglePrisms} label="Add prisms" /></div>
+      <div class="cell"><span class="k">${tr('Expires')}</span><span class="v muted">${exp ? fmtDate(exp) : tr('Set the issue date')}</span></div>`}
+      <div class="cell"><span class="k">${tr('Add prisms')}</span><${Toggle} on=${prisms} onChange=${togglePrisms} label=${tr('Add prisms')} /></div>
     </div>
     <div class="rx-eyes">
       <${EyePanel} side="od" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition && !near} near=${near} />
       <${EyePanel} side="os" rx=${rx} onEye=${onEye} onPd=${onPd} prisms=${prisms} addition=${addition && !near} near=${near} />
     </div>
-    <p class="note pad-in">Type a value or slide to it. A sphere typed without a sign keeps the one shown — ± flips it. Cylinder is always minus.</p>
+    <p class="note pad-in">${tr('Type a value or slide to it. A sphere typed without a sign keeps the one shown — ± flips it. Cylinder is always minus.')}</p>
   </div>`;
 }
 
@@ -171,7 +172,7 @@ export function RxEntry({ rx, onChange, dated, addition = true, near = false }) 
 /** One eye of a contact lens fitting: SPH K1 K2 RC DIA (gas permeable), or SE ADD (multifocal). */
 export function FitEye({ fit = 'gp', side, m, onChange, prefix = 'fit' }) {
   return html`<section class="rx-eye">
-    <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
+    <header><span>${tr(SIDE[side].title)}</span><b>${SIDE[side].short}</b></header>
     <div class="rx-eye-body">
       ${(CL_FITS[fit]?.fields ?? []).map((f) => html`<${RxSlider} key=${f.key} kind=${f.kind} label=${f.label} eye=${`${prefix}-${side}-${f.key}`} unit=${f.unit}
         value=${m?.[f.key] ?? null} onChange=${(v) => onChange({ ...m, [f.key]: v })} />`)}
@@ -188,37 +189,37 @@ export function ContactRxEntry({ cl, onChange, brands = [] }) {
   const set = (side, k) => (v) => onChange({ ...cl, [side]: { ...cl[side], [k]: v } });
   return html`<div class="rx-entry">
     <div class="group">
-      <label class="cell"><span class="k">Brand</span>
-        <input list="cl-brands" value=${cl.brand} placeholder="e.g. Air Optix" autocomplete="off" onInput=${(e) => onChange({ ...cl, brand: e.currentTarget.value })} />
+      <label class="cell"><span class="k">${tr('Brand')}</span>
+        <input list="cl-brands" value=${cl.brand} placeholder=${tr('e.g. Air Optix')} autocomplete="off" onInput=${(e) => onChange({ ...cl, brand: e.currentTarget.value })} />
       </label>
       <datalist id="cl-brands">${brands.map((b) => html`<option value=${b} />`)}</datalist>
-      <div class="cell"><span class="k">Replaced</span>
-        <${Seg} small label="Modality" value=${cl.modality} options=${MODALITIES} onChange=${(m) => onChange({ ...cl, modality: m })} />
+      <div class="cell"><span class="k">${tr('Replaced')}</span>
+        <${Seg} small label=${tr('Modality')} value=${cl.modality} options=${MODALITIES.map((m) => ({ ...m, label: tr(m.label) }))} onChange=${(m) => onChange({ ...cl, modality: m })} />
       </div>
-      <label class="cell"><span class="k">Issued</span>
+      <label class="cell"><span class="k">${tr('Issued')}</span>
         <input type="date" value=${cl.issuedOn ?? ''} max=${isoDay(new Date())} onInput=${(e) => onChange({ ...cl, issuedOn: e.currentTarget.value || null })} />
       </label>
-      <div class="cell"><span class="k">Lens</span>
-        <${Seg} small label="Lens" value=${cl.gp ? 'gp' : 'soft'} options=${LENS_KINDS} onChange=${(k) => onChange({ ...cl, gp: k === 'gp' })} />
+      <div class="cell"><span class="k">${tr('Lens')}</span>
+        <${Seg} small label=${tr('Lens')} value=${cl.gp ? 'gp' : 'soft'} options=${LENS_KINDS.map((m) => ({ ...m, label: tr(m.label) }))} onChange=${(k) => onChange({ ...cl, gp: k === 'gp' })} />
       </div>
     </div>
     ${cl.gp ? html`<div class="rx-eyes">
       ${['od', 'os'].map((side) => html`<${FitEye} key=${side} fit="gp" side=${side} prefix="clgp" m=${cl[side]} onChange=${(m) => onChange({ ...cl, [side]: { ...cl[side], ...m } })} />`)}
     </div>
-    <p class="note pad-in">${CL_FITS.gp.note}</p>` : html`<div class="rx-eyes">
+    <p class="note pad-in">${tr(CL_FITS.gp.note)}</p>` : html`<div class="rx-eyes">
       ${['od', 'os'].map((side) => html`<section class="rx-eye" key=${side}>
-        <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
+        <header><span>${tr(SIDE[side].title)}</span><b>${SIDE[side].short}</b></header>
         <div class="rx-eye-body">
-          <${RxSlider} kind="sphere" label="SPH" eye=${'cl-' + side} value=${cl[side].sphere} onChange=${set(side, 'sphere')} />
-          <${RxSlider} kind="cylinder" label="CYL" eye=${'cl-' + side} value=${cl[side].cylinder} onChange=${set(side, 'cylinder')} />
-          <${RxSlider} kind="axis" label="AXIS" eye=${'cl-' + side} value=${cl[side].axis} onChange=${set(side, 'axis')} unit="°" />
+          <${RxSlider} kind="sphere" label=${tr('SPH')} eye=${'cl-' + side} value=${cl[side].sphere} onChange=${set(side, 'sphere')} />
+          <${RxSlider} kind="cylinder" label=${tr('CYL')} eye=${'cl-' + side} value=${cl[side].cylinder} onChange=${set(side, 'cylinder')} />
+          <${RxSlider} kind="axis" label=${tr('AXIS')} eye=${'cl-' + side} value=${cl[side].axis} onChange=${set(side, 'axis')} unit="°" />
         </div>
       </section>`)}
     </div>
     <div class="group">
-      <div class="cell cell-slider"><${RxSlider} kind="addition" label="ADD" eye="cl" value=${cl.addition} onChange=${(v) => onChange({ ...cl, addition: v })} /></div>
-      ${cl.addLabel != null && cl.addLabel !== '' && html`<label class="cell"><span class="k">ADD as written</span>
-        <input value=${cl.addLabel} placeholder="Low, Med, High" autocomplete="off" onInput=${(e) => onChange({ ...cl, addLabel: e.currentTarget.value })} />
+      <div class="cell cell-slider"><${RxSlider} kind="addition" label=${tr('ADD')} eye="cl" value=${cl.addition} onChange=${(v) => onChange({ ...cl, addition: v })} /></div>
+      ${cl.addLabel != null && cl.addLabel !== '' && html`<label class="cell"><span class="k">${tr('ADD as written')}</span>
+        <input value=${cl.addLabel} placeholder=${tr('Low, Med, High')} autocomplete="off" onInput=${(e) => onChange({ ...cl, addLabel: e.currentTarget.value })} />
       </label>`}
     </div>`}
   </div>`;
@@ -235,7 +236,7 @@ function RxTable({ cols, rows }) {
 }
 
 /** A glasses prescription as a card; `near` reads a lecture one (its PD is the near PD). */
-export function RxCard({ rx, onEdit, title = 'Glasses', near = false }) {
+export function RxCard({ rx, onEdit, title = tr('Glasses'), near = false }) {
   const v = validity(rx);
   const icon = warningIcon(rx);
   const exp = expiresOn(rx);
@@ -253,15 +254,15 @@ export function RxCard({ rx, onEdit, title = 'Glasses', near = false }) {
   };
   return html`<section class="gap-s">
     <div class="group-head"><${Eyebrow}>${title}<//>
-      ${v !== 'unknown' && !rxIsBlank(rx) && html`<span class=${'pill' + (v === 'valid' ? '' : ' alert')}>${icon && html`<${Icon} name=${icon} />`}${VALIDITY_LABEL[v]}</span>`}
+      ${v !== 'unknown' && !rxIsBlank(rx) && html`<span class=${'pill' + (v === 'valid' ? '' : ' alert')}>${icon && html`<${Icon} name=${icon} />`}${tr(VALIDITY_LABEL[v])}</span>`}
     </div>
     <button type="button" class="group rx-card" onClick=${onEdit} disabled=${!onEdit}>
-      ${rxIsBlank(rx) ? html`<div class="cell"><span class="muted">No prescription on file</span>${onEdit && html`<span class="chev"><${Icon} name="chevR" /></span>`}</div>` : html`
+      ${rxIsBlank(rx) ? html`<div class="cell"><span class="muted">${tr('No prescription on file')}</span>${onEdit && html`<span class="chev"><${Icon} name="chevR" /></span>`}</div>` : html`
         <div class="rx-card-in">
           <${RxTable} cols=${cols} rows=${[row('od'), row('os')]} />
-          ${prism && html`<div class="rx-foot">${['od', 'os'].filter((s) => rx[s].prism?.amount).map((s) => `${SIDE[s].short} prism ${FORMAT.prism(rx[s].prism.amount)}Δ base ${rx[s].prism.base}`).join(' · ')}</div>`}
+          ${prism && html`<div class="rx-foot">${['od', 'os'].filter((s) => rx[s].prism?.amount).map((s) => tr('{eye} prism {amount}Δ base {base}', { eye: SIDE[s].short, amount: FORMAT.prism(rx[s].prism.amount), base: rx[s].prism.base })).join(' · ')}</div>`}
           <div class="rx-foot">
-            ${[issued && `Issued ${fmtDate(issued)}`, exp && `Expires ${fmtDate(exp)}`, !near && rx.pdFarMM && `PD ${FORMAT.pd(rx.pdFarMM)} mm`, nearPd && `${near ? 'PD' : 'Near'} ${FORMAT.pd(nearPd)} mm`].filter(Boolean).join(' · ')}
+            ${[issued && tr('Issued {date}', { date: fmtDate(issued) }), exp && tr('Expires {date}', { date: fmtDate(exp) }), !near && rx.pdFarMM && `PD ${FORMAT.pd(rx.pdFarMM)} mm`, nearPd && `${near ? 'PD' : tr('Near')} ${FORMAT.pd(nearPd)} mm`].filter(Boolean).join(' · ')}
           </div>
         </div>`}
     </button>
@@ -275,12 +276,12 @@ export function ContactRxCard({ cl, onEdit }) {
   const gp = (side) => [SIDE[side].short, ...GP_FIELDS.map((f) => (cl[side][f.key] == null ? '—' : FORMAT[f.kind](Number(cl[side][f.key]))))];
   const row = cl.gp ? gp : soft;
   return html`<section class="gap-s">
-    <div class="group-head"><${Eyebrow}>Contact lenses<//></div>
+    <div class="group-head"><${Eyebrow}>${tr('Contact lenses')}<//></div>
     <button type="button" class="group rx-card" onClick=${onEdit} disabled=${!onEdit}>
       <div class="rx-card-in">
         ${(cl.brand || cl.modality) && html`<div class="rx-brand">${cl.brand || 'Brand not set'}${cl.modality && html`<span class="muted"> · ${cl.modality}</span>`}</div>`}
         <${RxTable} cols=${cl.gp ? GP_FIELDS.map((f) => f.label) : ['SPH', 'CYL', 'AXIS']} rows=${[row('od'), row('os')]} />
-        <div class="rx-foot">${[cl.gp ? 'Gas permeable' : null, !cl.gp && Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : !cl.gp && cl.addLabel ? `ADD ${cl.addLabel}` : null, cl.issuedOn && `Issued ${fmtDate(cl.issuedOn)}`].filter(Boolean).join(' · ')}</div>
+        <div class="rx-foot">${[cl.gp ? tr('Gas permeable') : null, !cl.gp && Number(cl.addition) ? `ADD ${FORMAT.addition(Number(cl.addition))}` : !cl.gp && cl.addLabel ? `ADD ${tr(cl.addLabel)}` : null, cl.issuedOn && tr('Issued {date}', { date: fmtDate(cl.issuedOn) })].filter(Boolean).join(' · ')}</div>
       </div>
     </button>
   </section>`;
@@ -321,39 +322,39 @@ export function OrderRxSheet({ onClose, start = 'rx' }) {
     await setDraftRx(rx);
     if (toClient && client) await upsertClient(withRx(client, 'glasses', rx));
     if (measures) await setDraftAob(aob);
-    toast(measures ? 'Prescription and AOB on the order' : 'Prescription on the order');
+    toast(measures ? tr('Prescription and AOB on the order') : tr('Prescription on the order'));
     onClose();
   };
   const steps = [{ id: 'rx', label: 'Prescription' }, ...(measures ? [{ id: 'aob', label: 'Measurements' }] : [])];
   const at = steps.findIndex((s) => s.id === step);
 
-  return html`<${Sheet} title="Prescription" onClose=${onClose} full>
+  return html`<${Sheet} title=${tr('Prescription')} onClose=${onClose} full>
     <div class="stack tight" ref=${body}>
       ${steps.length > 1 && html`<ol class="steps-bar" style=${{ '--n': steps.length, '--i': at }}>
-        ${steps.map((s, i) => html`<li class=${i <= at ? 'on' : ''}><button type="button" onClick=${() => setStep(s.id)}>${s.label}</button></li>`)}
+        ${steps.map((s, i) => html`<li class=${i <= at ? 'on' : ''}><button type="button" onClick=${() => setStep(s.id)}>${tr(s.label)}</button></li>`)}
       </ol>`}
       ${step === 'rx' ? html`
         <div class="pad"><${RxEntry} rx=${rx} onChange=${setRx} dated /></div>
         ${client && html`<div class="pad"><div class="group">
-          <div class="cell"><span class="k">Save to ${client.name.split(' ')[0]}’s record</span><${Toggle} on=${toClient} onChange=${setToClient} label="Save to the client" /></div>
+          <div class="cell"><span class="k">${tr('Save to {a}’s record', { a: client.name.split(' ')[0] })}</span><${Toggle} on=${toClient} onChange=${setToClient} label=${tr('Save to the client')} /></div>
         </div></div>`}
       ` : html`
         <div class="pad stack tight rx-entry">
-          <p class="para">The lenses on this order ask for the AOB of each eye.</p>
+          <p class="para">${tr('The lenses on this order ask for the AOB of each eye.')}</p>
           <div class="group">${lenses.map((l) => html`<div class="cell"><span class="t">${lineText(l)}</span></div>`)}</div>
           <div class="rx-eyes">
             ${['od', 'os'].map((side) => html`<section class="rx-eye" key=${side}>
-              <header><span>${SIDE[side].title}</span><b>${SIDE[side].short}</b></header>
-              <div class="rx-eye-body"><${RxSlider} kind="aob" label="AOB" eye=${side} value=${aob[side]} onChange=${(v) => setAob({ ...aob, [side]: v })} unit="mm" /></div>
+              <header><span>${tr(SIDE[side].title)}</span><b>${SIDE[side].short}</b></header>
+              <div class="rx-eye-body"><${RxSlider} kind="aob" label=${tr('AOB')} eye=${side} value=${aob[side]} onChange=${(v) => setAob({ ...aob, [side]: v })} unit=${tr('mm')} /></div>
             </section>`)}
           </div>
         </div>`}
       <div class="pad confirm-foot">
-        <p class="note">${step === 'rx' ? 'Is the prescription correct?' : 'Are the measurements correct?'}</p>
+        <p class="note">${step === 'rx' ? tr('Is the prescription correct?') : tr('Are the measurements correct?')}</p>
         ${step === 'rx' && measures
-          ? html`<${Anchor} onClick=${() => setStep('aob')}>Yes, on to the measurements<//>`
+          ? html`<${Anchor} onClick=${() => setStep('aob')}>${tr('Yes, on to the measurements')}<//>`
           : html`<${Anchor} onClick=${finish}>${step === 'rx' ? 'Yes, use this prescription' : 'Yes, finish'}<//>`}
-        ${step === 'aob' && html`<${Quiet} onClick=${() => setStep('rx')}>Edit the prescription<//>`}
+        ${step === 'aob' && html`<${Quiet} onClick=${() => setStep('rx')}>${tr('Edit the prescription')}<//>`}
       </div>
     </div>
   <//>`;
@@ -372,23 +373,23 @@ export function ClientRxSheet({ client, kind = 'glasses', onClose }) {
   const value = () => (kind === 'contact' ? (contactIsBlank(cl) ? null : cl) : kind === 'near' ? (rxIsBlank(rx) ? null : rx) : rx);
   const save = async () => {
     await upsertClient(withRx(client, kind, value()));
-    toast('Prescription saved');
+    toast(tr('Prescription saved'));
     onClose();
   };
   const on = kind === 'contact' ? !contactIsBlank(client.contactRx) : kind === 'near' ? !rxIsBlank(client.nearRx) : false;
   const remove = async () => {
     await upsertClient(withRx(client, kind, null));
-    toast('Moved to their history');
+    toast(tr('Moved to their history'));
     onClose();
   };
-  return html`<${Sheet} title=${RX_KINDS[kind].label} onClose=${onClose} full
-    right=${html`<button class="bar-btn strong" onClick=${save}>Save</button>`}>
+  return html`<${Sheet} title=${tr(RX_KINDS[kind].label)} onClose=${onClose} full
+    right=${html`<button class="bar-btn strong" onClick=${save}>${tr('Save')}</button>`}>
     <div class="pad stack tight">
       ${kind === 'contact' ? html`<${ContactRxEntry} cl=${cl} onChange=${setCl} brands=${brands} />`
         : html`<${RxEntry} rx=${rx} onChange=${setRx} dated near=${kind === 'near'} />`}
-      ${kind === 'near' && html`<p class="note pad-in">The lecture prescription is for near work — reading, a desk, a screen. No ADD: the powers are the near ones, and the PD is the near PD.</p>`}
-      <${Anchor} onClick=${save}>Save<//>
-      ${on && html`<${Quiet} danger onClick=${remove}>Remove — it stays in their history<//>`}
+      ${kind === 'near' && html`<p class="note pad-in">${tr('The lecture prescription is for near work — reading, a desk, a screen. No ADD: the powers are the near ones, and the PD is the near PD.')}</p>`}
+      <${Anchor} onClick=${save}>${tr('Save')}<//>
+      ${on && html`<${Quiet} danger onClick=${remove}>${tr('Remove — it stays in their history')}<//>`}
     </div>
   <//>`;
 }
@@ -398,21 +399,21 @@ export function RxHistorySheet({ client, entry, onClose }) {
   const kind = RX_KINDS[entry.kind];
   const restore = async () => {
     await upsertClient(withRx(client, entry.kind, entry.rx));
-    toast('Back on file');
+    toast(tr('Back on file'));
     onClose();
   };
   const forget = async () => {
     await upsertClient({ ...client, rxHistory: (client.rxHistory ?? []).filter((h) => h.id !== entry.id) });
-    toast('Removed from the history');
+    toast(tr('Removed from the history'));
     onClose();
   };
-  return html`<${Sheet} title=${kind.label} onClose=${onClose}>
+  return html`<${Sheet} title=${tr(kind.label)} onClose=${onClose}>
     <div class="pad stack tight">
       ${entry.kind === 'contact' ? html`<${ContactRxCard} cl=${entry.rx} />`
-        : html`<${RxCard} rx=${entry.rx} title=${kind.label} near=${entry.kind === 'near'} />`}
-      ${entry.archivedOn && html`<p class="note">Moved to the history on ${fmtDate(entry.archivedOn)}.</p>`}
-      <${Secondary} icon="undo" onClick=${restore}>Put it back on file<//>
-      <${Quiet} danger onClick=${forget}>Remove from the history<//>
+        : html`<${RxCard} rx=${entry.rx} title=${tr(kind.label)} near=${entry.kind === 'near'} />`}
+      ${entry.archivedOn && html`<p class="note">${tr('Moved to the history on {a}.', { a: fmtDate(entry.archivedOn) })}</p>`}
+      <${Secondary} icon="undo" onClick=${restore}>${tr('Put it back on file')}<//>
+      <${Quiet} danger onClick=${forget}>${tr('Remove from the history')}<//>
     </div>
   <//>`;
 }

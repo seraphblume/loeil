@@ -11,6 +11,7 @@ import { frameLine } from '../core/orders.js';
 import { liveSets } from '../core/sets.js';
 import { fold, brandKey } from '../core/util.js';
 import { GiftBadge } from './gifts.js';
+import { tr } from '../i18n.js';
 
 const MODES = [{ value: 'frame', label: 'Frame' }, { value: 'brand', label: 'Brand' }, { value: 'set', label: 'Set' }];
 
@@ -34,31 +35,31 @@ export function FramePicker({ onPick, start = 'brand', only = null, modes = MODE
   const f = fold(t).trim();
 
   return html`<div class="stack tight">
-    ${!only && html`<div class="pad"><${Seg} label="Quote the frame by" value=${mode} onChange=${(m) => { setMode(m); setTerm(''); }} options=${modes} /></div>`}
+    ${!only && html`<div class="pad"><${Seg} label=${tr('Quote the frame by')} value=${mode} onChange=${(m) => { setMode(m); setTerm(''); }} options=${modes.map((m) => ({ ...m, label: tr(m.label) }))} /></div>`}
     ${mode !== 'set' && html`<div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder=${mode === 'frame' ? 'Brand, model or barcode' : 'Brand'} /></div>`}
     ${mode === 'frame' && html`<div class="list">
-      ${!t.trim() ? html`<div class="row"><span class="main"><span class="d">Search the catalogue by brand, model or the barcode on the tag.</span></span></div>`
-        : frames.length === 0 ? html`<div class="row"><span class="main"><span class="d">No frame matches.</span></span></div>`
+      ${!t.trim() ? html`<div class="row"><span class="main"><span class="d">${tr('Search the catalogue by brand, model or the barcode on the tag.')}</span></span></div>`
+        : frames.length === 0 ? html`<div class="row"><span class="main"><span class="d">${tr('No frame matches.')}</span></span></div>`
           : frames.map((fr) => html`<${Row} key=${fr.sku} title=${fr.description} badge=${html`<${GiftBadge} brand=${fr.brand} />`} detail=${[fr.sku, fr.category, fr.size ? `${fr.size} mm` : null].filter(Boolean).join(' · ')} one
               end=${money(fr.price)} onClick=${() => onPick(frameLine(fr, fr.price, 'catalogue'))} />`)}
     </div>`}
     ${mode === 'brand' && html`<div class="list">
       ${brands.filter((b) => !f || fold(b.brand).includes(f)).map((b) => html`<${Row} key=${b.key} title=${b.brand} badge=${html`<${GiftBadge} brand=${b.brand} />`}
-        detail=${b.set ? `${b.set.name} · ID Maestro ${b.set.id}` : `From ${money(b.from)} · not in a set`}
-        sub=${[b.tier && `${b.tier} tier`, b.count ? `${b.count} in the catalogue` : null].filter(Boolean).join(' · ') || null}
+        detail=${b.set ? `${b.set.name} · ID Maestro ${b.set.id}` : tr('From {price} · not in a set', { price: money(b.from) })}
+        sub=${[b.tier && tr('{tier} tier', { tier: b.tier }), b.count ? tr('{n} in the catalogue', { n: b.count }) : null].filter(Boolean).join(' · ') || null}
         end=${money(b.set ? b.set.price : b.from)} onClick=${() => onPick(brandFrame(b))} />`)}
     </div>`}
     ${mode === 'set' && html`<div class="list">
       ${sets.map((s) => html`<${Row} key=${s.id} title=${s.name} detail=${`ID Maestro ${s.id}`} sub=${s.brands}
         end=${money(s.price)} onClick=${() => onPick(setFrame(s))} />`)}
     </div>`}
-    <p class="note pad">${mode === 'set' ? 'Any frame of the set, at the set’s price with single vision lenses; the frame is scanned at the sale.'
-      : mode === 'brand' ? 'A brand in a set is quoted at the set’s price. Outside a set, from its lowest catalogue price — the frame is chosen and scanned at the sale.'
-        : 'The exact frame, at its catalogue price — or its set’s, when its brand is in one.'}</p>
+    <p class="note pad">${mode === 'set' ? tr('Any frame of the set, at the set’s price with single vision lenses; the frame is scanned at the sale.')
+      : mode === 'brand' ? tr('A brand in a set is quoted at the set’s price. Outside a set, from its lowest catalogue price — the frame is chosen and scanned at the sale.')
+        : tr('The exact frame, at its catalogue price — or its set’s, when its brand is in one.')}</p>
   </div>`;
 }
 
-export function FramePickSheet({ onClose, onPick, start, only, title = 'Frame' }) {
+export function FramePickSheet({ onClose, onPick, start, only, title = tr('Frame') }) {
   return html`<${Sheet} title=${title} onClose=${onClose} full>
     <${FramePicker} start=${start} only=${only} onPick=${(line) => { onPick(line); onClose(); }} />
   <//>`;

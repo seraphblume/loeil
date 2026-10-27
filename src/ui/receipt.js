@@ -17,6 +17,7 @@ import { receiptBlocks } from './receipt-layout.js';
 import { receiptImage, shareReceiptImage } from './receipt-image.js';
 import { soundOn, setSoundOn, playPrinter, playTear, buzz } from './printsound.js';
 import { clientById, staffMember, toast } from '../state/app.js';
+import { tr } from '../i18n.js';
 
 const STEPS = 22;
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -103,13 +104,13 @@ function CopyList({ r }) {
       </button>`
     : html`<div class="cl-item static"><span class="main"><span class="txt">${i.text}</span></span></div>`);
   return html`<section class="copylist">
-    <div class="cl-intro"><${Eyebrow}>For the register<//><span class="tiny muted">Tap a value to copy it</span></div>
+    <div class="cl-intro"><${Eyebrow}>${tr('For the register')}<//><span class="tiny muted">${tr('Tap a value to copy it')}</span></div>
     ${r.groups.map((g) => html`<div class="cl-group">
       <div class="cl-head"><span class="n">${g.n}</span>${g.title}</div>
-      ${g.items.length ? g.items.map((i, x) => html`<${Item} i=${i} k=${`${g.n}-${x}`} />`) : html`<div class="cl-none">Nothing on this order</div>`}
+      ${g.items.length ? g.items.map((i, x) => html`<${Item} i=${i} k=${`${g.n}-${x}`} />`) : html`<div class="cl-none">${tr('Nothing on this order')}</div>`}
     </div>`)}
     <div class="cl-group">
-      <div class="cl-head"><span class="n">5</span>Prescription</div>
+      <div class="cl-head"><span class="n">5</span>${tr('Prescription')}</div>
       ${r.rx ? html`<div class="cl-rx" style=${{ "--cols": r.rx.cols.length }}>
         <span></span>${r.rx.cols.map(([, label]) => html`<span class="h">${label}</span>`)}
         ${['od', 'os'].filter((e) => r.rx[e]).map((e) => html`
@@ -120,9 +121,9 @@ function CopyList({ r }) {
             return v ? html`<button type="button" class=${'cell' + (copied === key ? ' done' : '')} onClick=${() => take(v, key)}>${copied === key ? html`<${Icon} name="check" size=${13} />` : v}</button>` : html`<span class="cell empty">—</span>`;
           })}`)}
       </div>
-      ${r.rx.split && html`<p class="note">PD per eye is half the binocular ${r.rx.binocular} mm — no monocular PD was measured.</p>`}
-      ${r.rx.prisms.length > 0 && html`<p class="note">Prism ${r.rx.prisms.join(' · ')}</p>`}
-      ${r.aobMissing && html`<p class="note">The AOB is not on the order yet — add it from the order’s Prescription row.</p>`}` : html`<div class="cl-none">No prescription on file. Choose the client on the order, or add their Rx.</div>`}
+      ${r.rx.split && html`<p class="note">${tr('PD per eye is half the binocular {a} mm — no monocular PD was measured.', { a: r.rx.binocular })}</p>`}
+      ${r.rx.prisms.length > 0 && html`<p class="note">${tr('Prism {a}', { a: r.rx.prisms.join(' · ') })}</p>`}
+      ${r.aobMissing && html`<p class="note">${tr('The AOB is not on the order yet — add it from the order’s Prescription row.')}</p>`}` : html`<div class="cl-none">${tr('No prescription on file. Choose the client on the order, or add their Rx.')}</div>`}
     </div>
   </section>`;
 }
@@ -163,22 +164,22 @@ export function usePrinter(key) {
 /** Status card, printer and paper. `status` is `{ printing, done, detail }`. */
 export function PrinterRig({ printer, blocks, label, status }) {
   const [sound, setSound] = useState(soundOn);
-  const toggleSound = () => { const next = !sound; setSound(next); setSoundOn(next); if (next) toast('Printer sound on'); };
+  const toggleSound = () => { const next = !sound; setSound(next); setSoundOn(next); if (next) toast(tr('Printer sound on')); };
   const { done } = printer;
   return html`<div class="printer-rig">
     <div class=${'status-card' + (done ? ' done' : '')}>
       <span class="tick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" /><path d="m7.5 12.4 3 3 6-6.6" /></svg></span>
       <span class="words">
         <span class="t">${done ? status.done : status.printing}</span>
-        <span class="s">${done ? status.detail : 'Feeding paper…'}</span>
+        <span class="s">${done ? status.detail : tr('Feeding paper…')}</span>
       </span>
-      <span class="state">${done ? 'Printed' : 'Printing'}</span>
+      <span class="state">${done ? tr('Printed') : tr('Printing')}</span>
     </div>
     <div class=${'printer' + (done ? '' : ' busy')}>
       <div class="printer-top">
         <${Icon} name="printer" />
-        <span class="label">L’ŒIL · ${label}</span>
-        <button type="button" class="feed" onClick=${printer.reprint} aria-label="Print again"><i></i>FEED</button>
+        <span class="label">${tr('L’ŒIL · {a}', { a: label })}</span>
+        <button type="button" class="feed" onClick=${printer.reprint} aria-label=${tr('Print again')}><i></i>${tr('FEED')}</button>
       </div>
       <div class="slot"></div>
     </div>
@@ -192,8 +193,8 @@ export async function shareBlocks(blocks, name, title) {
   try {
     const blob = await receiptImage(blocks);
     const how = await shareReceiptImage(blob, name, title);
-    if (how === 'downloaded') toast('Image saved');
-  } catch { toast('The image could not be made on this browser'); }
+    if (how === 'downloaded') toast(tr('Image saved'));
+  } catch { toast(tr('The image could not be made on this browser')); }
 }
 
 function ReceiptStage({ order, client, rx }) {
@@ -210,26 +211,26 @@ function ReceiptStage({ order, client, rx }) {
     setSharing(false);
   };
   const copyAll = async () => {
-    try { await navigator.clipboard.writeText(receiptText(r)); toast('Copied — every value, as text'); buzz(8); } catch { toast('Copying is not allowed here'); }
+    try { await navigator.clipboard.writeText(receiptText(r)); toast(tr('Copied — every value, as text')); buzz(8); } catch { toast(tr('Copying is not allowed here')); }
   };
 
   const register = kind === 'register';
   return html`
     <div class="pad stack tight receipt-stage">
-      <${Seg} label="Copy" value=${kind} onChange=${(k) => { if (k !== kind) setKind(k); }}
-        options=${[{ value: 'register', label: 'Register copy' }, { value: 'customer', label: 'Customer copy' }]} />
+      <${Seg} label=${tr('Copy')} value=${kind} onChange=${(k) => { if (k !== kind) setKind(k); }}
+        options=${[{ value: 'register', label: tr('Register copy') }, { value: 'customer', label: tr('Customer copy') }]} />
       <${PrinterRig} printer=${printer} blocks=${blocks} label=${register ? 'REGISTER' : 'CUSTOMER'}
         status=${{
-          printing: register ? 'Printing the register copy' : 'Printing the customer copy',
-          done: register ? 'Ready for the register' : 'Customer copy ready',
-          detail: r.totals.alliance ? `Receipt #${r.number} · ${money(r.totals.alliance.clientPays)} to pay` : `Receipt #${r.number} · ${money(r.totals.total)}`,
+          printing: register ? tr('Printing the register copy') : tr('Printing the customer copy'),
+          done: register ? tr('Ready for the register') : tr('Customer copy ready'),
+          detail: r.totals.alliance ? tr('Receipt #{number} · {amount} to pay', { number: r.number, amount: money(r.totals.alliance.clientPays) }) : tr('Receipt #{number} · {amount}', { number: r.number, amount: money(r.totals.total) }),
         }} />
-      ${!r.store && html`<p class="note">The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.</p>`}
+      ${!r.store && html`<p class="note">${tr('The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.')}</p>`}
       ${register && html`<div class=${'after' + (printer.done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
     </div>
     <${Dock}>
-      <${Secondary} icon="copy" onClick=${copyAll}>Copy all<//>
-      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? 'Making the image…' : 'Share image'}<//>
+      <${Secondary} icon="copy" onClick=${copyAll}>${tr('Copy all')}<//>
+      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? tr('Making the image…') : tr('Share image')}<//>
     <//>`;
 }
 
@@ -247,19 +248,19 @@ export function CheckoutScreen() {
     sellerName: draft.sellerName ?? seller?.name ?? null,
   }), [draft, seller]);
   return html`
-    <${Bar} backTo="#/find/order" title="Receipt" />
+    <${Bar} backTo="#/find/order" title=${tr('Receipt')} />
     <${Screen} class="has-dock">
       ${order.lines.length ? html`<${ReceiptStage} order=${order} client=${client} rx=${rx ?? client?.prescription ?? null} />`
-        : html`<div class="pad"><${Empty} title="Nothing to print">Add a frame or a lens to the order first.<//></div>`}
+        : html`<div class="pad"><${Empty} title=${tr('Nothing to print')}>${tr('Add a frame or a lens to the order first.')}<//></div>`}
     <//>`;
 }
 
 export function SavedReceiptScreen({ id }) {
   const order = useApp((s) => s.orders.find((o) => o.id === id));
   const client = useApp((s) => (order ? clientById(order.clientId, s) : null));
-  if (!order) return html`<${Bar} backTo="#/orders" title="Receipt" /><${Screen}><div class="pad"><${Empty} title="Not found">This order is not on this phone.<//></div><//>`;
+  if (!order) return html`<${Bar} backTo="#/orders" title=${tr('Receipt')} /><${Screen}><div class="pad"><${Empty} title=${tr('Not found')}>${tr('This order is not on this phone.')}<//></div><//>`;
   return html`
-    <${Bar} backTo=${'#/orders/' + order.id} title="Receipt" />
+    <${Bar} backTo=${'#/orders/' + order.id} title=${tr('Receipt')} />
     <${Screen} class="has-dock">
       <${ReceiptStage} order=${order} client=${client} rx=${order.rx ?? client?.prescription ?? null} />
     <//>`;

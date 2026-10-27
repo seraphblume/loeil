@@ -23,12 +23,13 @@ import { stockKind } from '../../core/stock.js';
 import { readStockPdf } from './io.js';
 import { collapseStock } from '../../core/stockreport.js';
 import { STORE_FIELDS, footerLines } from '../../core/store.js';
+import { tr } from '../../i18n.js';
 
 const KIND_LABEL = {
   category: 'Filters', material: 'Materials', lens_type: 'Lens types', design: 'Designs', colour: 'Colours', treatment: 'Coatings',
   contact_material: 'Contact: correction', contact_product: 'Contact: products', contact_colour: 'Contact: colours', tier: 'Frame tiers',
 };
-const saved = (msg = 'Saved to the working copy') => toast(msg);
+const saved = (msg = 'Saved to the working copy') => toast(tr(msg));
 
 // ---------------------------------------------------------------------------
 // Vocabulary
@@ -49,22 +50,22 @@ export function VocabScreen({ query }) {
   const setKind = (k) => go(`#/me/data/vocab?kind=${k}`, { replace: true });
 
   return html`
-    <${Bar} backTo="#/me/data" title="Names and coatings" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ v: { kind, code: '', english: '', blurb: '', rank: null, group: '', sameAs: '', highRx: false } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Names and coatings')} trail=${html`<button class="bar-btn" aria-label=${tr('Add')} onClick=${() => setOpen({ v: { kind, code: '', english: '', blurb: '', rank: null, group: '', sameAs: '', highRx: false } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
         <div class="pad" style="display:flex;gap:6px;overflow-x:auto;scrollbar-width:none">
-          ${VOCAB_KINDS.map((k) => html`<${Chip} on=${k === kind} onClick=${() => setKind(k)}>${KIND_LABEL[k]}<//>`)}
+          ${VOCAB_KINDS.map((k) => html`<${Chip} on=${k === kind} onClick=${() => setKind(k)}>${tr(KIND_LABEL[k])}<//>`)}
         </div>
-        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Code or name" /></div>
-        ${kind === 'treatment' && html`<p class="note pad">Rank is the upgrade ladder: a lens offers every coating ranked above its own. Promo group CRIZAL makes a coating match *CRIZAL promo lines.</p>`}
-        ${missing.length > 0 && html`<div class="pad"><${Flag}>Used by lenses but not named here: ${missing.join(', ')}. They show in the POS wording until added.<//></div>`}
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder=${tr('Code or name')} /></div>
+        ${kind === 'treatment' && html`<p class="note pad">${tr('Rank is the upgrade ladder: a lens offers every coating ranked above its own. Promo group CRIZAL makes a coating match *CRIZAL promo lines.')}</p>`}
+        ${missing.length > 0 && html`<div class="pad"><${Flag}>${tr('Used by lenses but not named here: {a}. They show in the POS wording until added.', { a: missing.join(', ') })}<//></div>`}
         <${List}>${entries.map((v) => html`<${Row} title=${v.english || v.code} detail=${[v.code, v.blurb].filter(Boolean).join(' · ')}
-          sub=${[v.rank != null ? `rank ${v.rank}` : null, v.group ? `group ${v.group}` : null, v.sameAs ? `same as ${v.sameAs}` : null, v.highRx ? 'high Rx' : null, v.aob ? 'needs AOB' : null, v.fit === 'gp' ? 'gas-permeable fitting' : v.fit === 'mf' ? 'multifocal fitting' : null, v.maker ? v.maker : null].filter(Boolean).join(' · ') || null}
+          sub=${[v.rank != null ? tr('rank {n}', { n: v.rank }) : null, v.group ? tr('group {g}', { g: v.group }) : null, v.sameAs ? tr('same as {code}', { code: v.sameAs }) : null, v.highRx ? tr('high Rx') : null, v.aob ? tr('needs AOB') : null, v.fit === 'gp' ? tr('gas-permeable fitting') : v.fit === 'mf' ? tr('multifocal fitting') : null, v.maker ? v.maker : null].filter(Boolean).join(' · ') || null}
           count=${usage.get(`${kind}|${v.code}`) ?? 0} onClick=${() => setOpen({ v, key: `${v.kind}|${v.code}` })} />`)}<//>
-        ${!entries.length && html`<div class="pad"><${Empty} title="Nothing here">Add one with +.<//></div>`}
+        ${!entries.length && html`<div class="pad"><${Empty} title=${tr('Nothing here')}>${tr('Add one with +.')}<//></div>`}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.key ? `${open.v.code}` : 'New entry'} initial=${open.v} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.key ? `${open.v.code}` : tr('New entry')} initial=${open.v} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'kind', label: 'Kind', type: 'select', options: VOCAB_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] })) },
         { key: 'code', label: 'Code', required: true, caps: true, hint: 'Exactly as the POS uses it. Never change a code that lenses use.' },
@@ -84,11 +85,11 @@ export function VocabScreen({ query }) {
         const { printAs, aob, fit, gp, maker, ...rest } = x;
         const v = { ...rest, code: x.code.trim(), group: (x.group || '').toUpperCase(), sameAs: (x.sameAs || '').toUpperCase(), ...(printAs ? { printAs: printAs.toUpperCase() } : {}), ...(aob ? { aob: true } : {}), ...(fit ? { fit } : {}), ...(maker?.trim() ? { maker: maker.trim() } : {}) };
         const key = `${v.kind}|${v.code}`;
-        if (key !== open.key && bundle.vocabulary.some((y) => `${y.kind}|${y.code}` === key)) return `${v.code} is already listed.`;
+        if (key !== open.key && bundle.vocabulary.some((y) => `${y.kind}|${y.code}` === key)) return tr('{code} is already listed.', { code: v.code });
         edit((b) => upsertVocab(b, v, open.key)); saved();
       }}
       onDelete=${open.key ? () => { edit((b) => deleteVocab(b, open.key)); saved('Removed'); } : null}
-      deleteMessage="Lenses keep their code; they show the POS wording until it is named again." />`}`;
+      deleteMessage=${tr('Lenses keep their code; they show the POS wording until it is named again.')} />`}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,14 +104,14 @@ export function FramesAdminScreen({ query }) {
   const brands = [...new Set(bundle.frames.map((f) => f.brand).filter(Boolean))].sort();
 
   return html`
-    <${Bar} backTo="#/me/data" title="Frames" trail=${html`<button class="bar-btn" aria-label="Add a frame" onClick=${() => setOpen({ f: { sku: '', product: '', description: '', price: null, brand: '', category: '', frameType: '', material: '', size: null } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Frames')} trail=${html`<button class="bar-btn" aria-label=${tr('Add a frame')} onClick=${() => setOpen({ f: { sku: '', product: '', description: '', price: null, brand: '', category: '', frameType: '', material: '', size: null } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Brand, model or barcode" /></div>
-        <div class="pad"><${Eyebrow}>${res.total.toLocaleString('en')} frames<//></div>
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder=${tr('Brand, model or barcode')} /></div>
+        <div class="pad"><${Eyebrow}>${tr('{a} frames', { a: res.total.toLocaleString('en') })}<//></div>
         <${List}>${res.items.slice(0, limit).map((f) => html`<${Row} title=${f.description} one detail=${`${f.sku} · ${f.brand}${f.size ? ` · ${f.size} mm` : ''}`} end=${money(f.price)}
           onClick=${() => setOpen({ f: bundle.frames.find((x) => x.sku === f.sku), sku: f.sku })} />`)}<//>
-        ${res.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 120)}>Show more<//></div>`}
+        ${res.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 120)}>${tr('Show more')}<//></div>`}
       </div>
     <//>
     ${open && html`<${FrameSheet} open=${open} brands=${brands} bundle=${bundle} onClose=${() => setOpen(null)} />`}`;
@@ -118,8 +119,8 @@ export function FramesAdminScreen({ query }) {
 
 function FrameSheet({ open, brands, bundle, onClose }) {
   const isNew = !open.sku;
-  return html`<${FormSheet} title=${isNew ? 'New frame' : 'Frame'} initial=${open.f} onClose=${onClose}
-    intro=${isNew ? 'Type the product code first: category, material and eye size are read from it where they can be. Brand comes from the description.' : null}
+  return html`<${FormSheet} title=${isNew ? tr('New frame') : tr('Frame')} initial=${open.f} onClose=${onClose}
+    intro=${isNew ? tr('Type the product code first: category, material and eye size are read from it where they can be. Brand comes from the description.') : null}
     fields=${[
       { key: 'sku', label: 'Barcode', required: true, inputmode: 'numeric', placeholder: '8 digits', group: 'Identity' },
       { key: 'product', label: 'Product code', caps: true, group: 'Identity' },
@@ -133,8 +134,8 @@ function FrameSheet({ open, brands, bundle, onClose }) {
     ]}
     onSave=${(x) => {
       const sku = String(x.sku).replace(/\D/g, '');
-      if (sku.length !== 8) return 'The barcode is 8 digits.';
-      if (sku !== open.sku && bundle.frames.some((f) => f.sku === sku)) return `Barcode ${sku} is already another frame.`;
+      if (sku.length !== 8) return tr('The barcode is 8 digits.');
+      if (sku !== open.sku && bundle.frames.some((f) => f.sku === sku)) return tr('Barcode {sku} is already another frame.', { sku });
       const guess = framesFromCode(x.product);
       const f = {
         sku, product: x.product.toUpperCase(), description: x.description.toUpperCase(), price: x.price,
@@ -160,11 +161,11 @@ export function BrandsScreen() {
   const tiers = bundle.vocabulary.filter((v) => v.kind === 'tier').sort((a, b) => (a.rank ?? 9) - (b.rank ?? 9));
   const options = [{ value: '', label: 'No tier' }, ...tiers.map((t) => ({ value: `${t.code} (${t.english} Tier)`, label: `${t.code} — ${t.english}` }))];
   return html`
-    <${Bar} backTo="#/me/data" title="Brand tiers" />
+    <${Bar} backTo="#/me/data" title=${tr('Brand tiers')} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Tiers come from the brand list and matter for frame choice. A brand with no tier still sells.</p>
-        <${List}>${brands.map((br) => html`<${Row} title=${br} detail=${`${counts.get(br)} frames`} end=${cat.tierFor(br)?.label ?? html`<span class="muted">No tier</span>`} onClick=${() => setOpen(br)} />`)}<//>
+        <p class="para pad">${tr('Tiers come from the brand list and matter for frame choice. A brand with no tier still sells.')}</p>
+        <${List}>${brands.map((br) => html`<${Row} title=${br} detail=${tr('{n} frames', { n: counts.get(br) })} end=${cat.tierFor(br)?.label ?? html`<span class="muted">${tr('No tier')}</span>`} onClick=${() => setOpen(br)} />`)}<//>
       </div>
     <//>
     ${open && html`<${FormSheet} title=${open} initial=${{ tier: tierOf(open) }} onClose=${() => setOpen(null)}
@@ -190,11 +191,11 @@ export function StockAdminScreen() {
     const f = e.currentTarget.files?.[0];
     e.currentTarget.value = '';
     if (!f) return;
-    setBusy('Reading the report…'); setReport(null);
+    setBusy(tr('Reading the report…')); setReport(null);
     try {
       const r = await readStockPdf(f);
-      if (!r.rows.length) throw new Error('No stock rows were found. Is this the stock report (Reporte Existencias)?');
-      if (r.total != null && r.total !== r.rows.length) throw new Error(`The report says ${r.total} rows but ${r.rows.length} were read. Nothing was replaced.`);
+      if (!r.rows.length) throw new Error(tr('No stock rows were found. Is this the stock report (Reporte Existencias)?'));
+      if (r.total != null && r.total !== r.rows.length) throw new Error(tr('The report says {total} rows but {read} were read. Nothing was replaced.', { total: r.total, read: r.rows.length }));
       const before = new Map(bundle.inventory.map((i) => [i.sku, i]));
       const added = r.inventory.filter((i) => !before.has(i.sku)).length;
       const gone = bundle.inventory.filter((i) => !r.inventory.some((x) => x.sku === i.sku)).length;
@@ -205,39 +206,39 @@ export function StockAdminScreen() {
 
   const apply = () => {
     edit((b) => replaceStock(b, report.inventory, { generated: report.generated, branch: report.branch, rows: report.rows.length, file: report.file }));
-    toast(`Stock replaced: ${report.inventory.length} items`);
+    toast(tr('Stock replaced: {n} items', { n: report.inventory.length }));
     setReport(null);
   };
 
   return html`
-    <${Bar} backTo="#/me/data" title="Stock" trail=${html`<button class="bar-btn" aria-label="Add an item" onClick=${() => setOpen({ i: { sku: '', vendorSku: '', description: '', classification: '', stock: 0, expires: '', batches: 1 } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Stock')} trail=${html`<button class="bar-btn" aria-label=${tr('Add an item')} onClick=${() => setOpen({ i: { sku: '', vendorSku: '', description: '', classification: '', stock: 0, expires: '', batches: 1 } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
         <div class="pad gap-s">
           <${Panel}>
-            <${KV} k="Items" v=${bundle.inventory.length} />
-            <${KV} k="Units on hand" v=${units} />
-            <${KV} k="Report" v=${bundle.stockReport?.generated ?? 'not recorded'} />
+            <${KV} k=${tr('Items')} v=${bundle.inventory.length} />
+            <${KV} k=${tr('Units on hand')} v=${units} />
+            <${KV} k=${tr('Report')} v=${bundle.stockReport?.generated ?? tr('not recorded')} />
           <//>
           <input ref=${fileRef} type="file" accept=".pdf,application/pdf" style="display:none" onChange=${pick} />
-          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Import the stock report (PDF)<//>
-          <p class="note">Print the POS “Reporte Existencias” to PDF and pick it here. Batches of one barcode are added together and the earliest expiry kept.</p>
+          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>${tr('Import the stock report (PDF)')}<//>
+          <p class="note">${tr('Print the POS “Reporte Existencias” to PDF and pick it here. Batches of one barcode are added together and the earliest expiry kept.')}</p>
           ${busy && html`<p class="note">${busy}</p>`}
           ${report?.error && html`<${Flag}>${report.error}<//>`}
           ${report && !report.error && html`<${Panel}>
-            <${KV} k="Report" v=${`${report.generated ?? '?'} · ${report.branch}`} />
-            <${KV} k="Read" v=${`${report.rows.length} batches → ${report.inventory.length} items`} />
-            <${KV} k="New" v=${report.added} /><${KV} k="No longer listed" v=${report.gone} /><${KV} k="Count changed" v=${report.moved} />
-            <div style="margin-top:10px"><button class="btn anchor" onClick=${apply}>Replace stock in the working copy</button></div>
+            <${KV} k=${tr('Report')} v=${`${report.generated ?? '?'} · ${report.branch}`} />
+            <${KV} k=${tr('Read')} v=${tr('{batches} batches → {items} items', { batches: report.rows.length, items: report.inventory.length })} />
+            <${KV} k=${tr('New')} v=${report.added} /><${KV} k=${tr('No longer listed')} v=${report.gone} /><${KV} k=${tr('Count changed')} v=${report.moved} />
+            <div style="margin-top:10px"><button class="btn anchor" onClick=${apply}>${tr('Replace stock in the working copy')}</button></div>
           <//>`}
         </div>
-        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description or barcode" /></div>
-        <${List}>${items.slice(0, 150).map((i) => html`<${Row} title=${i.description} one detail=${`${i.sku} · ${STOCK_KIND_LABEL[stockKind(i)]}`} end=${stockLabel(Number(i.stock))}
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder=${tr('Description or barcode')} /></div>
+        <${List}>${items.slice(0, 150).map((i) => html`<${Row} title=${i.description} one detail=${`${i.sku} · ${tr(STOCK_KIND_LABEL[stockKind(i)])}`} end=${stockLabel(Number(i.stock))}
           onClick=${() => setOpen({ i, sku: i.sku })} />`)}<//>
-        ${items.length > 150 && html`<p class="note pad">Showing 150 of ${items.length}. Search to narrow.</p>`}
+        ${items.length > 150 && html`<p class="note pad">${tr('Showing 150 of {a}. Search to narrow.', { a: items.length })}</p>`}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.sku ? 'Stock item' : 'New stock item'} initial=${open.i} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.sku ? tr('Stock item') : tr('New stock item')} initial=${open.i} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'sku', label: 'Barcode', required: true, inputmode: 'numeric' },
         { key: 'vendorSku', label: 'Vendor SKU', caps: true },
@@ -248,8 +249,8 @@ export function StockAdminScreen() {
       ]}
       onSave=${(x) => {
         const sku = String(x.sku).replace(/\D/g, '');
-        if (sku.length !== 8) return 'The barcode is 8 digits.';
-        if (sku !== open.sku && bundle.inventory.some((i) => i.sku === sku)) return `Barcode ${sku} is already listed.`;
+        if (sku.length !== 8) return tr('The barcode is 8 digits.');
+        if (sku !== open.sku && bundle.inventory.some((i) => i.sku === sku)) return tr('Barcode {sku} is already listed.', { sku });
         edit((b) => upsertStock(b, { ...open.i, ...x, sku, stock: Math.max(0, Math.round(x.stock ?? 0)) }, open.sku)); saved();
       }}
       onDelete=${open.sku ? () => { edit((b) => deleteStock(b, open.sku)); saved('Removed from stock'); } : null} />`}`;
@@ -262,22 +263,22 @@ export function ExtrasScreen() {
   const { bundle } = useWorking();
   const [open, setOpen] = useState(null);
   return html`
-    <${Bar} backTo="#/me/data" title="Extras" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ e: { id: '', description: '' } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Extras')} trail=${html`<button class="bar-btn" aria-label=${tr('Add')} onClick=${() => setOpen({ e: { id: '', description: '' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order at their list prices, before discounts. The rest take their price from the accessory price list when they are in it, else the register prices them.</p>
+        <p class="para pad">${tr('Add-ons offered on every order. One with a percentage, like Plus Protection, is priced as that share of the frame and spectacle lenses on the order at their list prices, before discounts. The rest take their price from the accessory price list when they are in it, else the register prices them.')}</p>
         <${List}>${bundle.extras.map((e) => html`<${Row} title=${e.description} detail=${e.id} mono end=${e.percent ? `${e.percent}%` : null} onClick=${() => setOpen({ e, id: e.id })} />`)}<//>
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.id ? 'Extra' : 'New extra'} initial=${open.e} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.id ? tr('Extra') : tr('New extra')} initial=${open.e} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'id', label: 'Code', required: true, inputmode: 'numeric' },
         { key: 'description', label: 'Description', required: true },
         { key: 'percent', label: 'Percent', type: 'number', placeholder: 'No price', hint: 'Leave blank for an add-on the register prices. A number prices it as that share of the frame and spectacle lenses on the order at list price, before discounts — 10 for Plus Protection.' },
       ]}
       onSave=${(x) => {
-        if (x.id !== open.id && bundle.extras.some((e) => e.id === x.id)) return `${x.id} is already listed.`;
-        if (x.percent != null && !(x.percent > 0 && x.percent <= 100)) return 'The percentage must be more than 0 and at most 100.';
+        if (x.id !== open.id && bundle.extras.some((e) => e.id === x.id)) return tr('{code} is already listed.', { code: x.id });
+        if (x.percent != null && !(x.percent > 0 && x.percent <= 100)) return tr('The percentage must be more than 0 and at most 100.');
         const { percent, ...rest } = x;
         edit((b) => upsertExtra(b, percent ? { ...rest, percent } : rest, open.id)); saved();
       }}
@@ -296,20 +297,20 @@ export function AccessoriesScreen() {
   const list = all.filter((a) => !t || fold(`${a.description} ${a.collection}`).includes(t) || a.sku.includes(term) || (a.product ?? '').includes(term));
   const groups = [...new Set(list.map((a) => a.collection || 'Other'))];
   return html`
-    <${Bar} backTo="#/me/data" title="Accessory prices" trail=${html`<button class="bar-btn round" aria-label="Add" onClick=${() => setOpen({ a: { sku: '', product: '', description: '', price: null, collection: '' } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Accessory prices')} trail=${html`<button class="bar-btn round" aria-label=${tr('Add')} onClick=${() => setOpen({ a: { sku: '', product: '', description: '', price: null, collection: '' } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">What a case, cloth, solution or gift costs at the register. An order prices them from here; a gift is $0.01. One not listed is priced at the register.</p>
-        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder="Description, barcode or collection" /></div>
+        <p class="para pad">${tr('What a case, cloth, solution or gift costs at the register. An order prices them from here; a gift is $0.01. One not listed is priced at the register.')}</p>
+        <div class="pad"><${SearchField} value=${term} onInput=${setTerm} placeholder=${tr('Description, barcode or collection')} /></div>
         ${groups.map((g) => html`<section class="section"><div class="section-head"><div class="eyebrow">${g}</div></div>
           <${List}>${list.filter((a) => (a.collection || 'Other') === g).map((a) => html`<${Row} key=${a.sku} title=${a.description}
             detail=${a.sku} mono
-            end=${a.price === 1 ? 'Gift' : money(a.price)} onClick=${() => setOpen({ a, sku: a.sku })} />`)}<//>
+            end=${a.price === 1 ? tr('Gift') : money(a.price)} onClick=${() => setOpen({ a, sku: a.sku })} />`)}<//>
         </section>`)}
         ${!list.length && html`<div class="pad"><${Empty} title=${all.length ? 'No match' : 'No prices yet'}>${all.length ? 'Try another word.' : 'Add them with +, or import a Backend workbook with an accessories tab.'}<//></div>`}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.sku ? open.a.description : 'New accessory'} initial=${open.a} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.sku ? open.a.description : tr('New accessory')} initial=${open.a} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'sku', label: 'Barcode', required: true, inputmode: 'numeric', hint: 'Material (true SKU): what the register takes.' },
         { key: 'product', label: 'Product', inputmode: 'numeric', placeholder: '6003…' },
@@ -319,9 +320,9 @@ export function AccessoriesScreen() {
       ]}
       onSave=${(x) => {
         const a = { sku: String(x.sku).replace(/\D/g, ''), product: String(x.product ?? '').replace(/\D/g, ''), description: String(x.description).trim(), price: x.price, collection: String(x.collection ?? '').trim() };
-        if (a.sku.length !== 8) return 'The barcode is the 8-digit true SKU.';
-        if (!(a.price > 0)) return 'Give it a price — a gift is 0.01.';
-        if (a.sku !== open.sku && all.some((y) => y.sku === a.sku)) return `${a.sku} is already listed.`;
+        if (a.sku.length !== 8) return tr('The barcode is the 8-digit true SKU.');
+        if (!(a.price > 0)) return tr('Give it a price — a gift is 0.01.');
+        if (a.sku !== open.sku && all.some((y) => y.sku === a.sku)) return tr('{code} is already listed.', { code: a.sku });
         edit((b) => upsertAccessory(b, a, open.sku)); saved();
       }}
       onDelete=${open.sku ? () => { edit((b) => deleteAccessory(b, open.sku)); saved('Removed'); } : null} />`}`;
@@ -336,17 +337,17 @@ export function StoreAdminScreen() {
   const store = bundle?.store ?? {};
   const fields = STORE_FIELDS.filter((f) => f.key !== 'footer');
   return html`
-    <${Bar} backTo="#/me/data" title="Store" trail=${html`<button class="bar-btn" onClick=${() => setOpen(true)}>Edit</button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Store')} trail=${html`<button class="bar-btn" onClick=${() => setOpen(true)}>${tr('Edit')}</button>`} />
     <${Screen}>
       <div class="stack tight pad">
-        <p class="para">What the receipt prints at its top and its foot. It travels encrypted with the catalogue, like every price.</p>
+        <p class="para">${tr('What the receipt prints at its top and its foot. It travels encrypted with the catalogue, like every price.')}</p>
         <div class="group">${fields.map((f) => html`<div class="cell"><span class="k">${f.label}</span><span class="v">${store[f.key] || html`<span class="muted">—</span>`}</span></div>`)}</div>
-        <${Eyebrow}>Footer<//>
-        <div class="group"><div class="cell cell-text-read">${store.footer ? footerLines(store).map((l) => html`<div>${l || ' '}</div>`) : html`<span class="muted">No footer</span>`}</div></div>
-        <${Secondary} icon="edit" onClick=${() => setOpen(true)}>Edit the store<//>
+        <${Eyebrow}>${tr('Footer')}<//>
+        <div class="group"><div class="cell cell-text-read">${store.footer ? footerLines(store).map((l) => html`<div>${l || ' '}</div>`) : html`<span class="muted">${tr('No footer')}</span>`}</div></div>
+        <${Secondary} icon="edit" onClick=${() => setOpen(true)}>${tr('Edit the store')}<//>
       </div>
     <//>
-    ${open && html`<${FormSheet} title="Store" initial=${store} onClose=${() => setOpen(false)}
+    ${open && html`<${FormSheet} title=${tr('Store')} initial=${store} onClose=${() => setOpen(false)}
       fields=${STORE_FIELDS.map((f) => ({ ...f, rows: f.type === 'textarea' ? 9 : undefined, caps: false }))}
       onSave=${(x) => { edit((b) => setStore(b, x)); saved(); }} />`}`;
 }
@@ -355,14 +356,14 @@ export function StaffAdminScreen() {
   const { bundle } = useWorking();
   const [open, setOpen] = useState(null);
   return html`
-    <${Bar} backTo="#/me/data" title="Staff" trail=${html`<button class="bar-btn" aria-label="Add" onClick=${() => setOpen({ s: { employeeNumber: '', name: '', shortName: '', role: 'seller', active: true } })}><${Icon} name="plus" /></button>`} />
+    <${Bar} backTo="#/me/data" title=${tr('Staff')} trail=${html`<button class="bar-btn" aria-label=${tr('Add')} onClick=${() => setOpen({ s: { employeeNumber: '', name: '', shortName: '', role: 'seller', active: true } })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack tight">
-        <p class="para pad">Who can be chosen as the seller on a phone. When someone leaves, switch them off rather than deleting — past orders carry their number.</p>
-        <${List}>${bundle.staff.map((s) => html`<${Row} title=${s.name} detail=${`${s.employeeNumber} · ${s.role}`} off=${!s.active} sub=${s.active ? null : 'Inactive'} onClick=${() => setOpen({ s, n: s.employeeNumber })} />`)}<//>
+        <p class="para pad">${tr('Who can be chosen as the seller on a phone. When someone leaves, switch them off rather than deleting — past orders carry their number.')}</p>
+        <${List}>${bundle.staff.map((s) => html`<${Row} title=${s.name} detail=${`${s.employeeNumber} · ${tr(s.role)}`} off=${!s.active} sub=${s.active ? null : tr('Inactive')} onClick=${() => setOpen({ s, n: s.employeeNumber })} />`)}<//>
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.n ? open.s.name : 'New person'} initial=${open.s} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.n ? open.s.name : tr('New person')} initial=${open.s} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'employeeNumber', label: 'Employee no.', required: true, inputmode: 'numeric' },
         { key: 'name', label: 'Name', required: true },
@@ -370,9 +371,9 @@ export function StaffAdminScreen() {
         { key: 'role', label: 'Role', type: 'select', options: [{ value: 'seller', label: 'Seller' }, { value: 'admin', label: 'Admin' }] },
         { key: 'active', label: 'Active', type: 'toggle' },
       ]}
-      onSave=${(x) => { if (x.employeeNumber !== open.n && bundle.staff.some((s) => s.employeeNumber === x.employeeNumber)) return `${x.employeeNumber} is already listed.`; edit((b) => upsertStaff(b, x, open.n)); saved(); }}
+      onSave=${(x) => { if (x.employeeNumber !== open.n && bundle.staff.some((s) => s.employeeNumber === x.employeeNumber)) return tr('{code} is already listed.', { code: x.employeeNumber }); edit((b) => upsertStaff(b, x, open.n)); saved(); }}
       onDelete=${open.n ? () => { edit((b) => deleteStaff(b, open.n)); saved('Removed'); } : null}
-      deleteMessage="Past orders keep the number. To stop someone being chosen, switching them off is usually better." />`}`;
+      deleteMessage=${tr('Past orders keep the number. To stop someone being chosen, switching them off is usually better.')} />`}`;
 }
 
 export { collapseStock, Empty };

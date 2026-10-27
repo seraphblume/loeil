@@ -12,16 +12,17 @@ import { giftsFor, giftItems, giftBrands, liveGifts } from '../core/promotions.j
 import { extraLine } from '../core/orders.js';
 import { addLine, toast } from '../state/app.js';
 import { brandKey } from '../core/util.js';
+import { tr } from '../i18n.js';
 
 /** The small gift beside a frame or a brand in a list. */
 export function GiftBadge({ brand }) {
   const gifts = useApp((s) => giftsFor(s.catalogue, brand));
-  return gifts.length ? html`<span class="gift-badge" title="Gift with this brand’s frames"><${Icon} name="gift" />Gift</span>` : null;
+  return gifts.length ? html`<span class="gift-badge" title=${tr('Gift with this brand’s frames')}><${Icon} name="gift" />${tr('Gift')}</span>` : null;
 }
 
-const itemLine = (i) => (i.stock == null ? i.description : i.stock > 0 ? `${i.description} · ${i.stock} on hand` : `${i.description} · none on hand`);
+const itemLine = (i) => (i.stock == null ? i.description : i.stock > 0 ? `${i.description} · ${tr('{n} on hand', { n: i.stock })}` : `${i.description} · ${tr('none on hand')}`);
 /** A gift runs while its stock lasts, unless it was given an end date. */
-const lasts = (g) => (g.validTo ? `Until ${fmtDate(g.validTo)}` : 'While stock lasts');
+const lasts = (g) => (g.validTo ? tr('Until {date}', { date: fmtDate(g.validTo) }) : tr('While stock lasts'));
 
 /** On a frame: what the brand gives with it. */
 export function GiftPanel({ brand }) {
@@ -29,7 +30,7 @@ export function GiftPanel({ brand }) {
   const gifts = giftsFor(catalogue, brand);
   if (!gifts.length) return null;
   return html`${gifts.map((g) => html`<${Flag} icon="gift" key=${g.id}>
-    <strong style="font-weight:500">${brand} gives a gift with this frame.</strong>
+    <strong style="font-weight:500">${tr('{a} gives a gift with this frame.', { a: brand })}</strong>
     ${g.description ? ` ${g.description}` : ''}
     ${giftItems(catalogue, g).length > 0 && html`<div class="gift-items">${giftItems(catalogue, g).map((i) => html`<div>${itemLine(i)}</div>`)}</div>`}
     <div class="gift-until">${lasts(g)}</div>
@@ -43,12 +44,12 @@ export function OrderGifts({ order }) {
   const have = new Set(order.lines.filter((l) => l.kind === 'extra').map((l) => l.code));
   const found = brands.flatMap((brand) => giftsFor(catalogue, brand).map((g) => ({ brand, g, items: giftItems(catalogue, g) })));
   if (!found.length) return null;
-  const add = async (i) => { await addLine(extraLine(i.sku, i.description, 1, i.stock)); toast('Gift on the order'); };
+  const add = async (i) => { await addLine(extraLine(i.sku, i.description, 1, i.stock)); toast(tr('Gift on the order')); };
   return html`${found.map(({ brand, g, items }) => html`<div class="pad" key=${g.id + brand}><${Flag} icon="gift">
-    <strong style="font-weight:500">${brand} gives a gift with the frame.</strong>${g.description ? ` ${g.description}` : ''}
+    <strong style="font-weight:500">${tr('{a} gives a gift with the frame.', { a: brand })}</strong>${g.description ? ` ${g.description}` : ''}
     ${items.length > 0 && html`<div class="gift-items">${items.map((i) => (have.has(i.sku)
-      ? html`<div>${i.description} · on the order</div>`
-      : html`<div><button type="button" class="link" onClick=${() => add(i)}>Add ${i.description}</button>${i.stock != null ? (i.stock > 0 ? ` · ${i.stock} on hand` : ' · none on hand') : ''}</div>`))}</div>`}
+      ? html`<div>${tr('{a} · on the order', { a: i.description })}</div>`
+      : html`<div><button type="button" class="link" onClick=${() => add(i)}>${tr('Add {a}', { a: i.description })}</button>${i.stock != null ? (i.stock > 0 ? ` · ${i.stock} on hand` : ' · none on hand') : ''}</div>`))}</div>`}
   <//></div>`)}`;
 }
 
@@ -57,11 +58,11 @@ export function GiftsScreen() {
   const catalogue = useApp((s) => s.catalogue);
   const gifts = liveGifts(catalogue);
   return html`
-    <${Bar} backTo="#/me" title="Brand gifts" />
+    <${Bar} backTo="#/me" title=${tr('Brand gifts')} />
     <${Screen}>
       <div class="stack">
-        ${gifts.length === 0 ? html`<div class="pad"><${Empty} title="No brand gifts today">When a brand gives something away with its frames, an admin adds it under Catalogue data → Promotions, as a gift.<//></div>`
-          : html`<${Section} title="With their frames">${gifts.map((g) => html`<div class="row" style="align-items:flex-start" key=${g.id}>
+        ${gifts.length === 0 ? html`<div class="pad"><${Empty} title=${tr('No brand gifts today')}>${tr('When a brand gives something away with its frames, an admin adds it under Catalogue data → Promotions, as a gift.')}<//></div>`
+          : html`<${Section} title=${tr('With their frames')}>${gifts.map((g) => html`<div class="row" style="align-items:flex-start" key=${g.id}>
             <span class="ico"><${Icon} name="gift" /></span>
             <span class="main">
               <span class="t">${giftBrands(g).join(', ') || g.name}</span>
@@ -70,7 +71,7 @@ export function GiftsScreen() {
               <span class="s">${lasts(g)}</span>
             </span>
           </div>`)}<//>`}
-        <p class="note pad">The frame’s screen, the frame lists and the order show the gift too. On the order, one tap puts the gift item on the ticket.</p>
+        <p class="note pad">${tr('The frame’s screen, the frame lists and the order show the gift too. On the order, one tap puts the gift item on the ticket.')}</p>
       </div>
     <//>`;
 }

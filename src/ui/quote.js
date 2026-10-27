@@ -19,6 +19,7 @@ import {
 } from '../state/app.js';
 import { PresetSheet } from './presets.js';
 import { go } from './router.js';
+import { tr, trn } from '../i18n.js';
 
 /** A preset's name says more than the lens's: `First Glasses Lite`. */
 const optionTitle = (order) => order.lines.find((l) => l.presetName)?.presetName ?? orderTitle(order);
@@ -27,7 +28,7 @@ export async function addOrderToQuote() {
   const r = await addToQuote();
   if (r.error) { toast(r.error); return false; }
   buzz(10);
-  toast(`Option ${r.n} of ${QUOTE_OPTIONS} on the quote`);
+  toast(tr('Option {n} of {max} on the quote', { n: r.n, max: QUOTE_OPTIONS }));
   return true;
 }
 
@@ -59,42 +60,42 @@ export function QuoteScreen() {
     setSharing(false);
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(quoteText(q)); toast('Quote copied as text'); buzz(8); } catch { toast('Copying is not allowed here'); }
+    try { await navigator.clipboard.writeText(quoteText(q)); toast(tr('Quote copied as text')); buzz(8); } catch { toast(tr('Copying is not allowed here')); }
   };
 
   return html`
-    <${Bar} title="Quote" large trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>Clear</button>` : null} />
+    <${Bar} title=${tr('Quote')} large trail=${has ? html`<button class="bar-btn" onClick=${() => setSheet('clear')}>${tr('Clear')}</button>` : null} />
     <${Screen} class=${has ? 'has-dock' : ''}>
       <div class="stack">
-        <${LargeTitle} detail="Up to three options, side by side, for one client">Quote<//>
-        <${Section} title="For">
-          <${Row} icon="person" title=${client ? client.name : 'No client yet'} detail=${client ? (client.phone || 'On the quote by name') : 'Choose who the quote is for'} chev onClick=${() => setSheet('client')} />
+        <${LargeTitle} detail=${tr('Up to three options, side by side, for one client')}>${tr('Quote')}<//>
+        <${Section} title=${tr('For')}>
+          <${Row} icon="person" title=${client ? client.name : tr('No client yet')} detail=${client ? (client.phone || tr('On the quote by name')) : tr('Choose who the quote is for')} chev onClick=${() => setSheet('client')} />
         <//>
-        <${Section} title=${`Options · ${n} of ${QUOTE_OPTIONS}`}
-          footer=${n < QUOTE_OPTIONS ? (forSomeoneElse ? 'The order in progress belongs to another client — save or clear it first, or clear the quote.'
-            : 'Each option keeps the prices it was added at. A frame quoted by brand is priced from the set, or from the brand’s lowest catalogue price.') : null}>
+        <${Section} title=${tr('Options · {n} of {max}', { n, max: QUOTE_OPTIONS })}
+          footer=${n < QUOTE_OPTIONS ? (forSomeoneElse ? tr('The order in progress belongs to another client — save or clear it first, or clear the quote.')
+            : tr('Each option keeps the prices it was added at. A frame quoted by brand is priced from the set, or from the brand’s lowest catalogue price.')) : null}>
           ${quote.options.map((o, i) => html`<${Row} key=${o.id} title=${`${i + 1} · ${optionTitle(o.order)}`} detail=${composition(o.order)} one
             end=${html`<span class="num">${money(q.options[i]?.total ?? 0)}</span>
-              <button type="button" class="icon-btn" aria-label=${`Remove option ${i + 1}`} onClick=${() => removeQuoteOption(o.id)}><${Icon} name="x" size=${15} /></button>`} />`)}
+              <button type="button" class="icon-btn" aria-label=${tr('Remove option {n}', { n: i + 1 })} onClick=${() => removeQuoteOption(o.id)}><${Icon} name="x" size=${15} /></button>`} />`)}
           ${n < QUOTE_OPTIONS && html`
-            <${Row} icon="spark" title="Add an option" detail="A frame, a brand or a set, then a lifestyle preset" chev onClick=${() => setSheet('preset')} />
-            ${draftLines > 0 && html`<${Row} icon="plus" title="Add the order as it is" detail=${`${draftLines} line${draftLines === 1 ? '' : 's'} on the order`} onClick=${addOrderToQuote} />`}
-            <${Row} icon="glasses" title=${draftLines ? 'Change the order' : 'Build an option on the order'} detail=${hasFrame ? 'Frame, lenses and extras, then Add to quote' : 'Scan the frame, choose the lenses, then Add to quote'} chev onClick=${toOrder} />`}
+            <${Row} icon="spark" title=${tr('Add an option')} detail=${tr('A frame, a brand or a set, then a lifestyle preset')} chev onClick=${() => setSheet('preset')} />
+            ${draftLines > 0 && html`<${Row} icon="plus" title=${tr('Add the order as it is')} detail=${trn(draftLines, '1 line on the order', '{n} lines on the order')} onClick=${addOrderToQuote} />`}
+            <${Row} icon="glasses" title=${draftLines ? tr('Change the order') : tr('Build an option on the order')} detail=${hasFrame ? tr('Frame, lenses and extras, then Add to quote') : tr('Scan the frame, choose the lenses, then Add to quote')} chev onClick=${toOrder} />`}
         <//>
         ${has ? html`<div class="pad stack tight receipt-stage">
-            <${PrinterRig} printer=${printer} blocks=${blocks} label="QUOTE"
-              status=${{ printing: 'Printing the quote', done: 'Quote ready', detail: `Quote ${q.number} · ${n} option${n === 1 ? '' : 's'}` }} />
-            ${!q.store?.quoteFooter && html`<p class="note">The quote’s foot is not set yet — an admin adds it under Me → Catalogue data → Store.</p>`}
+            <${PrinterRig} printer=${printer} blocks=${blocks} label=${tr('QUOTE')}
+              status=${{ printing: tr('Printing the quote'), done: tr('Quote ready'), detail: trn(n, 'Quote {number} · 1 option', 'Quote {number} · {n} options', { number: q.number }) }} />
+            ${!q.store?.quoteFooter && html`<p class="note">${tr('The quote’s foot is not set yet — an admin adds it under Me → Catalogue data → Store.')}</p>`}
           </div>`
-          : html`<div class="pad"><${Empty} title="No quote yet">Choose the client, then add up to three options: a preset in one tap, or the order as you built it. They print side by side on one ticket, sent as a picture.<//></div>`}
+          : html`<div class="pad"><${Empty} title=${tr('No quote yet')}>${tr('Choose the client, then add up to three options: a preset in one tap, or the order as you built it. They print side by side on one ticket, sent as a picture.')}<//></div>`}
       </div>
     <//>
     ${has && html`<${Dock}>
-      <${Secondary} icon="copy" onClick=${copy}>Copy text<//>
-      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? 'Making the image…' : 'Share image'}<//>
+      <${Secondary} icon="copy" onClick=${copy}>${tr('Copy text')}<//>
+      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? tr('Making the image…') : tr('Share image')}<//>
     <//>`}
     ${sheet === 'preset' && html`<${PresetSheet} toQuote=${addOrderToQuote} onClose=${() => setSheet(null)} />`}
-    ${sheet === 'client' && html`<${ClientPickerSheet} title="Who is the quote for?" onClose=${() => setSheet(null)} onPick=${(c) => { setQuoteClient(c.id); setSheet(null); }} />`}
-    ${sheet === 'clear' && html`<${Confirm} title="Clear the quote?" message="Every option on it is removed. The order in progress is not touched." action="Clear quote"
-      onConfirm=${() => { clearQuote(); toast('Quote cleared'); }} onClose=${() => setSheet(null)} />`}`;
+    ${sheet === 'client' && html`<${ClientPickerSheet} title=${tr('Who is the quote for?')} onClose=${() => setSheet(null)} onPick=${(c) => { setQuoteClient(c.id); setSheet(null); }} />`}
+    ${sheet === 'clear' && html`<${Confirm} title=${tr('Clear the quote?')} message=${tr('Every option on it is removed. The order in progress is not touched.')} action=${tr('Clear quote')}
+      onConfirm=${() => { clearQuote(); toast(tr('Quote cleared')); }} onClose=${() => setSheet(null)} />`}`;
 }

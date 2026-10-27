@@ -11,8 +11,10 @@ import { upsertOrder, deleteOrder, clientById, toast } from '../state/app.js';
 import { LinesPanel, TotalBlock, OrderPromotions } from './order.js';
 import { go } from './router.js';
 import { DeliveryView, FollowUpView } from './control.js';
+import { tr } from '../i18n.js';
 
 const VIEWS = [{ value: 'orders', label: 'Orders' }, { value: 'delivery', label: 'Delivery' }, { value: 'followup', label: 'Follow Up' }];
+const views = () => VIEWS.map((v) => ({ ...v, label: tr(v.label) }));
 
 export function OrderRow({ order, byTitle, on }) {
   const client = useApp((s) => clientById(order.clientId, s));
@@ -29,16 +31,16 @@ export function OrdersScreen({ selected, query, view: open }) {
   const view = VIEWS.some((v) => v.value === asked) ? asked : 'orders';
   const show = (v) => go(v === 'orders' ? '#/orders' : `#/orders?view=${v}`, { replace: true });
   return html`
-    <${Bar} title="Orders" large />
+    <${Bar} title=${tr('Orders')} large />
     <${Screen}>
       <div class="stack">
-        <${LargeTitle}>Orders<//>
-        <div class="pad"><${Seg} label="Show" value=${view} options=${VIEWS} onChange=${show} /></div>
+        <${LargeTitle}>${tr('Orders')}<//>
+        <div class="pad"><${Seg} label=${tr('Show')} value=${view} options=${views()} onChange=${show} /></div>
         ${view === 'delivery' ? html`<${DeliveryView} selected=${selected} />` : view === 'followup' ? html`<${FollowUpView} selected=${selected} />` : orders.length === 0
-          ? html`<div class="pad"><${Empty} title="No orders yet">Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.<//></div>`
+          ? html`<div class="pad"><${Empty} title=${tr('No orders yet')}>${tr('Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.')}<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);
-            return group.length > 0 && html`<${Section} title=${`${s.label} · ${group.length}`}>${group.map((o) => html`<${OrderRow} order=${o} on=${o.id === selected} />`)}<//>`;
+            return group.length > 0 && html`<${Section} title=${`${tr(s.label)} · ${group.length}`}>${group.map((o) => html`<${OrderRow} order=${o} on=${o.id === selected} />`)}<//>`;
           })}
       </div>
     <//>`;
@@ -48,39 +50,39 @@ export function SavedOrderScreen({ id, embedded }) {
   const order = useApp((s) => s.orders.find((o) => o.id === id));
   const client = useApp((s) => (order ? clientById(order.clientId, s) : null));
   const [confirm, setConfirm] = useState(false);
-  if (!order) return html`<${Bar} backTo="#/orders" title="Order" /><${Screen}><div class="pad"><${Empty} title="Not found">This order is not on this phone.<//></div><//>`;
+  if (!order) return html`<${Bar} backTo="#/orders" title=${tr('Order')} /><${Screen}><div class="pad"><${Empty} title=${tr('Not found')}>${tr('This order is not on this phone.')}<//></div><//>`;
 
   const setStatus = async (status) => {
     await upsertOrder({ ...order, status });
-    if (status === 'sold') toast('Sold — part of their history now');
+    if (status === 'sold') toast(tr('Sold — part of their history now'));
   };
 
   return html`
     <${Bar} backTo=${embedded ? null : '#/orders'} title=${orderTitle(order)} large />
     <${Screen}>
       <div class="stack pad">
-        <${ScreenTitle} eyebrow=${client?.name ?? (order.clientNameAtSale || 'No client')} title=${orderTitle(order)} detail=${fmtDate(order.createdOn)} />
+        <${ScreenTitle} eyebrow=${client?.name ?? (order.clientNameAtSale || tr('No client'))} title=${orderTitle(order)} detail=${fmtDate(order.createdOn)} />
         <${LinesPanel} order=${order} />
         <${TotalBlock} order=${order} />
         ${(order.sellerEmployeeNumber || client || order.saleId) && html`<${Panel}>
-          ${client && html`<${KV} k="Client" v=${html`<a href=${'#/clients/' + client.id} onClick=${(e) => { e.preventDefault(); go('#/clients/' + client.id); }}>${client.name}</a>`} />`}
-          ${order.sellerEmployeeNumber && html`<${KV} k="Sold by" v=${[order.sellerEmployeeNumber, order.sellerName].filter(Boolean).join(' · ')} />`}
-          ${order.closedOn && html`<${KV} k="Closed" v=${fmtDate(order.closedOn)} />`}
-          ${order.saleId && html`<${KV} k="Sell ID" v=${order.saleId} mono />`}
-          ${order.shipmentId && html`<${KV} k="Shipment ID" v=${order.shipmentId} mono />`}
-          ${order.source === 'alpha' && html`<${KV} k="Deal" v=${order.promo?.length ? order.promo.join(' · ') : 'Normal sale'} />`}
+          ${client && html`<${KV} k=${tr('Client')} v=${html`<a href=${'#/clients/' + client.id} onClick=${(e) => { e.preventDefault(); go('#/clients/' + client.id); }}>${client.name}</a>`} />`}
+          ${order.sellerEmployeeNumber && html`<${KV} k=${tr('Sold by')} v=${[order.sellerEmployeeNumber, order.sellerName].filter(Boolean).join(' · ')} />`}
+          ${order.closedOn && html`<${KV} k=${tr('Closed')} v=${fmtDate(order.closedOn)} />`}
+          ${order.saleId && html`<${KV} k=${tr('Sell ID')} v=${order.saleId} mono />`}
+          ${order.shipmentId && html`<${KV} k=${tr('Shipment ID')} v=${order.shipmentId} mono />`}
+          ${order.source === 'alpha' && html`<${KV} k=${tr('Deal')} v=${order.promo?.length ? order.promo.join(' · ') : 'Normal sale'} />`}
         <//>`}
         <${OrderPromotions} order=${order} />
         <div class="gap-s">
-          <${Eyebrow}>Status<//>
-          <${Seg} label="Status" value=${order.status} onChange=${setStatus} options=${STATUSES.map((s) => ({ value: s.id, label: s.label }))} />
+          <${Eyebrow}>${tr('Status')}<//>
+          <${Seg} label=${tr('Status')} value=${order.status} onChange=${setStatus} options=${STATUSES.map((s) => ({ value: s.id, label: s.label }))} />
         </div>
         ${order.source === 'alpha'
-          ? html`<p class="note">Imported from Alpha. The ticket is as Alpha recorded it — one line with what it carried and what it came to.</p>`
-          : html`<${Secondary} icon="receipt" onClick=${() => go('#/orders/' + order.id + '/receipt')}>Print the receipt<//>`}
-        <${Quiet} danger onClick=${() => setConfirm(true)}>Delete order<//>
+          ? html`<p class="note">${tr('Imported from Alpha. The ticket is as Alpha recorded it — one line with what it carried and what it came to.')}</p>`
+          : html`<${Secondary} icon="receipt" onClick=${() => go('#/orders/' + order.id + '/receipt')}>${tr('Print the receipt')}<//>`}
+        <${Quiet} danger onClick=${() => setConfirm(true)}>${tr('Delete order')}<//>
       </div>
     <//>
-    ${confirm && html`<${Confirm} title="Delete this order?" message=${order.status === 'sold' ? 'It is a sale in this client’s history. Deleting it changes their recall date. This cannot be undone.' : 'This cannot be undone.'}
-      onConfirm=${async () => { await deleteOrder(order.id); toast('Order deleted'); go('#/orders', { replace: true }); }} onClose=${() => setConfirm(false)} />`}`;
+    ${confirm && html`<${Confirm} title=${tr('Delete this order?')} message=${order.status === 'sold' ? tr('It is a sale in this client’s history. Deleting it changes their recall date. This cannot be undone.') : tr('This cannot be undone.')}
+      onConfirm=${async () => { await deleteOrder(order.id); toast(tr('Order deleted')); go('#/orders', { replace: true }); }} onClose=${() => setConfirm(false)} />`}`;
 }

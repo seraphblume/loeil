@@ -5,7 +5,7 @@
 import { html, useState, useRef } from './html.js';
 import { useApp } from './hooks.js';
 import {
-  Bar, Screen, LargeTitle, Figure, Eyebrow, Panel, KV, Section, Row, List, Secondary, Sheet, Anchor, Quiet, Confirm, Flag,
+  Bar, Screen, LargeTitle, Figure, Eyebrow, Panel, KV, Section, Row, List, Secondary, Sheet, Anchor, Quiet, Confirm, Flag, Seg,
   daysAgo, fmtDayMonth, fmtDate,
 } from './kit.js';
 import { Icon } from './icons.js';
@@ -17,13 +17,14 @@ import { livePromotions, liveGifts, unmatchableLines, conditionsOf, isLive, isGi
 import { addDays, startOfDay } from '../core/util.js';
 import { GRID_WEEKS, APP_BUILD } from '../config.js';
 import {
-  refresh, staffMember, backupJSON, previewBackup, restoreBackup, toast, lockDevice, previewAlpha, importAlpha,
+  refresh, staffMember, backupJSON, previewBackup, restoreBackup, toast, lockDevice, previewAlpha, importAlpha, chooseLanguage,
 } from '../state/app.js';
 import { loadXLSX } from './data/io.js';
-import { plural } from '../core/util.js';
 import { go } from './router.js';
 import { applyUpdate } from '../state/update.js';
 import { isShowcaseOrder } from '../core/showcase.js';
+import { tr, trn, LANGS, num } from '../i18n.js';
+import { AlphaFigures } from './figures.js';
 
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -44,10 +45,10 @@ function Grid({ orders }) {
   const op = (n) => (n === 0 ? 0.1 : n === 1 ? 0.35 : n === 2 ? 0.62 : 1);
   const scroller = useRef();
   return html`<div class="gap-s">
-    <${Eyebrow}>Last ${GRID_WEEKS} weeks<//>
+    <${Eyebrow}>${tr('Last {a} weeks', { a: GRID_WEEKS })}<//>
     <div class="grid-wrap" ref=${(el) => { if (el && !scroller.current) { scroller.current = el; el.scrollLeft = el.scrollWidth; } }}
-      role="img" aria-label=${`Sales over the last ${GRID_WEEKS} weeks`}>
-      <div class="cgrid">${days.map((d) => { const n = counts.get(d.getTime()) ?? 0; return html`<i style=${{ opacity: op(n) }} title=${`${fmtDayMonth(d)}: ${n} sold`}></i>`; })}</div>
+      role="img" aria-label=${tr('Sales over the last {n} weeks', { n: GRID_WEEKS })}>
+      <div class="cgrid">${days.map((d) => { const n = counts.get(d.getTime()) ?? 0; return html`<i style=${{ opacity: op(n) }} title=${tr('{date}: {n} sold', { date: fmtDayMonth(d), n })}></i>`; })}</div>
     </div>
   </div>`;
 }
@@ -73,7 +74,7 @@ export function MeScreen() {
     const blob = new Blob([backupJSON()], { type: 'application/json' });
     const file = new File([blob], name, { type: 'application/json' });
     if (navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: 'L’Œil backup' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+      try { await navigator.share({ files: [file], title: tr('L’Œil backup') }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name;
@@ -92,94 +93,101 @@ export function MeScreen() {
   };
 
   const syncLine = {
-    checking: 'Checking…', upToDate: 'Up to date', updated: 'Updated just now', offline: 'Offline — using the copy on this phone',
-    appTooOld: 'Update waiting', corrupt: 'Last download discarded', passcode: 'Needs the new passcode', missing: 'Nothing published yet', idle: '—',
+    checking: tr('Checking…'), upToDate: tr('Up to date'), updated: tr('Updated just now'), offline: tr('Offline — using the copy on this phone'),
+    appTooOld: tr('Update waiting'), corrupt: tr('Last download discarded'), passcode: tr('Needs the new passcode'), missing: tr('Nothing published yet'), idle: '—',
   }[sync.status];
 
   return html`
-    <${Bar} title=${me?.name ?? 'Me'} large />
+    <${Bar} title=${me?.name ?? tr('Me')} large />
     <${Screen}>
       <div class="stack loose">
-        <${LargeTitle} detail=${me ? `${me.employeeNumber} · ${me.role ?? 'seller'}` : null}>${me?.name?.split(' ')[0] ?? 'Me'}<//>
-        ${s.update && html`<div class="pad gap-s"><${Flag} icon="arrowUp">A new version of L\u2019\u0152il is ready. It switches over on the next launch, or now.<//>
-          <${Secondary} icon="refresh" onClick=${applyUpdate}>Update now<//></div>`}
-        <div class="pad"><${Figure} value=${String(soldWeek)} caption="sold this week" size=${48} /></div>
+        <${LargeTitle} detail=${me ? `${me.employeeNumber} · ${tr(me.role ?? 'seller')}` : null}>${me?.name?.split(' ')[0] ?? tr('Me')}<//>
+        ${s.update && html`<div class="pad gap-s"><${Flag} icon="arrowUp">${tr('A new version of L’Œil is ready. It switches over on the next launch, or now.')}<//>
+          <${Secondary} icon="refresh" onClick=${applyUpdate}>${tr('Update now')}<//></div>`}
+        <div class="pad"><${Figure} value=${String(soldWeek)} caption=${tr('sold this week')} size=${48} /></div>
         <div class="pad"><${Grid} orders=${orders} /></div>
+        <${AlphaFigures} />
 
         <div class="pad gap-s">
-          <${Eyebrow}>Overall<//>
+          <${Eyebrow}>${tr('Overall')}<//>
           <${Panel}>
-            <${KV} k="Clients" v=${clients.length} />
-            <${KV} k="Orders open" v=${orders.filter((o) => o.status === 'draft' || o.status === 'presented').length} />
-            <${KV} k="Sold, all time" v=${sold.length} />
-            <${KV} k="Revenue, all time" v=${money(sold.reduce((t, o) => t + orderTotal(o), 0))} em />
+            <${KV} k=${tr('Clients')} v=${clients.length} />
+            <${KV} k=${tr('Orders open')} v=${orders.filter((o) => o.status === 'draft' || o.status === 'presented').length} />
+            <${KV} k=${tr('Sold, all time')} v=${sold.length} />
+            <${KV} k=${tr('Revenue, all time')} v=${money(sold.reduce((t, o) => t + orderTotal(o), 0))} em />
           <//>
         </div>
 
-        <${Section} title="Due for a visit">
-          ${due.length === 0 ? html`<div class="row"><span class="muted small">Nobody is due in the next month.</span></div>`
+        <${Section} title=${tr('Due for a visit')}>
+          ${due.length === 0 ? html`<div class="row"><span class="muted small">${tr('Nobody is due in the next month.')}</span></div>`
             : due.slice(0, 5).map(({ client, due: when }) => html`<${Row} to=${'#/clients/' + client.id} title=${client.name}
               badge=${warningIcon(client.prescription) && html`<${Icon} name=${warningIcon(client.prescription)} />`}
-              end=${when <= new Date() ? 'Overdue' : fmtDayMonth(when)} />`)}
-          ${due.length > 5 && html`<div class="row"><span class="muted small">and ${due.length - 5} more</span></div>`}
+              end=${when <= new Date() ? tr('Overdue') : fmtDayMonth(when)} />`)}
+          ${due.length > 5 && html`<div class="row"><span class="muted small">${tr('and {a} more', { a: due.length - 5 })}</span></div>`}
         <//>
 
-        <${Section} title="Seller">
-          <${Row} title=${me?.name ?? 'Not set'} detail=${s.identity ? `${s.identity} · on every ticket` : 'Choose who is using this phone'} chev onClick=${() => setSheet('staff')} />
+        <${Section} title=${tr('Seller')}>
+          <${Row} title=${me?.name ?? tr('Not set')} detail=${s.identity ? tr('{id} · on every ticket', { id: s.identity }) : tr('Choose who is using this phone')} chev onClick=${() => setSheet('staff')} />
         <//>
 
-        <div class="pad gap-s">
-          <${Eyebrow}>Catalogue<//>
-          <${Panel}>
-            <${KV} k="Published" v=${daysAgo(catalogue.generatedAt)} />
-            <${KV} k="Version" v=${catalogue.dataVersion || '—'} mono />
-            <${KV} k="Lenses" v=${catalogue.lensCount} />
-            <${KV} k="Frames" v=${catalogue.frames.length.toLocaleString('en')} />
-            <${KV} k="Stock items" v=${catalogue.inventory.length} />
-            ${catalogue.bundle?.stockReport?.generated && html`<${KV} k="Stock as of" v=${catalogue.bundle.stockReport.generated} />`}
-            <${KV} k="Status" v=${syncLine} />
-          <//>
-          ${sync.note && html`<p class="para">${sync.note}</p>`}
-          ${sync.status === 'passcode' && html`<${Secondary} icon="lock" onClick=${() => setSheet('passcode')}>Enter the new passcode<//>`}
-          <${Secondary} icon="refresh" disabled=${sync.status === 'checking'} onClick=${refresh}>${sync.status === 'checking' ? 'Checking…' : 'Check for an update'}<//>
-          ${orphans > 0 && html`<p class="note">${orphans} promo lines name a lens code the catalogue does not have, so they can never match. Worth a look at the promo sheet.</p>`}
+        <div class="pad gap-s lang-seg">
+          <${Eyebrow}>${tr('Language')}<//>
+          <${Seg} label=${tr('Language')} value=${s.lang} onChange=${chooseLanguage} options=${LANGS.map((l) => ({ value: l.id, label: l.label }))} />
+          <p class="note">${tr('The app’s own words. Tickets, quotes and WhatsApp messages stay as they are.')}</p>
         </div>
 
-        <${Section} title="Promotions">
-          <${Row} to="#/me/promotions" title="Live promotions" count=${livePromotions(catalogue).length} chev />
-          <${Row} to="#/me/gifts" icon="gift" title="Brand gifts" detail="Brands giving a gift with their frames" count=${liveGifts(catalogue).length} chev />
+        <div class="pad gap-s">
+          <${Eyebrow}>${tr('Catalogue')}<//>
+          <${Panel}>
+            <${KV} k=${tr('Published')} v=${daysAgo(catalogue.generatedAt)} />
+            <${KV} k=${tr('Version')} v=${catalogue.dataVersion || '—'} mono />
+            <${KV} k=${tr('Lenses')} v=${catalogue.lensCount} />
+            <${KV} k=${tr('Frames')} v=${num(catalogue.frames.length)} />
+            <${KV} k=${tr('Stock items')} v=${catalogue.inventory.length} />
+            ${catalogue.bundle?.stockReport?.generated && html`<${KV} k=${tr('Stock as of')} v=${catalogue.bundle.stockReport.generated} />`}
+            <${KV} k=${tr('Status')} v=${syncLine} />
+          <//>
+          ${sync.note && html`<p class="para">${tr(sync.note)}</p>`}
+          ${sync.status === 'passcode' && html`<${Secondary} icon="lock" onClick=${() => setSheet('passcode')}>${tr('Enter the new passcode')}<//>`}
+          <${Secondary} icon="refresh" disabled=${sync.status === 'checking'} onClick=${refresh}>${sync.status === 'checking' ? tr('Checking…') : tr('Check for an update')}<//>
+          ${orphans > 0 && html`<p class="note">${tr('{a} promo lines name a lens code the catalogue does not have, so they can never match. Worth a look at the promo sheet.', { a: orphans })}</p>`}
+        </div>
+
+        <${Section} title=${tr('Promotions')}>
+          <${Row} to="#/me/promotions" title=${tr('Live promotions')} count=${livePromotions(catalogue).length} chev />
+          <${Row} to="#/me/gifts" icon="gift" title=${tr('Brand gifts')} detail=${tr('Brands giving a gift with their frames')} count=${liveGifts(catalogue).length} chev />
         <//>
 
         <div class="pad gap-s">
-          <${Eyebrow}>Backup<//>
-          <p class="para">Client records live only on this phone. There is no sync and no account, so export regularly — a lost phone or a cleared browser is otherwise the end of them.</p>
-          <${Secondary} icon="download" onClick=${exportFile}>Export backup<//>
-          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>Restore or import<//>
+          <${Eyebrow}>${tr('Backup')}<//>
+          <p class="para">${tr('Client records live only on this phone. There is no sync and no account, so export regularly — a lost phone or a cleared browser is otherwise the end of them.')}</p>
+          <${Secondary} icon="download" onClick=${exportFile}>${tr('Export backup')}<//>
+          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>${tr('Restore or import')}<//>
           <input ref=${fileRef} type="file" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pickBackup} />
-          <p class="note">A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales (on the admin’s phone), and your rows on its Control sheet fill Orders → Delivery and Follow Up.</p>
+          <p class="note">${tr('A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales (on the admin’s phone), and your rows on its Control sheet fill Orders → Delivery and Follow Up.')}</p>
         </div>
 
         ${!isStandalone() && html`<div class="pad"><${Flag} icon="download">
-          <strong style="font-weight:500">Add L’Œil to your Home Screen.</strong>
-          ${isIOS() ? ' In Safari, tap Share, then Add to Home Screen.' : ' In Chrome, open the menu and choose Install app.'}
-          It opens full screen, works offline, and keeps your client records safe from the browser’s storage clean-up.
+          <strong style="font-weight:500">${tr('Add L’Œil to your Home Screen.')}</strong>
+          ${' '}${isIOS() ? tr('In Safari, tap Share, then Add to Home Screen.') : tr('In Chrome, open the menu and choose Install app.')}
+          ${' '}${tr('It opens full screen, works offline, and keeps your client records safe from the browser’s storage clean-up.')}
         <//></div>`}
 
-        ${isAdmin && html`<${Section} title="Admin">
-          <${Row} to="#/me/data" icon="edit" title="Catalogue data" detail=${s.working ? 'Unpublished changes on this phone' : 'Prices, coatings, frames, stock, promotions, staff'} chev />
-          <${Row} to="#/me/publish" icon="cloud" title="Review and publish" detail="Send the changes to every phone" chev />
+        ${isAdmin && html`<${Section} title=${tr('Admin')}>
+          <${Row} to="#/me/data" icon="edit" title=${tr('Catalogue data')} detail=${s.working ? tr('Unpublished changes on this phone') : tr('Prices, coatings, frames, stock, promotions, staff')} chev />
+          <${Row} to="#/me/publish" icon="cloud" title=${tr('Review and publish')} detail=${tr('Send the changes to every phone')} chev />
         <//>`}
 
         <div class="pad gap-s">
-          <${Quiet} onClick=${() => setSheet('lock')}>Lock this phone<//>
+          <${Quiet} onClick=${() => setSheet('lock')}>${tr('Lock this phone')}<//>
           <p class="note center" style="font-family:var(--serif);font-size:14px;margin-top:8px">« Une voix venue d’ailleurs »</p>
-          <p class="note center">Build ${APP_BUILD}</p>
+          <p class="note center">${tr('Build {a}', { a: APP_BUILD })}</p>
         </div>
       </div>
     <//>
     ${sheet === 'staff' && html`<${StaffSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'passcode' && html`<${NewPasscodeSheet} onClose=${() => setSheet(null)} />`}
-    ${sheet === 'lock' && html`<${Confirm} title="Lock this phone?" message="The catalogue and passcode are removed from this phone; it will ask for the passcode again. Clients and orders stay." action="Lock"
+    ${sheet === 'lock' && html`<${Confirm} title=${tr('Lock this phone?')} message=${tr('The catalogue and passcode are removed from this phone; it will ask for the passcode again. Clients and orders stay.')} action=${tr('Lock')}
       onConfirm=${lockDevice} onClose=${() => setSheet(null)} />`}
     ${restore && html`<${RestoreSheet} parsed=${restore} onClose=${() => setRestore(null)} />`}`;
 }
@@ -205,51 +213,59 @@ async function workbookRows(file) {
       if (f && /^\s*TODAY\(\)\s*$/i.test(f)) row[c] = null;
     }));
   }
-  if (!crm && !control) throw new Error('This workbook has no CRM or Control sheet.');
-  return { crm: read(crm), all: read(named('ALL')), control, config: read(named('CONFIG')) };
+  if (!crm && !control) throw new Error(tr('This workbook has no CRM or Control sheet.'));
+  return { crm: read(crm), all: read(named('ALL')), control, config: read(named('CONFIG')), history: read(named('HISTORY')), dashboard: read(named('DASHBOARD')) };
 }
 
 function AlphaSheet({ parsed, onClose }) {
-  const { counts, alpha, control, crm } = parsed;
+  const { counts, alpha, control, crm, stats } = parsed;
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
     const done = await importAlpha(parsed);
     const said = [];
-    if (alpha) said.push(done.clients || done.orders ? `${plural(done.clients, 'client', 'clients')} and ${plural(done.orders, 'past sale', 'past sales')} added` : 'Clients up to date');
-    if (control) said.push(`${plural(done.deliveries, 'delivery', 'deliveries')} and ${plural(done.followUps, 'follow-up', 'follow-ups')}`);
+    if (alpha) said.push(done.clients || done.orders ? tr('{clients} and {sales} added', { clients: trn(done.clients, '1 client', '{n} clients'), sales: trn(done.orders, '1 past sale', '{n} past sales') }) : tr('Clients up to date'));
+    if (control) said.push(tr('{deliveries} and {followUps}', { deliveries: trn(done.deliveries, '1 delivery', '{n} deliveries'), followUps: trn(done.followUps, '1 follow-up', '{n} follow-ups') }));
+    if (done.stats) said.push(tr('Figures updated'));
     toast(said.join(' · '));
     onClose();
   };
-  const nothing = (!counts || (!counts.clients && !counts.orders && !counts.updated)) && !control;
-  const was = (n, here) => (here ? `${n} · replaces ${here}` : String(n));
-  return html`<${Sheet} title="Import from Alpha" onClose=${onClose}>
+  const nothing = (!counts || (!counts.clients && !counts.orders && !counts.updated)) && !control && !stats;
+  const was = (n, here) => (here ? tr('{n} · replaces {here}', { n, here }) : String(n));
+  return html`<${Sheet} title=${tr('Import from Alpha')} onClose=${onClose}>
     <div class="pad stack tight">
       ${alpha && html`
-        <${Eyebrow}>CRM<//>
+        <${Eyebrow}>${tr('CRM')}<//>
         <${Panel}>
-          <${KV} k="People" v=${alpha.people.length} />
-          <${KV} k="New clients" v=${counts.clients} />
-          ${counts.matched > 0 && html`<${KV} k="Already here" v=${counts.updated ? `${counts.matched} · ${counts.updated} brought up to date` : counts.matched} />`}
-          <${KV} k="Past sales" v=${counts.already ? `${counts.orders} new · ${counts.already} already here` : counts.orders} />
-          ${counts.history > 0 && html`<${KV} k="Into their history" v=${plural(counts.history, 'prescription', 'prescriptions')} />`}
+          <${KV} k=${tr('People')} v=${alpha.people.length} />
+          <${KV} k=${tr('New clients')} v=${counts.clients} />
+          ${counts.matched > 0 && html`<${KV} k=${tr('Already here')} v=${counts.updated ? tr('{n} · {m} brought up to date', { n: counts.matched, m: counts.updated }) : counts.matched} />`}
+          <${KV} k=${tr('Past sales')} v=${counts.already ? tr('{n} new · {m} already here', { n: counts.orders, m: counts.already }) : counts.orders} />
+          ${counts.history > 0 && html`<${KV} k=${tr('Into their history')} v=${trn(counts.history, '1 prescription', '{n} prescriptions')} />`}
         <//>
         <p class="para">${alpha.layout === 'clients'
-          ? 'Each client comes with their Customer ID, birthdate, quality and their glasses, lecture and contact lens prescriptions, and every ticket of yours on the All tab becomes a sale in their history.'
-          : 'Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.'}</p>
-        <p class="note">Alpha is the source: someone already on this phone takes its details and prescriptions, and a prescription it replaces goes into their history. Notes and favourites stay, and so does anyone Alpha does not list. Importing the same workbook again adds only what is new.</p>`}
-      ${crm && !alpha && html`<p class="note">The CRM’s clients come in on the admin’s phone only.</p>`}
+          ? tr('Each client comes with their Customer ID, birthdate, quality and their glasses, lecture and contact lens prescriptions, and every ticket of yours on the All tab becomes a sale in their history.')
+          : tr('Each client comes with their glasses and contact lens prescriptions, and every ticket becomes a sale in their history. Repeat visits are one client: the same name with the same phone.')}</p>
+        <p class="note">${tr('Alpha is the source: someone already on this phone takes its details and prescriptions, and a prescription it replaces goes into their history. Notes and favourites stay, and so does anyone Alpha does not list. Importing the same workbook again adds only what is new.')}</p>`}
+      ${crm && !alpha && html`<p class="note">${tr('The CRM’s clients come in on the admin’s phone only.')}</p>`}
       ${control && html`
-        <${Eyebrow}>Control<//>
+        <${Eyebrow}>${tr('Control')}<//>
         <${Panel}>
-          <${KV} k="Delivery" v=${was(control.deliveries.length, control.here.deliveries)} />
-          <${KV} k="Follow Up" v=${was(control.followUps.length, control.here.followUps)} />
-          <${KV} k="WhatsApp messages" v=${control.messages ? 'From the workbook' : 'As before'} />
+          <${KV} k=${tr('Delivery')} v=${was(control.deliveries.length, control.here.deliveries)} />
+          <${KV} k=${tr('Follow Up')} v=${was(control.followUps.length, control.here.followUps)} />
+          <${KV} k=${tr('WhatsApp messages')} v=${control.messages ? tr('From the workbook') : tr('As before')} />
         <//>
-        <p class="note">Your rows only. The workbook’s replace this phone’s, so its Status, Promised, Delivered and Pending win over what was changed here.</p>
-        ${!control.followUps.length && control.vendorFilter && control.vendorFilter !== 'All' && html`<p class="note">Follow Up was last rebuilt for ${control.vendorFilter} only — set Control ▸ Vendor to All and rebuild it to bring everyone’s.</p>`}`}
-      ${nothing ? html`<${Quiet} onClick=${onClose}>Nothing new — close<//>`
-        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? 'Importing…' : 'Import to this phone'}<//>`}
+        <p class="note">${tr('Your rows only. The workbook’s replace this phone’s, so its Status, Promised, Delivered and Pending win over what was changed here.')}</p>
+        ${!control.followUps.length && control.vendorFilter && control.vendorFilter !== 'All' && html`<p class="note">${tr('Follow Up was last rebuilt for {a} only — set Control ▸ Vendor to All and rebuild it to bring everyone’s.', { a: control.vendorFilter })}</p>`}`}
+      ${stats && html`
+        <${Eyebrow}>${tr('Figures')}<//>
+        <${Panel}>
+          <${KV} k=${tr('Your months')} v=${stats.months.length ? num(stats.months.filter((m) => (m.proceeds ?? 0) > 0).length) : tr('Not found for this seller')} />
+          <${KV} k=${tr('Store goals')} v=${num(stats.store.filter((m) => m.main != null || m.soft != null).length)} />
+        <//>
+        <p class="note">${tr('Your month, your pay and the store against its goals show on the Me tab, as Alpha worked them out.')}</p>`}
+      ${nothing ? html`<${Quiet} onClick=${onClose}>${tr('Nothing new — close')}<//>`
+        : html`<${Anchor} disabled=${busy} onClick=${run}>${busy ? tr('Importing…') : tr('Import to this phone')}<//>`}
     </div>
   <//>`;
 }
@@ -259,21 +275,21 @@ function RestoreSheet({ parsed, onClose }) {
   if (parsed.source === 'Alpha') return html`<${AlphaSheet} parsed=${parsed} onClose=${onClose} />`;
   const run = async (mode) => {
     const added = await restoreBackup(parsed, mode);
-    toast(mode === 'replace' ? 'Backup restored' : `Added ${added.clients} clients and ${added.orders} orders`);
+    toast(mode === 'replace' ? tr('Backup restored') : tr('Added {clients} clients and {orders} orders', { clients: added.clients, orders: added.orders }));
     onClose();
   };
-  if (confirm) return html`<${Confirm} title="Replace everything?" message=${`Every client and order on this phone is replaced by the backup${parsed.control ? ', and Delivery and Follow Up with it' : ''}. Export first if you are not sure.`} action="Replace" onConfirm=${() => run('replace')} onClose=${onClose} />`;
-  return html`<${Sheet} title="Restore" onClose=${onClose}>
+  if (confirm) return html`<${Confirm} title=${tr('Replace everything?')} message=${parsed.control ? tr('Every client and order on this phone is replaced by the backup, and Delivery and Follow Up with it. Export first if you are not sure.') : tr('Every client and order on this phone is replaced by the backup. Export first if you are not sure.')} action=${tr('Replace')} onConfirm=${() => run('replace')} onClose=${onClose} />`;
+  return html`<${Sheet} title=${tr('Restore')} onClose=${onClose}>
     <div class="pad stack tight">
       <${Panel}>
-        <${KV} k="From" v=${parsed.source === 'web' ? 'This app' : `The ${parsed.source} app`} />
-        <${KV} k="Clients" v=${parsed.clients.length} />
-        <${KV} k="Orders" v=${parsed.orders.length} />
-        ${parsed.control && html`<${KV} k="Delivery · Follow Up" v=${`${parsed.control.deliveries.length} · ${parsed.control.followUps.length}`} />`}
+        <${KV} k=${tr('source::From')} v=${parsed.source === 'web' ? tr('This app') : tr('The {name} app', { name: parsed.source })} />
+        <${KV} k=${tr('Clients')} v=${parsed.clients.length} />
+        <${KV} k=${tr('Orders')} v=${parsed.orders.length} />
+        ${parsed.control && html`<${KV} k=${tr('Delivery · Follow Up')} v=${`${parsed.control.deliveries.length} · ${parsed.control.followUps.length}`} />`}
       <//>
-      <p class="para">Merging adds what this phone does not have and leaves everything already here untouched.</p>
-      <${Anchor} onClick=${() => run('merge')}>Merge into this phone<//>
-      <${Quiet} danger onClick=${() => setConfirm(true)}>Replace everything instead<//>
+      <p class="para">${tr('Merging adds what this phone does not have and leaves everything already here untouched.')}</p>
+      <${Anchor} onClick=${() => run('merge')}>${tr('Merge into this phone')}<//>
+      <${Quiet} danger onClick=${() => setConfirm(true)}>${tr('Replace everything instead')}<//>
     </div>
   <//>`;
 }
@@ -284,12 +300,12 @@ export function PromotionsScreen() {
   const live = all.filter((p) => isLive(p));
   const ended = all.length - live.length;
   const groups = new Map();
-  for (const p of live) { const k = p.category || 'Other'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
+  for (const p of live) { const k = p.category || tr('Other'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
   return html`
-    <${Bar} backTo="#/me" title="Promotions" />
+    <${Bar} backTo="#/me" title=${tr('Promotions')} />
     <${Screen}>
       <div class="stack">
-        ${live.length === 0 && html`<p class="para pad">No promotions are live today.${ended ? ` ${ended} in the catalogue have ended — publish the new campaign to refresh them.` : ''}</p>`}
+        ${live.length === 0 && html`<p class="para pad">${tr('No promotions are live today.')}${ended ? ' ' + tr('{n} in the catalogue have ended — publish the new campaign to refresh them.', { n: ended }) : ''}</p>`}
         ${[...groups.entries()].map(([cat, list]) => html`<${Section} title=${cat}>
           ${list.map((p) => html`<div class="row" style="align-items:flex-start">
             <span class="main">

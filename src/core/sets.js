@@ -24,6 +24,7 @@
 
 import { brandKey, dayToDate, startOfDay } from './util.js';
 import { resolveAlliance, applyAlliance, cfePair } from './alliances.js';
+import { tr } from '../i18n.js';
 
 export const SET_GROUPS = ['Single vision', 'Progressive (poly)', 'Varilux Comfort', 'Varilux Physio'];
 
@@ -157,8 +158,8 @@ export function setLensFor(catalogue, set, lens) {
 
 /** "Included", "Special price $1,100", or the amount — for any money formatter. */
 export function rowPriceText(entry, money) {
-  if (!entry.price) return 'Included';
-  return entry.special ? `Special price ${money(entry.price)}` : money(entry.price);
+  if (!entry.price) return tr('Included');
+  return entry.special ? tr('Special price {price}', { price: money(entry.price) }) : money(entry.price);
 }
 
 // ---------------------------------------------------------------------------
@@ -264,9 +265,9 @@ export function savingOf(hit, list) {
 /** `30% off`, `$3,999 the pair`, `price to confirm` — for the screens. */
 export function hitText(hit, money) {
   if (!hit) return '';
-  if (hit.pending) return 'price to confirm';
-  if (hit.price != null) return `${money(hit.price)} the pair`;
-  return `${hit.percent}% off`;
+  if (hit.pending) return tr('price to confirm');
+  if (hit.price != null) return tr('{price} the pair', { price: money(hit.price) });
+  return tr('{n}% off', { n: hit.percent });
 }
 
 /**

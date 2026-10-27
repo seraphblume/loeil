@@ -5,6 +5,7 @@ import { tablesFromWorkbook, readWorkbooks } from '../../core/ingest.js';
 import { parseStockReport, collapseStock } from '../../core/stockreport.js';
 import { bundleToWorkbooks } from '../../core/export.js';
 import { Report } from '../../core/validate.js';
+import { tr } from '../../i18n.js';
 
 const VENDOR = new URL('../../vendor/', import.meta.url);
 
@@ -14,7 +15,7 @@ export function loadXLSX() {
     const s = document.createElement('script');
     s.src = new URL('xlsx.mini.min.js', VENDOR).href;
     s.onload = () => resolve(window.XLSX);
-    s.onerror = () => reject(new Error('Could not load the spreadsheet reader.'));
+    s.onerror = () => reject(new Error(tr('Could not load the spreadsheet reader.')));
     document.head.appendChild(s);
   });
 }
@@ -50,12 +51,12 @@ export async function readFiles(files) {
   for (const f of files) {
     if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
       const r = await readStockPdf(f);
-      if (!r.rows.length) { report.error(f.name, 'No stock rows were found. Is this the stock report (Reporte Existencias)?'); continue; }
-      if (r.total != null && r.total !== r.rows.length) report.error(f.name, `The report says ${r.total} rows but ${r.rows.length} were read. Nothing was replaced.`);
+      if (!r.rows.length) { report.error(f.name, tr('No stock rows were found. Is this the stock report (Reporte Existencias)?')); continue; }
+      if (r.total != null && r.total !== r.rows.length) report.error(f.name, tr('The report says {total} rows but {read} were read. Nothing was replaced.', { total: r.total, read: r.rows.length }));
       else {
         pieces.inventory = r.inventory;
         pieces.stockReport = { generated: r.generated, branch: r.branch, rows: r.rows.length, file: f.name };
-        summary.push(`Stock: ${r.inventory.length} items (${r.rows.length} batches) from the report of ${r.generated ?? 'unknown date'}`);
+        summary.push(tr('Stock: {items} items ({batches} batches) from the report of {date}', { items: r.inventory.length, batches: r.rows.length, date: r.generated ?? tr('unknown date') }));
       }
     } else {
       const XLSX = await loadXLSX();
@@ -67,9 +68,9 @@ export async function readFiles(files) {
     const r = readWorkbooks(books);
     report.merge({ errors: r.report.errors, warnings: r.report.warnings, notes: r.report.notes });
     Object.assign(pieces, r.pieces);
-    const names = { vocabulary: 'coatings and names', lenses: 'lens prices', frameBrands: 'brand tiers', inventory: 'stock', accessories: 'accessory prices', extras: 'extras', staff: 'staff', promotions: 'promotions', promoLensMap: 'promo lines', frames: 'frames' };
+    const names = Object.fromEntries(Object.entries({ vocabulary: 'coatings and names', lenses: 'lens prices', frameBrands: 'brand tiers', inventory: 'stock', accessories: 'accessory prices', extras: 'extras', staff: 'staff', promotions: 'promotions', promoLensMap: 'promo lines', frames: 'frames' }).map(([k, v]) => [k, tr(v)]));
     const got = Object.keys(r.pieces).filter((k) => names[k]).map((k) => names[k]);
-    if (got.length) summary.push(`From the workbook${books.length > 1 ? 's' : ''}: ${got.join(', ')}`);
+    if (got.length) summary.push(tr(books.length > 1 ? 'From the workbooks: {list}' : 'From the workbook: {list}', { list: got.join(', ') }));
   }
   return { pieces, report: report.done(), summary };
 }
@@ -93,7 +94,7 @@ export async function exportWorkbooks(bundle) {
     new File([XLSX.write(catalogue, { type: 'array', bookType: 'xlsx' })], `Catalogue ${stamp}.xlsx`, { type }),
   ];
   if (navigator.canShare?.({ files })) {
-    try { await navigator.share({ files, title: 'L’Œil catalogue' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files, title: tr('L’Œil catalogue') }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   for (const f of files) download(f.name, f);
 }

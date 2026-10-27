@@ -7,6 +7,7 @@ import { Icon } from './icons.js';
 import { makerLogo } from './logos.js';
 import { back, linkProps } from './router.js';
 import { dayToDate } from '../core/util.js';
+import { tr, dateFmt } from '../i18n.js';
 
 /**
  * The navigation bar. With `large`, the screen carries the title as a large
@@ -27,7 +28,7 @@ export function Bar({ title, titleNode, backTo, lead, trail, large }) {
   return html`
     <header class=${'bar' + (large ? ' large' : '') + (compact ? ' compact' : '')} ref=${ref}>
       <div class="lead">
-        ${backTo ? html`<button class="bar-btn round" onClick=${() => back(backTo)} aria-label="Back"><${Icon} name="chevL" /></button>` : lead}
+        ${backTo ? html`<button class="bar-btn round" onClick=${() => back(backTo)} aria-label=${tr('Back')}><${Icon} name="chevL" /></button>` : lead}
       </div>
       <div class="title">${titleNode ?? title}</div>
       <div class="trail">${trail}</div>
@@ -56,6 +57,74 @@ export const Figure = ({ value, caption, size = 40 }) => html`
     <div class="value" style=${{ fontSize: size + 'px' }}>${value}</div>
     ${caption && html`<${Eyebrow}>${caption}<//>`}
   </div>`;
+
+/**
+ * A figure whose digits roll into place, like a subscriber counter. The first
+ * time the app shows one they spin up from zero, each digit a little later
+ * than the one to its left; after that a change rolls each digit forward to
+ * its new value. Commas, the sign and the point stay still.
+ */
+const DIGITS = '0123456789';
+const TURNS = 6;                       // 0–9 six times over: room to roll forward
+const REST = 20;                       // where a digit sits between rolls (third turn)
+const STRIP = Array.from({ length: TURNS * 10 }, (_, i) => i % 10);
+const stillMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+let rolledOnce = false;
+
+export function Odometer({ value }) {
+  const text = String(value ?? '');
+  const chars = [...text];
+  const rest = () => chars.map((ch) => (DIGITS.includes(ch) ? REST + Number(ch) : null));
+  const first = !rolledOnce && !stillMotion();
+  const [pos, setPos] = useState(() => (first ? chars.map((ch) => (DIGITS.includes(ch) ? 0 : null)) : rest()));
+  const [moving, setMoving] = useState(false);
+  const [entry, setEntry] = useState(first);
+  const last = useRef(text);
+  const timer = useRef(null);
+  const digits = chars.filter((ch) => DIGITS.includes(ch)).length;
+
+  // Once a roll ends, every digit settles back on the resting turn without moving.
+  const settleAfter = (ms) => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { setMoving(false); setEntry(false); setPos(rest()); }, ms + 60);
+  };
+
+  useEffect(() => {
+    if (!first) { rolledOnce = true; return undefined; }
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => {
+      setMoving(true); setPos(rest()); rolledOnce = true; settleAfter(entryMs(digits - 1));
+    }));
+    return () => { cancelAnimationFrame(id); clearTimeout(timer.current); };
+  }, []);
+
+  useEffect(() => {
+    if (last.current === text) return;
+    const before = last.current;
+    last.current = text;
+    if (stillMotion() || [...before].length !== chars.length) { clearTimeout(timer.current); setMoving(false); setEntry(false); setPos(rest()); return; }
+    setEntry(false);
+    setMoving(true);
+    setPos((p) => chars.map((ch, i) => {
+      if (!DIGITS.includes(ch)) return null;
+      const from = p[i] ?? REST;
+      return from + ((Number(ch) - (from % 10) + 10) % 10);  // always forward
+    }));
+    settleAfter(CHANGE_MS);
+  }, [text]);
+
+  let k = 0;
+  return html`<span class="odo" role="text" aria-label=${text}>
+    ${chars.map((ch, i) => {
+      if (pos[i] == null || !DIGITS.includes(ch)) return html`<span class="odo-c" aria-hidden="true">${ch}</span>`;
+      const ms = entry ? entryMs(k++) : CHANGE_MS;
+      return html`<span class="odo-d" aria-hidden="true"><span class="odo-s"
+        style=${{ transform: `translateY(calc(${-pos[i]} * var(--odo-h)))`, transition: moving ? `transform ${ms}ms cubic-bezier(.16, 1, .3, 1)` : 'none' }}>
+        ${STRIP.map((d) => html`<span>${d}</span>`)}</span></span>`;
+    })}
+  </span>`;
+}
+const entryMs = (order) => 900 + order * 110;
+const CHANGE_MS = 650;
 
 export const Wordmark = ({ size = 20 }) =>
   html`<span class="wordmark" style=${{ fontSize: size + 'px' }} aria-label="L’Œil">L’Œil</span>`;
@@ -103,7 +172,7 @@ export function Maker({ name }) {
   const logo = makerLogo(name);
   if (!logo) return html`<span class="maker" title=${`Made by ${name}`}>${name}</span>`;
   return html`<svg class="maker-logo" viewBox=${`0 0 ${logo.w} ${logo.h}`} style=${{ '--ar': logo.w / logo.h }} role="img" aria-label=${name}>
-    <title>Made by ${name}</title><path fill="currentColor" fill-rule="evenodd" d=${logo.d} />
+    <title>${tr('Made by {a}', { a: name })}</title><path fill="currentColor" fill-rule="evenodd" d=${logo.d} />
   </svg>`;
 }
 
@@ -134,8 +203,8 @@ export function Stepper({ value, min = 1, max = 99, onChange, label }) {
   return html`<div class="stepper" aria-label=${label}>
     <span class="val">${value}</span>
     <span class="ctl">
-      <button type="button" aria-label="Fewer" onClick=${() => onChange(Math.max(min, value - 1))}>−</button>
-      <button type="button" aria-label="More" onClick=${() => onChange(Math.min(max, value + 1))}>+</button>
+      <button type="button" aria-label=${tr('Fewer')} onClick=${() => onChange(Math.max(min, value - 1))}>−</button>
+      <button type="button" aria-label=${tr('More')} onClick=${() => onChange(Math.min(max, value + 1))}>+</button>
     </span>
   </div>`;
 }
@@ -150,7 +219,7 @@ export function SearchField({ value, onInput, placeholder, autofocus, icon = 'se
     <${Icon} name=${icon} />
     <input ref=${ref} type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck=${false}
       placeholder=${placeholder} value=${value} onInput=${(e) => onInput(e.currentTarget.value)} />
-    ${value && html`<button type="button" class="icon-btn" aria-label="Clear" onClick=${() => onInput('')}><${Icon} name="xcircle" /></button>`}
+    ${value && html`<button type="button" class="icon-btn" aria-label=${tr('Clear')} onClick=${() => onInput('')}><${Icon} name="xcircle" /></button>`}
   </label>`;
 }
 
@@ -218,7 +287,7 @@ export function Sheet({ title, onClose, left, right, children, full }) {
     <div class=${'sheet' + (full ? ' full' : '')} role="dialog" aria-modal="true" aria-label=${title}>
       <div class="sheet-bar" onPointerDown=${down} onPointerMove=${move} onPointerUp=${up} onPointerCancel=${up}>
         <div class="grab" aria-hidden="true"></div>
-        <div class="l">${left ?? html`<button class="bar-btn round" aria-label="Close" onClick=${onClose}><${Icon} name="x" /></button>`}</div>
+        <div class="l">${left ?? html`<button class="bar-btn round" aria-label=${tr('Close')} onClick=${onClose}><${Icon} name="x" /></button>`}</div>
         <div class="title">${title}</div>
         <div class="r">${right}</div>
       </div>
@@ -255,12 +324,12 @@ export function Dock({ children }) {
 }
 
 /** Destructive actions name their cost and ask once. */
-export function Confirm({ title, message, action = 'Delete', onConfirm, onClose }) {
+export function Confirm({ title, message, action = tr('Delete'), onConfirm, onClose }) {
   return html`<${Sheet} title=${title} onClose=${onClose}>
     <div class="pad stack tight">
       <p class="para">${message}</p>
       <${Secondary} danger onClick=${() => { onConfirm(); onClose(); }}>${action}<//>
-      <${Quiet} onClick=${onClose}>Cancel<//>
+      <${Quiet} onClick=${onClose}>${tr('Cancel')}<//>
     </div>
   <//>`;
 }
@@ -274,16 +343,16 @@ export function useCopy() {
 }
 
 export const daysAgo = (date) => {
-  if (!date) return 'date unknown';
+  if (!date) return tr('date unknown');
   const d = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (d < 0) return 'just now';
-  if (d === 0) return 'today';
-  if (d === 1) return 'yesterday';
-  return `${d} days ago`;
+  if (d < 0) return tr('just now');
+  if (d === 0) return tr('today');
+  if (d === 1) return tr('yesterday');
+  return tr('{n} days ago', { n: d });
 };
 
-const short = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const short = { format: (d) => dateFmt({ day: 'numeric', month: 'short', year: 'numeric' }).format(d) };
+const dayMonth = { format: (d) => dateFmt({ day: 'numeric', month: 'short' }).format(d) };
 /** `2026-07-24` is a calendar day, not UTC midnight — never let it slip a day west. */
 const asDate = (d) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? dayToDate(d) : new Date(d));
 export const fmtDate = (d) => (d ? short.format(asDate(d)) : '—');

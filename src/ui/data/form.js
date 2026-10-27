@@ -5,6 +5,11 @@
 
 import { html, useState } from '../html.js';
 import { Sheet, Eyebrow, Anchor, Quiet, Confirm, Toggle } from '../kit.js';
+import { tr } from '../../i18n.js';
+
+// Labels, groups, hints and prose placeholders are written in English where the fields are declared
+// and translated here, so every form follows the app's language.
+const L = (s) => (s ? tr(s) : s);
 
 const pesos = (cents) => (cents == null || cents === '' ? '' : String(Math.round(cents) / 100));
 
@@ -21,7 +26,7 @@ function parse(f, t) {
   return String(t).trim();
 }
 
-export function FormSheet({ title, fields, initial = {}, onSave, onDelete, deleteLabel = 'Delete', deleteMessage, onClose, saveLabel = 'Save', intro }) {
+export function FormSheet({ title, fields, initial = {}, onSave, onDelete, deleteLabel = tr('Delete'), deleteMessage, onClose, saveLabel = tr('Save'), intro }) {
   const [vals, setVals] = useState(() => Object.fromEntries(fields.map((f) => [f.key, initialText(f, initial[f.key])])));
   const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(false);
@@ -32,7 +37,7 @@ export function FormSheet({ title, fields, initial = {}, onSave, onDelete, delet
     const out = {};
     for (const f of fields) {
       out[f.key] = parse(f, vals[f.key]);
-      if (f.required && (out[f.key] === '' || out[f.key] == null)) { setError(`${f.label} is required.`); return; }
+      if (f.required && (out[f.key] === '' || out[f.key] == null)) { setError(tr('{field} is required.', { field: L(f.label) })); return; }
     }
     const problem = onSave(out);
     if (typeof problem === 'string') { setError(problem); return; }
@@ -40,7 +45,7 @@ export function FormSheet({ title, fields, initial = {}, onSave, onDelete, delet
   };
 
   if (confirm) {
-    return html`<${Confirm} title=${`${deleteLabel}?`} message=${deleteMessage ?? 'This is removed from the working copy. Nothing changes on any phone until you publish.'}
+    return html`<${Confirm} title=${`${deleteLabel}?`} message=${deleteMessage ?? tr('This is removed from the working copy. Nothing changes on any phone until you publish.')}
       action=${deleteLabel} onConfirm=${() => { onDelete(); }} onClose=${onClose} />`;
   }
 
@@ -55,10 +60,10 @@ export function FormSheet({ title, fields, initial = {}, onSave, onDelete, delet
     <form class="pad form" onSubmit=${save}>
       ${intro && html`<p class="para">${intro}</p>`}
       ${groups.map((g) => html`<div class="form-group">
-        ${g.name && html`<${Eyebrow}>${g.name}<//>`}
+        ${g.name && html`<${Eyebrow}>${L(g.name)}<//>`}
         ${g.fields.map((f) => html`<${Field} f=${f} value=${vals[f.key]} onChange=${(v) => set(f.key, v)} />`)}
       </div>`)}
-      ${fields.some((f) => f.hint) && html`<div class="gap-s">${fields.filter((f) => f.hint).map((f) => html`<p class="note"><strong style="font-weight:500">${f.label}:</strong> ${f.hint}</p>`)}</div>`}
+      ${fields.some((f) => f.hint) && html`<div class="gap-s">${fields.filter((f) => f.hint).map((f) => html`<p class="note"><strong style="font-weight:500">${L(f.label)}:</strong> ${L(f.hint)}</p>`)}</div>`}
       ${error && html`<p class="para" role="alert">${error}</p>`}
       <${Anchor} type="submit">${saveLabel}<//>
       ${onDelete && html`<${Quiet} danger onClick=${() => setConfirm(true)}>${deleteLabel}<//>`}
@@ -66,27 +71,30 @@ export function FormSheet({ title, fields, initial = {}, onSave, onDelete, delet
   <//>`;
 }
 
+/** A placeholder in words is translated; one that shows codes (SV|*POLY…) stays as it is. */
+const prose = (p) => (!p ? '' : /[a-z]{3,} [a-z]{2,}/.test(p) && !/[|*]/.test(p) ? tr(p) : p);
+
 function Field({ f, value, onChange }) {
   if (f.type === 'toggle') {
-    return html`<div class="form-row"><span class="k">${f.label}</span><${Toggle} label=${f.label} on=${value} onChange=${onChange} /></div>`;
+    return html`<div class="form-row"><span class="k">${L(f.label)}</span><${Toggle} label=${L(f.label)} on=${value} onChange=${onChange} /></div>`;
   }
   if (f.type === 'select') {
     const opts = f.options.some((o) => String(o.value) === String(value)) || value === '' ? f.options : [{ value, label: value }, ...f.options];
-    return html`<label class="form-row"><span class="k">${f.label}</span>
+    return html`<label class="form-row"><span class="k">${L(f.label)}</span>
       <select value=${value} onChange=${(e) => onChange(e.currentTarget.value)}>
-        ${opts.map((o) => html`<option value=${o.value}>${o.label}</option>`)}
+        ${opts.map((o) => html`<option value=${o.value}>${L(o.label)}</option>`)}
       </select></label>`;
   }
   if (f.type === 'textarea') {
-    return html`<label class="field field-area"><span class="k">${f.label}</span><textarea rows=${f.rows ?? 3} placeholder=${f.placeholder ?? ''} value=${value} onInput=${(e) => onChange(e.currentTarget.value)}></textarea></label>`;
+    return html`<label class="field field-area"><span class="k">${L(f.label)}</span><textarea rows=${f.rows ?? 3} placeholder=${prose(f.placeholder)} value=${value} onInput=${(e) => onChange(e.currentTarget.value)}></textarea></label>`;
   }
   const listId = f.suggest ? `dl-${f.key}` : null;
-  return html`<label class="form-row"><span class="k">${f.label}</span>
+  return html`<label class="form-row"><span class="k">${L(f.label)}</span>
     ${f.type === 'money' && html`<span class="muted">$</span>`}
     <input type=${f.type === 'date' ? 'date' : 'text'} list=${listId}
       inputmode=${f.type === 'money' || f.type === 'number' ? 'decimal' : f.inputmode ?? 'text'}
       autocapitalize=${f.caps ? 'characters' : 'off'} autocomplete="off" spellcheck=${false}
-      placeholder=${f.placeholder ?? ''} value=${value} onInput=${(e) => onChange(e.currentTarget.value)} />
+      placeholder=${prose(f.placeholder)} value=${value} onInput=${(e) => onChange(e.currentTarget.value)} />
     ${listId && html`<datalist id=${listId}>${f.suggest.map((s) => html`<option value=${s} />`)}</datalist>`}
   </label>`;
 }

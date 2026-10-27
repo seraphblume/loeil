@@ -9,6 +9,7 @@
 
 import { parseCodeLabel, fold, brandKey } from './util.js';
 import { stockKind } from './stock.js';
+import { tr } from '../i18n.js';
 
 /** One attribute value: the POS code, the POS wording, ours, and its metadata. */
 export class LensCode {
@@ -240,7 +241,7 @@ export const STOCK_KIND_LABEL = {
 export const showsStock = (kind) => kind === 'contact';
 
 export function stockLabel(n) {
-  if (n === null || n === undefined) return 'Not in the stock list';
-  if (n === 0) return 'None on hand';
-  return `${n} on hand`;
+  if (n === null || n === undefined) return tr('Not in the stock list');
+  if (n === 0) return tr('None on hand');
+  return tr('{n} on hand', { n });
 }

@@ -675,6 +675,13 @@ a.dash-card:active { transform: scale(.985); background: var(--cell-press); }
 .dc-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--label-2); background: var(--fill); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
 .dc-chip svg { width: 13px; height: 13px; }
 .dc-amount { font: 700 38px/1.05 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; animation: value-in .24s var(--ease-out); }
+/* Odometer: digits roll into place (kit.js). Each digit is a window on a strip of 0–9s. */
+.odo { display: inline-flex; align-items: flex-start; --odo-h: 1.1em; line-height: var(--odo-h); white-space: nowrap; }
+.odo-c, .odo-d { display: inline-block; height: var(--odo-h); }
+.odo-d { overflow: hidden; }
+.odo-s { display: flex; flex-direction: column; will-change: transform; }
+.odo-s > span { display: block; height: var(--odo-h); text-align: center; }
+.dc-amount:has(.odo) { animation: none; }
 .dc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dc-stats > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dc-stats .k { font-size: 12px; color: var(--label-3); }
@@ -1056,3 +1063,18 @@ a.dash-card:active { transform: scale(.985); background: var(--cell-press); }
 .ally-check.done .t { color: var(--label-3); }
 .ally-text { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
 .ally-text p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--label-2); }
+
+/* Alpha's figures on the Me tab: a goal and how far along it is, in ink. */
+.goal { padding: 9px 0; display: flex; flex-direction: column; gap: 6px; }
+.goal + .goal, .kv + .goal { border-top: 0.5px solid var(--sep); }
+.goal-k { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; color: var(--label-2); }
+.goal-v { color: var(--label); font-weight: 600; font-variant-numeric: tabular-nums; }
+.goal-bar { height: 6px; border-radius: 3px; background: var(--fill-2); overflow: hidden; }
+.goal-bar i { display: block; height: 100%; width: calc(var(--p) * 100%); background: var(--accent); border-radius: 3px; transform-origin: left; animation: goal-in .9s var(--ease-out); }
+.goal-d { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--label-3); }
+@keyframes goal-in { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .goal-bar i { animation: none; } }
+
+/* The language toggle on the Me tab. */
+.lang-seg .seg button { font-variant-numeric: normal; letter-spacing: .04em; }
+

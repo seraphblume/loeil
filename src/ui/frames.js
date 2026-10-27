@@ -19,6 +19,7 @@ import { livePromotions } from '../core/promotions.js';
 import { GiftBadge, GiftPanel } from './gifts.js';
 import { brandKey, fmtExpiry } from './format.js';
 import { setForFrame, setTable, frameFacts, autoDiscountFor } from '../core/sets.js';
+import { tr, trn, num } from '../i18n.js';
 
 /** What the campaign does for a frame: its set, or a discount that applies on its own. */
 function CampaignPanel({ frame, set, sun }) {
@@ -26,9 +27,9 @@ function CampaignPanel({ frame, set, sun }) {
   if (set) {
     const included = setTable(catalogue, set).filter((r) => !r.entry.price).map((r) => r.def.name.toLowerCase());
     return html`<section class="gap-s">
-      <${Eyebrow}>In a set<//>
+      <${Eyebrow}>${tr('In a set')}<//>
       <div class="group"><${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} · ID Maestro ${set.id}`}
-        detail=${`With single vision lenses${included.length ? ` (${included.join(', ')} included)` : ''}. Better lenses add their row.`} end=${money(set.price)} chev /></div>
+        detail=${included.length ? tr('With single vision lenses ({list} included). Better lenses add their row.', { list: included.join(', ') }) : tr('With single vision lenses. Better lenses add their row.')} end=${money(set.price)} chev /></div>
     </section>`;
   }
   if (sun) {
@@ -73,33 +74,33 @@ export function FramesScreen({ query }) {
   };
 
   return html`
-    <${Bar} backTo="#/find" title="Frames" />
+    <${Bar} backTo="#/find" title=${tr('Frames')} />
     <${Screen}>
       <div class="stack tight">
-        <div class="pad"><${SearchField} value=${term} onInput=${(v) => set({ q: v })} placeholder="Brand, model, colour or barcode" /></div>
-        <div class="chips" role="toolbar" aria-label="Filters">
+        <div class="pad"><${SearchField} value=${term} onInput=${(v) => set({ q: v })} placeholder=${tr('Brand, model, colour or barcode')} /></div>
+        <div class="chips" role="toolbar" aria-label=${tr('Filters')}>
           ${FILTERS.map((f) => {
             const v = filters[f.key];
             return html`<button type="button" class=${'chip' + (v != null ? ' on' : '')} onClick=${() => setPicking(f)}>
-              ${v != null ? (f.num ? `${v} mm` : v) : f.label}<${Icon} name=${v != null ? 'x' : 'chevR'} /></button>`;
+              ${v != null ? (f.num ? `${v} mm` : v) : tr(f.label)}<${Icon} name=${v != null ? 'x' : 'chevR'} /></button>`;
           })}
         </div>
         <div class="pad" style="display:flex;justify-content:space-between;align-items:baseline">
-          <${Eyebrow}>${result.total === 1 ? '1 frame' : `${result.total.toLocaleString('en')} frames`}<//>
-          ${Object.keys(filters).length > 0 && html`<button class="textbtn small" onClick=${() => go(href(['find', 'frames'], { q: term }), { replace: true })}>Clear filters</button>`}
+          <${Eyebrow}>${trn(result.total, '1 frame', '{n} frames', { n: num(result.total) })}<//>
+          ${Object.keys(filters).length > 0 && html`<button class="textbtn small" onClick=${() => go(href(['find', 'frames'], { q: term }), { replace: true })}>${tr('Clear filters')}</button>`}
         </div>
-        ${result.total === 0 ? html`<div class="pad"><${Empty} title="No frames match">Loosen a filter, or search by the eight barcode digits.<//></div>` : html`
+        ${result.total === 0 ? html`<div class="pad"><${Empty} title=${tr('No frames match')}>${tr('Loosen a filter, or search by the eight barcode digits.')}<//></div>` : html`
         <${List}>
           ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one badge=${html`<${GiftBadge} brand=${f.brand} />`}
             detail=${[f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
             end=${money(f.price)} />`)}
         <//>
-        ${result.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 100)}>Show more (${(result.total - limit).toLocaleString('en')} left)<//></div>`}`}
+        ${result.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 100)}>${tr('Show more ({a} left)', { a: (result.total - limit).toLocaleString('en') })}<//></div>`}`}
       </div>
     <//>
-    ${picking && html`<${Sheet} title=${picking.label} onClose=${() => setPicking(null)}>
+    ${picking && html`<${Sheet} title=${tr(picking.label)} onClose=${() => setPicking(null)}>
       <${List}>
-        <${Row} title="Any" onClick=${() => { set({ [picking.key]: null }); setPicking(null); }} />
+        <${Row} title=${tr('Any')} onClick=${() => { set({ [picking.key]: null }); setPicking(null); }} />
         ${valuesFor(picking.key).map(([v, n]) => html`<${Row} title=${picking.num ? `${v} mm` : v} count=${n}
           onClick=${() => { set({ [picking.key]: String(v) }); setPicking(null); }} />`)}
       <//>
@@ -111,47 +112,47 @@ export function FrameScreen({ sku }) {
   const frame = catalogue.framesBySku.get(sku);
   if (!frame) {
     if (catalogue.inventoryBySku.has(sku)) return html`<${StockScreen} sku=${sku} />`;
-    return html`<${Bar} backTo="#/find" title="Frame" /><${Screen}><div class="pad"><${Empty} title="Not in the catalogue">Barcode ${sku} is not in the frame catalogue or the stock list.<//></div><//>`;
+    return html`<${Bar} backTo="#/find" title=${tr('Frame')} /><${Screen}><div class="pad"><${Empty} title=${tr('Not in the catalogue')}>${tr('Barcode {a} is not in the frame catalogue or the stock list.', { a: sku })}<//></div><//>`;
   }
   const promos = livePromotions(catalogue).filter((p) => brandKey(p.conditions).includes(brandKey(frame.brand)));
   const set = setForFrame(catalogue, frame);
   const sun = set ? null : autoDiscountFor(catalogue, { kind: 'frame', sku: frame.sku });
   const add = async () => {
     await addLine(frameLine(frame, frame.price, 'catalogue'));
-    toast('Frame added to the order');
+    toast(tr('Frame added to the order'));
     go('#/find/order');
   };
   return html`
-    <${Bar} backTo="#/find/frames" title="Frame" />
+    <${Bar} backTo="#/find/frames" title=${tr('Frame')} />
     <${Screen} class="has-dock">
       <div class="stack pad">
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
-        <${Figure} value=${money(frame.price)} caption="Tag price" size=${38} />
+        <${Figure} value=${money(frame.price)} caption=${tr('Tag price')} size=${38} />
         <${GiftPanel} brand=${frame.brand} />
         <${CampaignPanel} frame=${frame} set=${set} sun=${sun} />
         <${Panel}>
-          <${KV} k="Barcode" v=${frame.sku} mono />
-          ${frame.product && html`<${KV} k="Product code" v=${frame.product} mono />`}
-          <${KV} k="Brand" v=${frame.brand} />
-          ${frame.tier && html`<${KV} k="Tier" v=${frame.tier.label} />`}
-          ${frame.category && html`<${KV} k="Category" v=${frame.category} />`}
-          ${frame.frameType && html`<${KV} k="Frame type" v=${frame.frameType} />`}
-          ${frame.material && html`<${KV} k="Material" v=${frame.material} />`}
-          ${frame.size && html`<${KV} k="Eye size" v=${`${frame.size} mm`} />`}
-          ${frame.classification && html`<${KV} k="Class" v=${frame.classification} />`}
+          <${KV} k=${tr('Barcode')} v=${frame.sku} mono />
+          ${frame.product && html`<${KV} k=${tr('Product code')} v=${frame.product} mono />`}
+          <${KV} k=${tr('Brand')} v=${frame.brand} />
+          ${frame.tier && html`<${KV} k=${tr('Tier')} v=${frame.tier.label} />`}
+          ${frame.category && html`<${KV} k=${tr('Category')} v=${frame.category} />`}
+          ${frame.frameType && html`<${KV} k=${tr('Frame type')} v=${frame.frameType} />`}
+          ${frame.material && html`<${KV} k=${tr('Material')} v=${frame.material} />`}
+          ${frame.size && html`<${KV} k=${tr('Eye size')} v=${`${frame.size} mm`} />`}
+          ${frame.classification && html`<${KV} k=${tr('Class')} v=${frame.classification} />`}
         <//>
         ${promos.length > 0 && html`<section class="gap-s">
-          <${Eyebrow}>Promotions naming this brand<//>
+          <${Eyebrow}>${tr('Promotions naming this brand')}<//>
           <${Panel} tight>${promos.map((p) => html`<div class="kv lined" style="display:block">
             <div style="display:flex;justify-content:space-between;gap:10px"><span>${p.name}</span><span class="mono sel">${p.id}</span></div>
             <div class="note">${p.conditions}</div></div>`)}<//>
-          <p class="note">Read the condition: some promotions exclude the brands they name.</p>
+          <p class="note">${tr('Read the condition: some promotions exclude the brands they name.')}</p>
         </section>`}
       </div>
     <//>
     <${Dock}>
-      <div class="dock-total"><span class="v">${money(set ? set.price : frame.price)}</span><span class="k">${set ? set.name : 'Tag price'}</span></div>
-      <${Anchor} icon="plus" onClick=${add}>Add to order<//>
+      <div class="dock-total"><span class="v">${money(set ? set.price : frame.price)}</span><span class="k">${set ? set.name : tr('Tag price')}</span></div>
+      <${Anchor} icon="plus" onClick=${add}>${tr('Add to order')}<//>
     <//>`;
 }
 
@@ -160,7 +161,7 @@ export function StockScreen({ sku }) {
   const catalogue = useApp((s) => s.catalogue);
   const item = catalogue.inventoryBySku.get(sku) ?? catalogue.listedOnlyBySku.get(sku);
   const [typed, setTyped] = useState('');
-  if (!item) return html`<${Bar} backTo="#/find" title="Stock" /><${Screen}><div class="pad"><${Empty} title="Not in the stock list">Barcode ${sku} is not in the inventory.<//></div><//>`;
+  if (!item) return html`<${Bar} backTo="#/find" title=${tr('Stock')} /><${Screen}><div class="pad"><${Empty} title=${tr('Not in the stock list')}>${tr('Barcode {a} is not in the inventory.', { a: sku })}<//></div><//>`;
   const listed = catalogue.accessoriesBySku.get(item.sku);
   const isFrame = item.kind === 'frame';
   const set = isFrame ? setForFrame(catalogue, frameFacts(catalogue, { sku: item.sku, description: item.description })) : null;
@@ -169,36 +170,36 @@ export function StockScreen({ sku }) {
   const add = async () => {
     if (isFrame) await addLine(frameLine({ sku: item.sku, product: item.vendorSku, description: item.description, stock: item.stock }, price, price == null ? 'set' : 'tag'));
     else await addLine(extraLine(item.sku, item.description, 1, item.stock));
-    toast('Added to the order');
+    toast(tr('Added to the order'));
     go('#/find/order');
   };
   return html`
-    <${Bar} backTo="#/find" title="Stock" />
+    <${Bar} backTo="#/find" title=${tr('Stock')} />
     <${Screen} class="has-dock">
       <div class="stack pad">
-        <${ScreenTitle} eyebrow=${STOCK_KIND_LABEL[item.kind]} title=${item.description} />
-        ${showsStock(item.kind) && item.stock === 0 && html`<${Flag}>None on hand. The stock list is a snapshot — confirm on the shelf.<//>`}
+        <${ScreenTitle} eyebrow=${tr(STOCK_KIND_LABEL[item.kind])} title=${item.description} />
+        ${showsStock(item.kind) && item.stock === 0 && html`<${Flag}>${tr('None on hand. The stock list is a snapshot — confirm on the shelf.')}<//>`}
         <${Panel}>
-          <${KV} k="Barcode" v=${item.sku} mono />
-          <${KV} k="Vendor SKU" v=${item.vendorSku} mono />
-          ${showsStock(item.kind) && html`<${KV} k="Stock" v=${stockLabel(item.stock)} em=${item.stock === 0} />`}
-          ${listed && html`<${KV} k="Price" v=${money(listed.price)} />`}
-          ${listed?.collection && html`<${KV} k="Collection" v=${listed.collection} />`}
-          ${item.classification && item.classification !== 'N/A' && html`<${KV} k="Class" v=${item.classification} />`}
-          ${item.expires && html`<${KV} k="Expiry" v=${fmtExpiry(item.expires)} />`}
+          <${KV} k=${tr('Barcode')} v=${item.sku} mono />
+          <${KV} k=${tr('Vendor SKU')} v=${item.vendorSku} mono />
+          ${showsStock(item.kind) && html`<${KV} k=${tr('Stock')} v=${stockLabel(item.stock)} em=${item.stock === 0} />`}
+          ${listed && html`<${KV} k=${tr('Price')} v=${money(listed.price)} />`}
+          ${listed?.collection && html`<${KV} k=${tr('Collection')} v=${listed.collection} />`}
+          ${item.classification && item.classification !== 'N/A' && html`<${KV} k=${tr('Class')} v=${item.classification} />`}
+          ${item.expires && html`<${KV} k=${tr('Expiry')} v=${fmtExpiry(item.expires)} />`}
         <//>
-        ${showsStock(item.kind) && item.batches > 1 && html`<p class="note">${item.batches} batches, earliest expiry shown.</p>`}
+        ${showsStock(item.kind) && item.batches > 1 && html`<p class="note">${tr('{a} batches, earliest expiry shown.', { a: item.batches })}</p>`}
         ${set && html`<${CampaignPanel} frame=${item} set=${set} />`}
         ${isFrame ? html`<section class="gap-s">
-          <${Eyebrow}>${set ? 'Tag price, if it goes outside the set' : 'Price from the tag'}<//>
+          <${Eyebrow}>${set ? tr('Tag price, if it goes outside the set') : tr('Price from the tag')}<//>
           <label class="field"><span class="unit">$</span>
-            <input inputmode="numeric" placeholder="Read it off the tag" value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
-          <p class="note">This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.</p>
-        </section>` : listed ? html`<p class="para">${listed.price <= 1 ? 'A gift: the register charges a cent for it.' : 'Priced from the accessory price list.'} It goes on the ticket with its code.</p>`
-          : html`<p class="para">Not in the accessory price list, so the register prices it. It goes on the ticket as a code and a quantity.</p>`}
+            <input inputmode="numeric" placeholder=${tr('Read it off the tag')} value=${typed} onInput=${(e) => setTyped(e.currentTarget.value)} /></label>
+          <p class="note">${tr('This frame is in stock but not in the catalogue, so its price is not known. An admin can add it under Me → Catalogue data → Frames; after the next publish its price is known here.')}</p>
+        </section>` : listed ? html`<p class="para">${listed.price <= 1 ? tr('A gift: the register charges a cent for it. It goes on the ticket with its code.') : tr('Priced from the accessory price list. It goes on the ticket with its code.')}</p>`
+          : html`<p class="para">${tr('Not in the accessory price list, so the register prices it. It goes on the ticket as a code and a quantity.')}</p>`}
       </div>
     <//>
     <${Dock}>
-      <${Anchor} icon="plus" disabled=${isFrame && !price && !set} onClick=${add}>Add to order<//>
+      <${Anchor} icon="plus" disabled=${isFrame && !price && !set} onClick=${add}>${tr('Add to order')}<//>
     <//>`;
 }

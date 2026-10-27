@@ -24,8 +24,9 @@
 // price here: it reaches the ticket as code, description and quantity, and the
 // register prices it. An invented price is worse than no price.
 
-import { uid, plural } from './util.js';
+import { uid } from './util.js';
 import { money } from './money.js';
+import { tr, trn } from '../i18n.js';
 import { lensCodeText } from './lens.js';
 import { promoNumbers } from './sets.js';
 import { allianceTotals } from './alliances.js';
@@ -36,7 +37,8 @@ export const STATUSES = [
   { id: 'sold', label: 'Sold' },
   { id: 'lost', label: 'Lost' },
 ];
-export const statusLabel = (id) => STATUSES.find((s) => s.id === id)?.label ?? id;
+/** In the app's language — on screen only; tickets never carry the status. */
+export const statusLabel = (id) => tr(STATUSES.find((s) => s.id === id)?.label ?? id);
 
 export const EYES = { OU: 'Both eyes', OD: 'Right (OD)', OS: 'Left (OS)' };
 
@@ -193,17 +195,17 @@ export const unpriced = (o) => priceOrder(o).unpriced;
 
 export function orderTitle(o) {
   const lens = o.lines.find((l) => l.kind === 'lens');
-  return lens ? lineText(lens) : o.lines[0] ? lineText(o.lines[0]) : 'Empty order';
+  return lens ? lineText(lens) : o.lines[0] ? lineText(o.lines[0]) : tr('Empty order');
 }
 
 export function composition(o) {
   const n = (k) => o.lines.filter((l) => l.kind === k).length;
   const bits = [];
-  if (n('lens')) bits.push(plural(n('lens'), 'lens line', 'lens lines'));
-  if (n('frame')) bits.push(plural(n('frame'), 'frame', 'frames'));
-  if (n('extra')) bits.push(plural(n('extra'), 'extra', 'extras'));
-  if (n('history')) bits.push('Ticket from Alpha');
-  return bits.length ? bits.join(', ') : 'Nothing yet';
+  if (n('lens')) bits.push(trn(n('lens'), '1 lens line', '{n} lens lines'));
+  if (n('frame')) bits.push(trn(n('frame'), '1 frame', '{n} frames'));
+  if (n('extra')) bits.push(trn(n('extra'), '1 extra', '{n} extras'));
+  if (n('history')) bits.push(tr('Ticket from Alpha'));
+  return bits.length ? bits.join(', ') : tr('Nothing yet');
 }
 
 export const lensesOf = (o) => o.lines.filter((l) => l.kind === 'lens').map((l) => l.lens);
