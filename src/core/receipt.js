@@ -156,7 +156,8 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
   const lenses = rows.filter((r) => r.line.kind === 'lens');
   const extras = rows.filter((r) => r.line.kind === 'extra');
   const promos = promoNumbers(order);
-  const manual = rows.filter((r) => typeof r.line.discount === 'number' && r.line.discount > 0);
+  // The seller's own percentage; a frame sticker's carries its promotion number instead.
+  const manual = rows.filter((r) => typeof r.line.discount === 'number' && r.line.discount > 0 && !r.line.promo);
   const setEnds = order.lines.map((l) => l.set?.id).filter(Boolean)
     .map((id) => catalogue?.setsById.get(id)?.validTo).filter(Boolean).sort()[0] ?? null;
   const fields = rxFields(rx, order.aob ?? null);

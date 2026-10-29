@@ -15,7 +15,10 @@
 //               of lens prices (prescription Polarex in a sun frame: $2,099
 //               with anti-scratch, $3,999 with anti-reflective…), and the ones
 //               the client claims by showing something (a Sam's Club card). A
-//               line takes one discount, never two.
+//               line takes one discount, never two. A discount can also name
+//               the percentages it gives a participating frame (framePicks:
+//               [30, 50]) — the frame's sticker says which, so the seller
+//               picks it on the line, and the frame leaves its set.
 //
 // A MATCH reads `family|material|design|filter|colour|coating`. Each part is
 // `*` (anything), a list of codes, or `*GROUP` for every code whose vocabulary
@@ -281,13 +284,30 @@ export function hitText(hit, money) {
  * brands (frames) or products (contact lenses), as the campaign states them.
  */
 export function autoDiscountFor(catalogue, line, on = new Date(), ctx = {}) {
-  const live = liveDiscounts(catalogue, on);
+  // A discount that only offers frame picks takes nothing off on its own.
+  const live = liveDiscounts(catalogue, on).filter((d) => d.prices?.length || d.percent > 0);
   if (!live.length) return null;
   const hits = live.map((d) => ({ d, hit: discountHit(catalogue, d, line, ctx) })).filter((x) => x.hit);
   if (!hits.length) return null;
   const list = listOf(line);
   const best = (xs) => xs.sort((a, b) => savingOf(b.hit, list) - savingOf(a.hit, list))[0]?.hit ?? null;
   return best(hits.filter((x) => !x.d.requires)) ?? best(hits.filter((x) => x.d.requires));
+}
+
+/**
+ * What a participating frame can take, as the campaign's stickers say: one
+ * choice per percentage — `{ id: '9009', name: 'Pre Buen Fin', percent: 50 }`.
+ * Ophthalmic or sun; a frame in a set leaves it when one is picked (sets and
+ * these discounts do not combine). Brands the discount excludes (`except`) get none.
+ */
+export function framePicks(catalogue, line, on = new Date()) {
+  if (line?.kind !== 'frame') return [];
+  const names = namesOf(catalogue, line);
+  const listed = (text) => nameList(text).some((alts) => alts.some((k) => names.includes(k)));
+  return liveDiscounts(catalogue, on)
+    .filter((d) => d.framePicks?.length && !d.requires)
+    .filter((d) => !listed(d.except))
+    .flatMap((d) => d.framePicks.map((percent) => ({ id: d.id, name: d.name, percent })));
 }
 
 /** The live discounts the client claims by showing something: Sam's Club. */
@@ -365,6 +385,7 @@ export function promoNumbers(order) {
     if (l.set) out.set(l.set.id, l.set.name);
     if (l.ally?.packaged) out.set(l.ally.convenio, l.ally.name);
     if (l.auto && typeof l.discount !== 'number') out.set(l.auto.id, l.auto.name);
+    if (l.promo && typeof l.discount === 'number' && l.discount > 0) out.set(l.promo.id, l.promo.name); // a frame's sticker
   }
   return [...out.entries()].map(([id, name]) => ({ id, name }));
 }

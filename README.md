@@ -227,8 +227,10 @@ never change a price.
 A line takes one discount, never two. In order:
 
 1. **A set** prices its frame and lenses (below).
-2. **Discounts that apply on their own**, while their dates run: 30% on HydraGlyde
-   contacts (9335), 20% on sunglasses sold as they are (9261), **30% off the lenses
+2. **Discounts that apply on their own**, while their dates run: 40% on HydraGlyde
+   contacts (9881) and 35% on Air Optix Colors (9880), 20% on sunglasses sold as they
+   are (9261), **30% off every pair of lenses outside a set** in Pre Buen Fin (9009,
+   29 Oct – 12 Nov), **30% off the lenses
    when the client brings their own frame** (9027: a pair with no frame on the order),
    and **prescription Polarex in a sunglass frame bought here** (8922, *Polariza tu
    Solar*). 8922 reprices the single vision polycarbonate Polarex lens itself, as the
@@ -241,6 +243,13 @@ A line takes one discount, never two. In order:
    every line nothing above covers — frames, lenses, contacts, accessories and
    Plus Protection (after it is worked out on the list prices) — but not a $0.01
    gift.
+
+**A participating frame's sticker.** Pre Buen Fin takes 30% or 50% off a frame
+only when its SKU participates, and only the sticker on the frame says so. On the
+frame's **Discount** chip the seller picks the sticker's percentage; the ticket then
+carries 9009, and a frame in a set leaves it (sets and this discount do not
+combine — *Use the set* on the frame brings it back and drops the sticker). The
+percentages are data: a discount's **Participating frames** (`30, 50`).
 
 The seller's own 40% or 50% on a line replaces all of these. Every discount is data
 (Catalogue data → Sets → Discounts): a percentage, or a table of lens prices (one

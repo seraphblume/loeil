@@ -10,7 +10,8 @@
 // lenses that goes with it at the set's row for that lens (core/sets.js) — the
 // draft is resolved against the campaign before it is priced.
 //
-// A priced line can carry a discount: one the seller chose (LINE_DISCOUNTS),
+// A priced line can carry a discount: one the seller chose (LINE_DISCOUNTS, or
+// a frame sticker's percentage, which carries its promotion number as `promo`),
 // or, when he has not chosen, the one that applies — a campaign percentage, a
 // fixed lens price, or one the client claimed (core/sets.js). An add-on with a
 // percentage, like Plus Protection, is priced from the glasses it covers — the
@@ -250,7 +251,7 @@ export function ticketText(order, clientName) {
     if (line.setLens?.id) out.push(`  ${line.setLens.setName}: ${line.setLens.name}`);
     if (isShare(line)) out.push(`  ${line.percent}% of ${money(r.base)} list${r.discount ? `, less ${r.discount}% (${line.auto.id})` : ''}: ${money(r.net)}`);
     else if (line.kind === 'lens' && line.auto?.price != null && typeof line.discount !== 'number') out.push(`  ${line.auto.id} ${line.auto.name} (instead of ${money(line.lens.priceCents)}): ${money(r.net)}`);
-    else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%${r.auto ? ` (${line.auto.id})` : ''}: ${money(r.net)}`);
+    else if (r.discount) out.push(`  ${money(r.list)} less ${r.discount}%${r.auto ? ` (${line.auto.id})` : line.promo ? ` (${line.promo.id})` : ''}: ${money(r.net)}`);
     else out.push(`  ${money(r.net)}`);
   }
   out.push('');

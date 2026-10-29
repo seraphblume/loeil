@@ -296,13 +296,15 @@ function contactFitCell(r) {
   return isYes(r.gas_permeable) ? 'gp' : null;
 }
 
-/** The optional discount columns: its lens price table, and what the client shows. */
+/** The optional discount columns: its lens price table, what the client shows, and a participating frame's percentages. */
 function discountExtras(r) {
   const out = {};
   const prices = parsePriceTable(cellText(r.prices));
   if (prices.length) out.prices = prices;
   const requires = cellText(r.requires).trim();
   if (requires) out.requires = requires;
+  const picks = cellText(r.frame_picks).split(/[,\s/]+/).map((v) => Number(v.replace('%', ''))).filter((v) => v > 0 && v <= 100);
+  if (picks.length) out.framePicks = picks;
   return out;
 }
 

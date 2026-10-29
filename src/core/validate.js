@@ -336,7 +336,10 @@ function validateSets(b, report) {
     if (dIds.has(d.id)) report.error('Campaign discounts', `Promotion ${d.id} is listed twice.`);
     dIds.add(d.id);
     const where = d.name || d.id;
-    if (!d.prices?.length && !(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    const picks = d.framePicks ?? [];
+    if (!d.prices?.length && !picks.length && !(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    if (picks.some((x) => !(x > 0 && x <= 100))) report.error('Campaign discounts', `${where}: every frame percentage must be more than 0 and at most 100.`);
+    if (picks.length && d.requires) report.warn('Campaign discounts', `${where}: frame percentages are picked by the seller, so they are not offered on a discount the client has to show something for.`);
     if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${where}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
     if (d.validFrom && d.validTo && d.validTo < d.validFrom) report.error('Campaign discounts', `${where} ends before it starts.`);
     for (const [i, row] of (d.prices ?? []).entries()) {

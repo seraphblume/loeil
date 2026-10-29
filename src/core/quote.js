@@ -51,6 +51,7 @@ function validUntil(order, catalogue, on) {
   for (const l of order.lines) {
     if (l.set?.id) ends.push(catalogue?.setsById?.get(l.set.id)?.validTo);
     if (l.auto?.id) ends.push((catalogue?.discounts ?? []).find((d) => d.id === l.auto.id)?.validTo);
+    if (l.promo?.id && typeof l.discount === 'number') ends.push((catalogue?.discounts ?? []).find((d) => d.id === l.promo.id)?.validTo);
   }
   const own = ends.filter(Boolean).sort()[0];
   if (own) return own;
