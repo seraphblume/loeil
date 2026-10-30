@@ -1,9 +1,12 @@
-// Files in and out of the data editor: workbooks (.xlsx) and the POS stock
-// report (.pdf). The readers load only when a file is actually picked.
+// Files in and out of the data editor: workbooks (.xlsx), the POS stock
+// report (.pdf), and the POS's report of the frames a promotion takes by SKU
+// (an .xls that is really an HTML table, or the same saved as .xlsx). The
+// readers load only when a file is actually picked.
 
 import { tablesFromWorkbook, readWorkbooks } from '../../core/ingest.js';
 import { parseStockReport, collapseStock } from '../../core/stockreport.js';
 import { bundleToWorkbooks } from '../../core/export.js';
+import { parseFrameSkuReport, frameSkusSummary } from '../../core/sets.js';
 import { Report } from '../../core/validate.js';
 import { tr } from '../../i18n.js';
 
@@ -48,8 +51,20 @@ export async function readFiles(files) {
   const pieces = {};
   const summary = [];
   const books = [];
+  const frameReport = (r, name) => {
+    const n = Object.keys(r.frameSkus).length;
+    if (!n) { report.error(name, tr('No participating frames were found in this report.')); return; }
+    pieces.frameSkus = { ...(pieces.frameSkus ?? {}), ...r.frameSkus };
+    summary.push(tr('Participating frames: {n} SKUs ({split}) from {file}', { n, split: frameSkusSummary(r.frameSkus), file: name }));
+    if (r.skipped) report.warn(name, tr('{n} rows had no 8-digit SKU or no percentage and were left out.', { n: r.skipped }));
+  };
   for (const f of files) {
-    if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+    const head = /\.(xls|html?)$/i.test(f.name) ? await f.slice(0, 4096).text() : '';
+    if (/<t[dr][\s>]/i.test(head) || /^\s*</.test(head)) {
+      const r = parseFrameSkuReport(await f.text());
+      if (r) frameReport(r, f.name);
+      else report.error(f.name, tr('This is not a report the app reads. The participating frames report needs the SKU_SAP and DESCUENTO_APLICADO columns.'));
+    } else if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
       const r = await readStockPdf(f);
       if (!r.rows.length) { report.error(f.name, tr('No stock rows were found. Is this the stock report (Reporte Existencias)?')); continue; }
       if (r.total != null && r.total !== r.rows.length) report.error(f.name, tr('The report says {total} rows but {read} were read. Nothing was replaced.', { total: r.total, read: r.rows.length }));
@@ -61,7 +76,16 @@ export async function readFiles(files) {
     } else {
       const XLSX = await loadXLSX();
       const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
-      books.push({ name: f.name, sheets: tablesFromWorkbook(XLSX, wb) });
+      const sheets = tablesFromWorkbook(XLSX, wb);
+      // The participating frames report, saved as a workbook: a sheet headed SKU_SAP … DESCUENTO_APLICADO.
+      const asReport = Object.values(sheets).map((t) => {
+        const at = t.rows.findIndex((r) => (r ?? []).some((c) => /^sku[_ ]?sap$/i.test(String(c ?? '').trim())));
+        if (at < 0) return null;
+        const keys = t.rows[at].map((c) => String(c ?? '').trim().toLowerCase().replace(/\s+/g, '_'));
+        return parseFrameSkuReport(t.rows.slice(at + 1).map((r) => Object.fromEntries(keys.map((k, i) => [k, r?.[i] ?? '']))));
+      }).find(Boolean);
+      if (asReport) frameReport(asReport, f.name);
+      else books.push({ name: f.name, sheets });
     }
   }
   if (books.length) {

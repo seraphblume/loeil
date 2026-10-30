@@ -15,10 +15,14 @@
 //               of lens prices (prescription Polarex in a sun frame: $2,099
 //               with anti-scratch, $3,999 with anti-reflective…), and the ones
 //               the client claims by showing something (a Sam's Club card). A
-//               line takes one discount, never two. A discount can also name
-//               the percentages it gives a participating frame (framePicks:
-//               [30, 50]) — the frame's sticker says which, so the seller
-//               picks it on the line, and the frame leaves its set.
+//               line takes one discount, never two. A discount can also list
+//               the frames that participate, by SKU, each with its percentage
+//               (frameSkus: { '20105189': 50 }, from the POS's report): a listed
+//               frame outside a set takes it on its own, and one in a set
+//               keeps the set unless the seller takes the frame out of it
+//               (sets and these discounts do not combine). Without a list, a
+//               discount can name sticker percentages (framePicks: [30, 50])
+//               for the seller to pick on the frame.
 //
 // A MATCH reads `family|material|design|filter|colour|coating`. Each part is
 // `*` (anything), a list of codes, or `*GROUP` for every code whose vocabulary
@@ -192,6 +196,17 @@ function namesOf(catalogue, line) {
   return p ? [p.code, p.label, p.pos].map(brandKey).filter(Boolean) : [];
 }
 
+/**
+ * A participating frame's percentage under a discount that lists its SKUs
+ * (`frameSkus: { '20105189': 50 }`), or null. The list is the POS's report of
+ * the participating frames: a frame not on it takes nothing.
+ */
+export function frameSkuPercent(d, line) {
+  if (line?.kind !== 'frame' || !d?.frameSkus) return null;
+  const p = Number(d.frameSkus[String(line.sku ?? '').trim()]);
+  return p > 0 && p <= 100 ? p : null;
+}
+
 /** What a line costs before any discount, for comparing what each discount saves. */
 function listOf(line) {
   if (line.kind === 'lens') return line.lens?.priceCents ?? 0;
@@ -227,6 +242,15 @@ export function priceTableText(rows) {
  */
 function discountHit(catalogue, d, line, ctx) {
   if (d.requires && !ctx.claimed?.has(d.id)) return null;
+  if (line.kind === 'frame' && d.frameSkus) {
+    // A participating frame, by its SKU: its own percentage, outside a set (in
+    // one it is the seller's choice — frameDeal). `except` still names brands.
+    const percent = frameSkuPercent(d, line);
+    if (percent == null || line.set) return null;
+    const names = namesOf(catalogue, line);
+    if (nameList(d.except).some((alts) => alts.some((k) => names.includes(k)))) return null;
+    return { id: d.id, name: d.name, percent };
+  }
   const isContact = line.kind === 'lens' && line.lens?.family === 'CL';
   const isSpectacle = line.kind === 'lens' && !isContact;
   const isFrame = line.kind === 'frame';
@@ -284,8 +308,8 @@ export function hitText(hit, money) {
  * brands (frames) or products (contact lenses), as the campaign states them.
  */
 export function autoDiscountFor(catalogue, line, on = new Date(), ctx = {}) {
-  // A discount that only offers frame picks takes nothing off on its own.
-  const live = liveDiscounts(catalogue, on).filter((d) => d.prices?.length || d.percent > 0);
+  // A discount that only offers sticker picks takes nothing off on its own; a list of frame SKUs does.
+  const live = liveDiscounts(catalogue, on).filter((d) => d.prices?.length || d.percent > 0 || d.frameSkus);
   if (!live.length) return null;
   const hits = live.map((d) => ({ d, hit: discountHit(catalogue, d, line, ctx) })).filter((x) => x.hit);
   if (!hits.length) return null;
@@ -299,15 +323,83 @@ export function autoDiscountFor(catalogue, line, on = new Date(), ctx = {}) {
  * choice per percentage — `{ id: '9009', name: 'Pre Buen Fin', percent: 50 }`.
  * Ophthalmic or sun; a frame in a set leaves it when one is picked (sets and
  * these discounts do not combine). Brands the discount excludes (`except`) get none.
+ * A discount that lists its frames by SKU offers no stickers: the list decides (frameDeal).
  */
 export function framePicks(catalogue, line, on = new Date()) {
   if (line?.kind !== 'frame') return [];
   const names = namesOf(catalogue, line);
   const listed = (text) => nameList(text).some((alts) => alts.some((k) => names.includes(k)));
   return liveDiscounts(catalogue, on)
-    .filter((d) => d.framePicks?.length && !d.requires)
+    .filter((d) => d.framePicks?.length && !d.frameSkus && !d.requires)
     .filter((d) => !listed(d.except))
     .flatMap((d) => d.framePicks.map((percent) => ({ id: d.id, name: d.name, percent })));
+}
+
+/**
+ * The live discount a frame participates in by its SKU, with its percentage —
+ * `{ id: '9009', name: 'Pre Buen Fin', percent: 50 }` — whether or not the
+ * frame is in a set right now; null when its SKU is on no list. With two, the
+ * larger percentage.
+ */
+export function frameDeal(catalogue, line, on = new Date()) {
+  if (line?.kind !== 'frame' || !line.sku) return null;
+  const names = namesOf(catalogue, line);
+  const deals = liveDiscounts(catalogue, on)
+    .filter((d) => d.frameSkus && !d.requires)
+    .filter((d) => !nameList(d.except).some((alts) => alts.some((k) => names.includes(k))))
+    .map((d) => ({ id: d.id, name: d.name, percent: frameSkuPercent(d, line) }))
+    .filter((x) => x.percent != null)
+    .sort((a, b) => b.percent - a.percent);
+  return deals[0] ?? null;
+}
+
+/** `{ '20105189': 50, … }` → `95 at 50% · 90 at 30%`, largest first — for the screens. */
+export function frameSkusSummary(frameSkus, t = tr) {
+  const by = new Map();
+  for (const p of Object.values(frameSkus ?? {})) by.set(p, (by.get(p) ?? 0) + 1);
+  return [...by.entries()].sort((a, b) => b[0] - a[0]).map(([p, n]) => t('{n} at {p}%', { n, p })).join(' · ');
+}
+
+/**
+ * The POS's report of participating frames — `SKU_SAP` and `DESCUENTO_APLICADO`
+ * ("Descuento del %50"), saved as an .xls that is really an HTML table, or as
+ * rows already read from a workbook — → `{ '20105189': 50, … }`. Rows without
+ * an 8-digit SKU or a percentage are left out and counted.
+ */
+export function parseFrameSkuReport(input) {
+  let rows = input;
+  if (typeof input === 'string') {
+    const cells = (row) => [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim());
+    const trs = [...input.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((m) => cells(m[1]));
+    const head = trs.findIndex((r) => r.some((c) => /^sku[_ ]?sap$/i.test(c)));
+    if (head < 0) return null;
+    const keys = trs[head].map((c) => c.toLowerCase().replace(/\s+/g, '_'));
+    rows = trs.slice(head + 1).map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] ?? ''])));
+  }
+  if (!Array.isArray(rows) || !rows.length || !('sku_sap' in rows[0])) return null;
+  const out = {};
+  let skipped = 0;
+  for (const r of rows) {
+    if (Object.values(r).some((v) => /^total:?$/i.test(String(v).trim()))) continue; // the report's count, not a frame
+    const sku = String(r.sku_sap ?? '').replace(/\D/g, '');
+    const pct = Number((String(r.descuento_aplicado ?? r.descuento ?? '').match(/(\d+(?:\.\d+)?)/) ?? [])[1]);
+    if (sku.length !== 8 || !(pct > 0 && pct <= 100)) { if (sku || r.descuento_aplicado) skipped++; continue; }
+    out[sku] = pct;
+  }
+  return { frameSkus: out, skipped };
+}
+
+/** `20105189 = 50` per line ↔ `{ '20105189': 50 }`, for the editor and the workbooks. */
+export function frameSkusText(frameSkus, sep = '\n') {
+  return Object.entries(frameSkus ?? {}).map(([sku, p]) => `${sku} = ${p}`).join(sep);
+}
+export function parseFrameSkusText(text) {
+  const out = {};
+  for (const part of String(text ?? '').split(/[\n;]+/)) {
+    const m = part.match(/(\d{8})\D+(\d+(?:\.\d+)?)/);
+    if (m && Number(m[2]) > 0 && Number(m[2]) <= 100) out[m[1]] = Number(m[2]);
+  }
+  return out;
 }
 
 /** The live discounts the client claims by showing something: Sam's Club. */

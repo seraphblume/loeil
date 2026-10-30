@@ -25,7 +25,7 @@ import { PresetSheet } from './presets.js';
 import { FramePickSheet } from './framepick.js';
 import { solutionClash, clashParts, polarexCrizalLines, POLAREX_CRIZAL } from '../core/presets.js';
 import { LINE_DISCOUNTS } from '../config.js';
-import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText, framePicks } from '../core/sets.js';
+import { promoNumbers, setTable, rowPriceText, claimableDiscounts, savingOf, hitText, framePicks, frameDeal, resolveOrder } from '../core/sets.js';
 import { FAMILIES } from '../core/lens.js';
 import { eligibility } from '../core/promotions.js';
 import { guidance, rxIsBlank, newClient, CL_FITS, fitComplete, fitText, blankFit } from '../core/crm.js';
@@ -74,6 +74,8 @@ export function LinesPanel({ order, editable }) {
         const l = r.line;
         const steps = editable && (l.kind === 'extra' ? !isShare(l) : l.kind === 'lens' && !isPair(l));
         const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
+        // A participating frame still in its set: its percentage is one tap away, outside the set.
+        const deal = editable && l.kind === 'frame' && l.set && typeof l.discount !== 'number' ? frameDeal(catalogue, l) : null;
         const via = l.ally?.packaged ? tr('In the plan’s package')
           : l.setExcluded ? `${tr('{set} doesn’t include these lenses', { set: l.setExcluded.name })} · ${l.placeholder ? tr('from its lowest catalogue price') : tr('frame at its full price')}`
           : l.outsideSet ? tr('Not in {set}’s table · its own price', { set: l.outsideSet.setName })
@@ -102,7 +104,7 @@ export function LinesPanel({ order, editable }) {
               ${l.auto?.pending && !l.setLens && html`<button type="button" class="chip warn" onClick=${() => editable && setOpen({ kind: 'discount', r })}>${tr('{a} · price to confirm', { a: l.auto.id })}</button>`}
               ${l.ally?.packaged && html`<span class="chip on">${tr('Package {a}', { a: l.ally.convenio })}</span>`}
               ${discountable(l) && !r.pending && (editable && !noDiscounts
-                ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? tr('Discount')}</button>`
+                ? html`<button type="button" class=${'chip' + (discountChip(r) ? ' on' : '')} onClick=${() => setOpen({ kind: 'discount', r })}>${discountChip(r) ?? (deal ? tr('Or −{n}% · {id}', { n: deal.percent, id: deal.id }) : tr('Discount'))}</button>`
                 : discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`)}
               ${!discountable(l) && discountChip(r) && html`<span class="chip on">${discountChip(r)}</span>`}
               ${l.kind === 'extra' && !isShare(l) && l.priceCents === 1 && html`<span class="tiny muted">${tr('gift')}</span>`}
@@ -123,7 +125,7 @@ export function LinesPanel({ order, editable }) {
         </div>`;
       })}
     <//>
-    ${open?.kind === 'discount' && html`<${DiscountSheet} row=${open.r} onClose=${() => setOpen(null)} />`}
+    ${open?.kind === 'discount' && html`<${DiscountSheet} row=${open.r} order=${order} onClose=${() => setOpen(null)} />`}
     ${open?.kind === 'set' && html`<${SetFrameSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
     ${open?.kind === 'row' && html`<${SetRowSheet} line=${open.r.line} onClose=${() => setOpen(null)} />`}
     ${open?.kind === 'fit' && html`<${FitSheet} line=${open.r.line} fit=${lineFit(open.r.line, catalogue)} onClose=${() => setOpen(null)} />`}
@@ -133,9 +135,10 @@ export function LinesPanel({ order, editable }) {
 /**
  * The campaign's discount if one applies, a participating frame's sticker
  * (Pre Buen Fin 30% or 50%), none, or a set percentage — each with what the
- * line comes to.
+ * line comes to. A frame on a promotion's list that belongs to a set chooses
+ * between the two, each with what the whole order comes to.
  */
-function DiscountSheet({ row, onClose }) {
+function DiscountSheet({ row, order, onClose }) {
   const catalogue = useApp((s) => s.catalogue);
   const l = row.line;
   const auto = l.offer ?? null; // what applies without the seller, worked out with the order
@@ -153,6 +156,13 @@ function DiscountSheet({ row, onClose }) {
   };
   const at = (pct, base = list) => money(base - Math.round((base * pct) / 100));
   const manual = typeof l.discount === 'number';
+  // The set, or the frame out of it at its promotion's percentage (sets and the promotion do not combine).
+  const deal = l.kind === 'frame' && l.setAvailable && !l.setExcluded && order && !(order.ally && !order.ally.combines) ? frameDeal(catalogue, l) : null;
+  const totalWith = (patch) => clientPays(priceOrder(resolveOrder({ ...order, lines: order.lines.map((x) => (x.id === l.id ? { ...x, ...patch } : x)) }, catalogue)));
+  const choice = deal ? { set: totalWith({ noSet: false, discount: undefined, promo: undefined }), out: totalWith({ noSet: true, discount: undefined, promo: undefined }) } : null;
+  const untagged = l.priceCents == null; // a frame from stock with no tag price typed: outside the set the register prices it
+  const choose = (noSet) => { updateLine(l.id, { noSet, discount: undefined, promo: undefined }); onClose(); };
+  const less = (a, b) => (!untagged && a < b ? tr('{a} less', { a: money(b - a) }) : null);
   const autoEnd = auto ? (auto.pending ? tr('To confirm') : auto.price != null ? money(auto.price) : money(list - savingOf(auto, list))) : '';
   return html`<${Sheet} title=${tr('Discount')} onClose=${onClose}>
     <div class="stack tight">
@@ -162,8 +172,15 @@ function DiscountSheet({ row, onClose }) {
           end=${html`${at(s.percent, own)}${manual && l.promo?.id === s.id && l.discount === s.percent ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pickSticker(s)} />`)}
       <//>
       <p class="note pad">${l.set ? tr('Only when the frame carries the sticker. Picking one takes the frame out of {set}: sets and this discount do not combine.', { set: l.set.name }) : tr('Only when the frame carries the sticker.')}</p>`}
+      ${choice && html`<${Section} title=${tr('Participating frame')}>
+        <${Row} title=${l.setAvailable.name} detail=${`${tr('ID Maestro')} ${l.setAvailable.id} · ${tr('frame and single vision lenses')}`} sub=${less(choice.set, choice.out)}
+          end=${html`${money(choice.set)}${l.set && !manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => choose(false)} />
+        <${Row} title=${`${deal.name} −${deal.percent}%`} detail=${`${tr('Promotion {id}', { id: deal.id })} · ${tr('outside the set')}`} sub=${less(choice.out, choice.set)}
+          end=${html`${untagged ? tr('Needs the tag price') : money(choice.out)}${!l.set && !manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => choose(true)} />
+      <//>
+      <p class="note pad">${untagged ? tr('This frame’s tag price is not on the order, so outside the set the register prices it. To compare, add the frame again with the price read off its tag.') : tr('What the whole order comes to either way: the set and {name} do not combine.', { name: deal.name })}</p>`}
       <${List}>
-        ${auto && html`<${Row} title=${auto.name} detail=${`${tr('Promotion {id}', { id: auto.id })} · ${hitText(auto, money)}`}
+        ${auto && !(deal && auto.id === deal.id) && html`<${Row} title=${auto.name} detail=${`${tr('Promotion {id}', { id: auto.id })} · ${hitText(auto, money)}`}
           end=${html`${autoEnd}${!manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(undefined)} />`}
         ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? tr('{n}% off', { n: pct }) : tr('No discount')}
           end=${html`${at(pct)}${manual && !l.promo && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}

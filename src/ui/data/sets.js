@@ -16,7 +16,9 @@ import { resolve } from '../../core/lens.js';
 import {
   upsertSet, deleteSet, setSetPrice, upsertSetLens, deleteSetLens, upsertDiscount, deleteDiscount, setCampaignDates,
 } from '../../core/edits.js';
-import { SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount, parsePriceTable, priceTableText } from '../../core/sets.js';
+import {
+  SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount, parsePriceTable, priceTableText, frameSkusText, parseFrameSkusText, frameSkusSummary,
+} from '../../core/sets.js';
 import { tr, trn } from '../../i18n.js';
 
 const saved = (m = 'Saved to the working copy') => toast(tr(m));
@@ -176,12 +178,13 @@ export function DiscountsScreen() {
         <p class="para pad">${tr('Applied by the order on its own while their dates run — a percentage, or a table of lens prices. One that names what the client shows (a membership card) waits for the seller to switch it on. A line takes one discount, never two, and the seller can still change it on the line.')}</p>
         ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${d.id} · ${tr(APPLIES_TO[d.appliesTo] ?? d.appliesTo)} · ${when(d)}`}
           sub=${[d.requires && tr('Shows: {what}', { what: d.requires }), d.prices?.length && (d.prices.some((r) => r.price == null) ? tr('{n} lens prices, some to confirm', { n: d.prices.length }) : tr('{n} lens prices', { n: d.prices.length })),
-            d.framePicks?.length && tr('Participating frames: {list}', { list: d.framePicks.map((x) => `${x}%`).join(' / ') }),
+            d.frameSkus ? trn(Object.keys(d.frameSkus).length, '1 participating frame ({split})', '{n} participating frames ({split})', { split: frameSkusSummary(d.frameSkus) })
+              : d.framePicks?.length && tr('Participating frames: {list}', { list: d.framePicks.map((x) => `${x}%`).join(' / ') }),
             d.only && tr('Only {a}', { a: d.only }), d.except && tr('Not {a}', { a: d.except })].filter(Boolean).join(' · ') || null}
           end=${amount(d)} off=${setStatus(d) === 'Ended'} onClick=${() => setOpen({ d, id: d.id })} />`)}<//>` : html`<div class="pad"><${Empty} title=${tr('None')}>${tr('Add one with +.')}<//></div>`}
       </div>
     <//>
-    ${open && html`<${FormSheet} title=${open.id ? tr('Discount') : tr('New discount')} initial=${{ ...open.d, pricesText: priceTableText(open.d.prices), framePicksText: (open.d.framePicks ?? []).join(', ') }} onClose=${() => setOpen(null)}
+    ${open && html`<${FormSheet} title=${open.id ? tr('Discount') : tr('New discount')} initial=${{ ...open.d, pricesText: priceTableText(open.d.prices), framePicksText: (open.d.framePicks ?? []).join(', '), frameSkusText: frameSkusText(open.d.frameSkus) }} onClose=${() => setOpen(null)}
       fields=${[
         { key: 'id', label: 'Promotion no.', required: true, inputmode: 'numeric', group: 'Discount' },
         { key: 'name', label: 'Name', required: true, placeholder: '30% off contact lenses', group: 'Discount' },
@@ -189,8 +192,10 @@ export function DiscountsScreen() {
         { key: 'percent', label: 'Percent', type: 'number', group: 'How much', hint: 'Or lens prices below instead.' },
         { key: 'pricesText', label: 'Lens prices', type: 'textarea', group: 'How much', placeholder: 'SV|*POLY|*|*POLAR|PLG,PLV,PLC|ARC = 3999',
           hint: 'One lens per line: family|material|design|filter|colour|coating, as in the set rows, then = the pair’s price. “= ?” for a lens the offer covers at a price not known yet. The first line that matches wins, and the price replaces the lens’s own, as the register prints it.' },
-        { key: 'framePicksText', label: 'Participating frames', placeholder: '30, 50', group: 'How much',
-          hint: 'Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.' },
+        { key: 'frameSkusText', label: 'Participating frame SKUs', type: 'textarea', rows: 6, placeholder: '20105189 = 50', group: 'How much',
+          hint: 'One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) fills this in. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.' },
+        { key: 'framePicksText', label: 'Sticker percentages', placeholder: '30, 50', group: 'How much',
+          hint: 'Only without a list of SKUs. Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.' },
         { key: 'requires', label: 'The client shows', placeholder: 'e.g. Sam’s Club membership card', group: 'Who', hint: 'Set: the seller switches it on for the order. Blank: it applies on its own.' },
         { key: 'only', label: 'Only', type: 'textarea', group: 'Who', hint: 'Leave blank for all. Otherwise the brands (frames) or products (contact lenses) it is limited to, separated by commas.' },
         { key: 'except', label: 'Except', type: 'textarea', group: 'Who', hint: 'Brands or products it never applies to, separated by commas.' },
@@ -205,8 +210,12 @@ export function DiscountsScreen() {
         if (prices.length) d.prices = prices;
         const picks = String(x.framePicksText ?? '').split(/[,\s/]+/).map((v) => Number(v.replace('%', ''))).filter((v) => v > 0 && v <= 100);
         if (picks.length) d.framePicks = [...new Set(picks)].sort((a, b) => a - b);
+        const skus = parseFrameSkusText(x.frameSkusText);
+        const unreadable = String(x.frameSkusText ?? '').split(/[\n;]+/).filter((l) => l.trim() && !Object.keys(parseFrameSkusText(l)).length);
+        if (unreadable.length) return tr('Every participating frame needs its 8-digit SKU and a percentage: 20105189 = 50.');
+        if (Object.keys(skus).length) d.frameSkus = skus;
         if (String(x.requires ?? '').trim()) d.requires = String(x.requires).trim();
-        if (!prices.length && !picks.length && !(d.percent > 0 && d.percent <= 100)) return tr('Give a percentage (more than 0, at most 100), lens prices or frame percentages.');
+        if (!prices.length && !picks.length && !d.frameSkus && !(d.percent > 0 && d.percent <= 100)) return tr('Give a percentage (more than 0, at most 100), lens prices or frame percentages.');
         edit((b) => upsertDiscount(b, d, open.id)); saved();
       }}
       onDelete=${open.id ? () => { edit((b) => deleteDiscount(b, open.id)); saved('Removed'); } : null} />`}`;

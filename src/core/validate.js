@@ -8,7 +8,9 @@
 import { parseCodeLabel, brandKey } from './util.js';
 import { stockKind } from './stock.js';
 import { PRICE_BOUNDS, EMPLOYEE_NUMBER_DIGITS, TRUE_SKU_DIGITS } from '../config.js';
-import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO } from './sets.js';
+import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO, frameSkusSummary } from './sets.js';
+
+const english = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? ''); // the gate speaks English
 import { isPolarexCrizal, POLAREX_CRIZAL } from './catalogue.js';
 import { clMatches } from './presets.js';
 import { validateAlliances } from './alliances.js';
@@ -337,7 +339,21 @@ function validateSets(b, report) {
     dIds.add(d.id);
     const where = d.name || d.id;
     const picks = d.framePicks ?? [];
-    if (!d.prices?.length && !picks.length && !(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    const skus = Object.entries(d.frameSkus ?? {});
+    if (!d.prices?.length && !picks.length && !skus.length && !(d.percent > 0 && d.percent <= 100)) report.error('Campaign discounts', `${where}: the percentage must be more than 0 and at most 100.`);
+    if (d.frameSkus) {
+      const badSku = skus.filter(([sku]) => !new RegExp(`^\\d{${TRUE_SKU_DIGITS}}$`).test(sku)).map(([sku]) => sku);
+      if (badSku.length) report.error('Campaign discounts', `${where}: ${badSku.length} participating frame${badSku.length > 1 ? 's do' : ' does'} not have a ${TRUE_SKU_DIGITS}-digit SKU (${badSku.slice(0, 5).join(', ')}).`);
+      const badPct = skus.filter(([, p]) => !(p > 0 && p <= 100)).map(([sku]) => sku);
+      if (badPct.length) report.error('Campaign discounts', `${where}: every participating frame's percentage must be more than 0 and at most 100 (${badPct.slice(0, 5).join(', ')}).`);
+      if (!skus.length) report.warn('Campaign discounts', `${where}: the list of participating frames is empty, so no frame takes it.`);
+      if (picks.length && skus.length) report.note('Campaign discounts', `${where}: it lists its participating frames, so the sticker percentages (${picks.join(', ')}) are not offered.`);
+      if (skus.length) {
+        const known = new Set([...b.frames.map((f) => f.sku), ...(b.inventory ?? []).map((i) => i.sku)]);
+        const unknown = skus.filter(([sku]) => !known.has(sku)).map(([sku]) => sku);
+        report.note('Campaign discounts', `${where}: ${skus.length} participating frame${skus.length > 1 ? 's' : ''} (${frameSkusSummary(d.frameSkus, english)}).${unknown.length ? ` ${unknown.length} ${unknown.length > 1 ? 'are' : 'is'} in neither the frame catalogue nor the stock list: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? '…' : ''}.` : ''}`);
+      }
+    }
     if (picks.some((x) => !(x > 0 && x <= 100))) report.error('Campaign discounts', `${where}: every frame percentage must be more than 0 and at most 100.`);
     if (picks.length && d.requires) report.warn('Campaign discounts', `${where}: frame percentages are picked by the seller, so they are not offered on a discount the client has to show something for.`);
     if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${where}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);

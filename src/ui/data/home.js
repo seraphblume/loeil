@@ -4,7 +4,9 @@
 
 import { html, useState, useRef, useMemo } from '../html.js';
 import { useApp } from '../hooks.js';
-import { Bar, Screen, Section, Row, Panel, KV, Eyebrow, Secondary, Quiet, Confirm, Flag, Sheet, Anchor, daysAgo } from '../kit.js';
+import { Bar, Screen, Section, Row, List, Panel, KV, Eyebrow, Secondary, Quiet, Confirm, Flag, Sheet, Anchor, daysAgo } from '../kit.js';
+import { Icon } from '../icons.js';
+import { APPLIES_TO, setStatus, frameSkusSummary } from '../../core/sets.js';
 import { workingCatalogue, review, edit, discardWorking } from '../../state/working.js';
 import { applyPieces } from '../../core/edits.js';
 import { readFiles, exportWorkbooks } from './io.js';
@@ -86,9 +88,9 @@ export function DataHome() {
 
         <div class="pad gap-s">
           <${Eyebrow}>${tr('Files')}<//>
-          <p class="para">${tr('Nothing needs a spreadsheet any more. Files are only for bringing a lot in at once — the POS stock report, or a workbook edited on a computer — and for keeping an offline copy.')}</p>
-          <input ref=${fileRef} type="file" multiple accept=".xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pick} />
-          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>${tr('Import a stock report or workbook')}<//>
+          <p class="para">${tr('Nothing needs a spreadsheet any more. Files are only for bringing a lot in at once — the POS stock report, the report of a promotion’s participating frames, or a workbook edited on a computer — and for keeping an offline copy.')}</p>
+          <input ref=${fileRef} type="file" multiple accept=".xlsx,.xls,.htm,.html,.pdf,application/pdf,application/vnd.ms-excel,text/html,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pick} />
+          <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>${tr('Import a report or workbook')}<//>
           <${Secondary} icon="download" disabled=${!bundle} onClick=${exportAll}>${tr('Export as workbooks')}<//>
           ${busy && html`<p class="note">${busy}</p>`}
         </div>
@@ -103,9 +105,14 @@ export function DataHome() {
 
 function ImportSheet({ result, onClose }) {
   const { pieces, report, summary } = result;
-  const has = Object.keys(pieces).some((k) => k !== 'source');
+  const { bundle } = useWorking();
+  // A participating frames report does not say which promotion it is for: the one that already
+  // lists frames (or offers stickers) is the likely one; any discount that has not ended can take it.
+  const targets = pieces.frameSkus ? (bundle?.discounts ?? []).filter((d) => !d.requires && setStatus(d) !== 'Ended') : [];
+  const [target, setTarget] = useState(() => (targets.find((d) => d.frameSkus) ?? targets.find((d) => d.framePicks?.length) ?? targets[0])?.id ?? null);
+  const has = Object.keys(pieces).some((k) => k !== 'source' && k !== 'frameSkus') || Boolean(pieces.frameSkus && target);
   const apply = () => {
-    edit((b) => applyPieces(b, pieces));
+    edit((b) => applyPieces(b, { ...pieces, frameSkusFor: target }));
     toast(tr('Imported into the working copy'));
     onClose();
   };
@@ -113,6 +120,14 @@ function ImportSheet({ result, onClose }) {
     <div class="pad stack tight">
       ${summary.map((s) => html`<p class="para">${s}</p>`)}
       ${report.errors.map((e) => html`<${Flag}>${e.sheet}: ${e.message}<//>`)}
+      ${pieces.frameSkus && html`<section class="gap-s">
+        <${Eyebrow}>${tr('For the promotion')}<//>
+        ${targets.length ? html`<${List} flush>${targets.map((d) => html`<${Row} key=${d.id} title=${d.name} detail=${`${d.id} · ${tr(APPLIES_TO[d.appliesTo] ?? d.appliesTo)}`}
+          sub=${d.frameSkus ? tr('Lists {n} frames now ({split})', { n: Object.keys(d.frameSkus).length, split: frameSkusSummary(d.frameSkus) }) : null}
+          end=${target === d.id ? html`<${Icon} name="check" />` : ''} onClick=${() => setTarget(d.id)} />`)}<//>`
+          : html`<p class="para">${tr('No campaign discount is running to take these frames. Add one under Sets → Discounts first.')}</p>`}
+        <p class="note">${tr('The list replaces the promotion’s participating frames. A listed frame outside a set takes its percentage on its own.')}</p>
+      </section>`}
       ${report.warnings.length > 0 && html`<p class="note">${trn(report.warnings.length, '1 warning — you will see it on the review screen.', '{n} warnings — you will see them on the review screen.')}</p>`}
       ${has ? html`
         <p class="note">${tr('Each part replaces the same part of the working copy. Review the changes before you publish; nothing reaches a phone until then.')}</p>

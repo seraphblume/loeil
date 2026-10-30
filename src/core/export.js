@@ -5,7 +5,7 @@
 import { cellText } from './util.js';
 import { STORE_FIELDS } from './store.js';
 import { itemsText } from './presets.js';
-import { priceTableText } from './sets.js';
+import { priceTableText, frameSkusText } from './sets.js';
 
 const amount = (cents) => (cents == null ? null : cents / 100);
 
@@ -53,10 +53,10 @@ export function bundleToWorkbooks(b, XLSX) {
     ...(b.setLenses ?? []).map((d) => [d.id, d.group, d.name, d.match])], [16, 18, 44, 50]);
   add(backend, 'set_prices', [['set_id', 'lens_id', 'price', 'special'],
     ...(b.setPrices ?? []).map((p) => [p.setId, p.lensId, amount(p.price), p.special ? 'YES' : ''])], [10, 16, 9, 8]);
-  add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to', 'prices', 'requires', 'frame_picks'],
+  add(backend, 'discounts', [['promo_id', 'name', 'percent', 'applies_to', 'only', 'except', 'valid_from', 'valid_to', 'prices', 'requires', 'frame_picks', 'frame_skus'],
     ...(b.discounts ?? []).map((d) => [d.id, d.name, d.percent, d.appliesTo, d.only ?? '', d.except ?? '', d.validFrom, d.validTo,
-      priceTableText(d.prices), d.requires ?? '', (d.framePicks ?? []).join(', ')])],
-    [10, 30, 8, 12, 40, 50, 11, 11, 56, 28]);
+      priceTableText(d.prices), d.requires ?? '', (d.framePicks ?? []).join(', '), frameSkusText(d.frameSkus, '; ')])],
+    [10, 30, 8, 12, 40, 50, 11, 11, 56, 28, 12, 60]);
   add(backend, 'presets', [['preset_id', 'preset', 'blurb', 'tier', 'tier_blurb', 'single_vision', 'progressive', 'contact_lens', 'extras', 'items', 'brands'],
     ...(b.presets ?? []).map((t) => [t.presetId, t.preset, t.blurb, t.tier, t.tierBlurb, t.sv, t.mf, t.cl ?? '', (t.extras ?? []).join(', '), itemsText(t.items), (t.brands ?? []).join(', ')])], [12, 18, 40, 14, 40, 34, 34, 18, 16, 70, 60]);
   add(backend, 'store', [['field', 'value'], ...STORE_FIELDS.map((f) => [f.key, b.store?.[f.key] ?? ''])], [16, 70]);

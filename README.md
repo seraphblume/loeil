@@ -90,6 +90,7 @@ copy* saved on that phone; nobody sees it until **Review and publish**.
 | Start a new campaign of sets | Sets → **New campaign dates**; then each set's price, brands and row prices |
 | Change which lenses a row of the sets' table covers | Sets → Lens rows |
 | Discounts that apply on their own (30% on contacts…) | Sets → Campaign discounts |
+| A promotion's participating frames (the POS report of SKUs) | **Import a report or workbook**, then pick the promotion |
 | Rotate promotions | Promotions → **New campaign dates**, or edit one; lens lines are built from pickers |
 | Add or switch off a seller | Staff |
 | Price an add-on as a share of the glasses (Plus Protection: 10) | Extras → Percent |
@@ -100,7 +101,7 @@ links…), encrypts, and commits `data/catalogue.enc.json`. Pages redeploys in a
 a minute; every phone updates on its next launch. If another device published
 after your working copy was started, it stops and asks before overwriting.
 
-**Files are optional.** *Import a stock report or workbook* brings a lot in at
+**Files are optional.** *Import a report or workbook* brings a lot in at
 once; *Export as workbooks* gives an offline copy in the same layout, which can be
 edited on a computer and imported back. From a computer without the app:
 `cd tools && npm install && node publish.mjs LOEIL_Backend.xlsx Catalogue.xlsx`.
@@ -230,7 +231,8 @@ A line takes one discount, never two. In order:
 2. **Discounts that apply on their own**, while their dates run: 40% on HydraGlyde
    contacts (9881) and 35% on Air Optix Colors (9880), 20% on sunglasses sold as they
    are (9261), **30% off every pair of lenses outside a set** in Pre Buen Fin (9009,
-   29 Oct – 12 Nov), **30% off the lenses
+   29 Oct – 12 Nov) and **30% or 50% off a participating frame outside a set** (below),
+   **30% off the lenses
    when the client brings their own frame** (9027: a pair with no frame on the order),
    and **prescription Polarex in a sunglass frame bought here** (8922, *Polariza tu
    Solar*). 8922 reprices the single vision polycarbonate Polarex lens itself, as the
@@ -244,12 +246,26 @@ A line takes one discount, never two. In order:
    Plus Protection (after it is worked out on the list prices) — but not a $0.01
    gift.
 
-**A participating frame's sticker.** Pre Buen Fin takes 30% or 50% off a frame
-only when its SKU participates, and only the sticker on the frame says so. On the
-frame's **Discount** chip the seller picks the sticker's percentage; the ticket then
-carries 9009, and a frame in a set leaves it (sets and this discount do not
-combine — *Use the set* on the frame brings it back and drops the sticker). The
-percentages are data: a discount's **Participating frames** (`30, 50`).
+**Participating frames, by SKU.** Pre Buen Fin takes 30% or 50% off a frame only
+when its SKU participates. The POS's report of participating frames (`SKU_SAP`,
+`DESCUENTO_APLICADO` — an `.xls` that is really an HTML table) goes in through
+**Catalogue data → Import a report or workbook**, which asks which promotion it is
+for; the list then sits on the discount as **Participating frame SKUs**
+(`20105189 = 50`, one per line). With it:
+
+- **A listed frame outside a set** takes its percentage on its own, and the ticket
+  carries 9009 — in sunglasses too, where it beats the 20% of 9261.
+- **A listed frame in a set** keeps the set. Its Discount chip reads *Or −50% · 9009*,
+  and the sheet shows **what the whole order comes to** in the set and out of it
+  (the frame at its percentage, the lenses at 30% off), with which is less; a tap
+  picks one. Sets and the promotion do not combine. A frame from stock with no tag
+  price typed can only be compared once it is added with its price.
+- **A frame not on the list** takes nothing from it. The frame list in Find shows
+  `−50% 9009` beside each participating frame, and the frame's screen shows its
+  percentage beside its set.
+
+A discount with no list can still name sticker percentages (**Sticker
+percentages**, `30, 50`) for the seller to pick on the frame; a list replaces them.
 
 The seller's own 40% or 50% on a line replaces all of these. Every discount is data
 (Catalogue data → Sets → Discounts): a percentage, or a table of lens prices (one

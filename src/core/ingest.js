@@ -10,7 +10,7 @@ import { Report, validateBundle, VOCAB_KINDS } from './validate.js';
 import { TRUE_SKU_DIGITS } from '../config.js';
 import { STORE_FIELDS, cleanStore } from './store.js';
 import { parseItems } from './presets.js';
-import { parsePriceTable } from './sets.js';
+import { parsePriceTable, parseFrameSkusText } from './sets.js';
 
 export { stockKind } from './stock.js';
 export { VOCAB_KINDS, parseCodeLabel };
@@ -296,7 +296,7 @@ function contactFitCell(r) {
   return isYes(r.gas_permeable) ? 'gp' : null;
 }
 
-/** The optional discount columns: its lens price table, what the client shows, and a participating frame's percentages. */
+/** The optional discount columns: its lens price table, what the client shows, sticker percentages, and the participating frames by SKU. */
 function discountExtras(r) {
   const out = {};
   const prices = parsePriceTable(cellText(r.prices));
@@ -305,6 +305,8 @@ function discountExtras(r) {
   if (requires) out.requires = requires;
   const picks = cellText(r.frame_picks).split(/[,\s/]+/).map((v) => Number(v.replace('%', ''))).filter((v) => v > 0 && v <= 100);
   if (picks.length) out.framePicks = picks;
+  const skus = parseFrameSkusText(cellText(r.frame_skus));
+  if (Object.keys(skus).length) out.frameSkus = skus;
   return out;
 }
 

@@ -18,11 +18,15 @@ import { addLine, toast } from '../state/app.js';
 import { livePromotions } from '../core/promotions.js';
 import { GiftBadge, GiftPanel } from './gifts.js';
 import { brandKey, fmtExpiry } from './format.js';
-import { setForFrame, setTable, frameFacts, autoDiscountFor } from '../core/sets.js';
+import { setForFrame, setTable, frameFacts, autoDiscountFor, frameDeal } from '../core/sets.js';
 import { tr, trn, num } from '../i18n.js';
 
-/** What the campaign does for a frame: its set, or a discount that applies on its own. */
-function CampaignPanel({ frame, set, sun }) {
+/**
+ * What the campaign does for a frame: its set, or a discount that applies on
+ * its own — and, for a frame a promotion lists by SKU that is in a set, the
+ * promotion's percentage outside the set (the two do not combine).
+ */
+function CampaignPanel({ frame, set, sun, deal = null }) {
   const catalogue = useApp((s) => s.catalogue);
   if (set) {
     const included = setTable(catalogue, set).filter((r) => !r.entry.price).map((r) => r.def.name.toLowerCase());
@@ -30,6 +34,9 @@ function CampaignPanel({ frame, set, sun }) {
       <${Eyebrow}>${tr('In a set')}<//>
       <div class="group"><${Row} to=${'#/find/sets/' + encodeURIComponent(set.id)} title=${`${set.name} · ID Maestro ${set.id}`}
         detail=${included.length ? tr('With single vision lenses ({list} included). Better lenses add their row.', { list: included.join(', ') }) : tr('With single vision lenses. Better lenses add their row.')} end=${money(set.price)} chev /></div>
+      ${deal && html`<div class="group"><${Row} title=${`${deal.name} −${deal.percent}% · ${deal.id}`}
+        detail=${tr('Or outside the set: the frame at its tag price less {n}%, the lenses at their own price. The order shows both totals.', { n: deal.percent })}
+        end=${frame.price ? money(frame.price - Math.round((frame.price * deal.percent) / 100)) : `−${deal.percent}%`} /></div>`}
     </section>`;
   }
   if (sun) {
@@ -47,6 +54,9 @@ const FILTERS = [
   { key: 'frameType', label: 'Frame type' },
   { key: 'size', label: 'Size', num: true },
 ];
+
+/** `−50% 9009` beside a frame a promotion lists by SKU. */
+const dealText = (deal) => (deal ? `−${deal.percent}% ${deal.id}` : null);
 
 export function FramesScreen({ query }) {
   const catalogue = useApp((s) => s.catalogue);
@@ -92,7 +102,7 @@ export function FramesScreen({ query }) {
         ${result.total === 0 ? html`<div class="pad"><${Empty} title=${tr('No frames match')}>${tr('Loosen a filter, or search by the eight barcode digits.')}<//></div>` : html`
         <${List}>
           ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one badge=${html`<${GiftBadge} brand=${f.brand} />`}
-            detail=${[f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
+            detail=${[dealText(frameDeal(catalogue, { kind: 'frame', sku: f.sku })), f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
             end=${money(f.price)} />`)}
         <//>
         ${result.total > limit && html`<div class="pad"><${Secondary} onClick=${() => setLimit(limit + 100)}>${tr('Show more ({a} left)', { a: (result.total - limit).toLocaleString('en') })}<//></div>`}`}
@@ -116,7 +126,8 @@ export function FrameScreen({ sku }) {
   }
   const promos = livePromotions(catalogue).filter((p) => brandKey(p.conditions).includes(brandKey(frame.brand)));
   const set = setForFrame(catalogue, frame);
-  const sun = set ? null : autoDiscountFor(catalogue, { kind: 'frame', sku: frame.sku });
+  const sun = set ? null : autoDiscountFor(catalogue, { kind: 'frame', sku: frame.sku }); // sun frames' 20%, or a participating frame's percentage
+  const deal = set ? frameDeal(catalogue, { kind: 'frame', sku: frame.sku }) : null;
   const add = async () => {
     await addLine(frameLine(frame, frame.price, 'catalogue'));
     toast(tr('Frame added to the order'));
@@ -129,7 +140,7 @@ export function FrameScreen({ sku }) {
         <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
         <${Figure} value=${money(frame.price)} caption=${tr('Tag price')} size=${38} />
         <${GiftPanel} brand=${frame.brand} />
-        <${CampaignPanel} frame=${frame} set=${set} sun=${sun} />
+        <${CampaignPanel} frame=${frame} set=${set} sun=${sun} deal=${deal} />
         <${Panel}>
           <${KV} k=${tr('Barcode')} v=${frame.sku} mono />
           ${frame.product && html`<${KV} k=${tr('Product code')} v=${frame.product} mono />`}
@@ -165,6 +176,7 @@ export function StockScreen({ sku }) {
   const listed = catalogue.accessoriesBySku.get(item.sku);
   const isFrame = item.kind === 'frame';
   const set = isFrame ? setForFrame(catalogue, frameFacts(catalogue, { sku: item.sku, description: item.description })) : null;
+  const deal = isFrame ? frameDeal(catalogue, { kind: 'frame', sku: item.sku, description: item.description }) : null;
   const pesos = Number(typed.replace(/[^\d]/g, ''));
   const price = pesos >= 50 && pesos <= 200000 ? pesos * 100 : null;
   const add = async () => {
@@ -189,7 +201,8 @@ export function StockScreen({ sku }) {
           ${item.expires && html`<${KV} k=${tr('Expiry')} v=${fmtExpiry(item.expires)} />`}
         <//>
         ${showsStock(item.kind) && item.batches > 1 && html`<p class="note">${tr('{a} batches, earliest expiry shown.', { a: item.batches })}</p>`}
-        ${set && html`<${CampaignPanel} frame=${item} set=${set} />`}
+        ${set && html`<${CampaignPanel} frame=${{ ...item, price }} set=${set} deal=${deal} />`}
+        ${!set && deal && html`<${Panel}><${KV} k=${`${deal.name} · ${deal.id}`} v=${price ? money(price - Math.round((price * deal.percent) / 100)) : `−${deal.percent}%`} em /><//>`}
         ${isFrame ? html`<section class="gap-s">
           <${Eyebrow}>${set ? tr('Tag price, if it goes outside the set') : tr('Price from the tag')}<//>
           <label class="field"><span class="unit">$</span>

@@ -6,8 +6,17 @@ import { LENS_FIELDS } from './validate.js';
 import { money } from './money.js';
 import { STORE_FIELDS } from './store.js';
 import { itemsText } from './presets.js';
-import { priceTableText } from './sets.js';
+import { priceTableText, frameSkusSummary, frameSkusText } from './sets.js';
 import { optionsText, lensesText, linesText } from './alliances.js';
+
+/** A discount's participating frames in one line: the count, the split, and a fingerprint that changes when any SKU does. */
+function skusLine(frameSkus) {
+  const n = Object.keys(frameSkus ?? {}).length;
+  if (!n) return '';
+  let h = 0;
+  for (const c of frameSkusText(Object.fromEntries(Object.entries(frameSkus).sort()), ';')) h = (Math.imul(h, 31) + c.charCodeAt(0)) | 0;
+  return `${n} SKUs (${frameSkusSummary(frameSkus, (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => v[k]))}) #${(h >>> 0).toString(16).padStart(8, '0').slice(0, 6)}`;
+}
 
 const lensLabel = (list) => (r) => LENS_FIELDS[list].map(([f]) => parseCodeLabel(r[f]).code).filter((c) => c && c !== 'N/A').join(' · ');
 const fmt = { price: (v) => (v == null ? '—' : money(v)), available: (v) => (v ? 'available' : 'unavailable'), highRx: (v) => (v ? 'YES' : 'no'), aob: (v) => (v ? 'needs AOB' : 'no AOB'), fit: (v) => ({ gp: 'gas-permeable fitting', mf: 'multifocal fitting' })[v] ?? 'no fitting', active: (v) => (v ? 'active' : 'inactive'), benefit: (v) => (v == null ? '—' : money(v)), contactLensBenefit: (v) => (v == null ? '—' : money(v)), copay: (v) => (v == null ? '—' : money(v)), combines: (v) => (v ? 'combines with promotions' : 'no promotions') };
@@ -34,7 +43,7 @@ export const SPECS = [
   { title: 'Sets', get: (b) => b.sets ?? [], key: (s) => s.id, label: (s) => `${s.id} ${s.name}`, fields: ['name', 'price', 'validFrom', 'validTo', 'brands', 'notes'] },
   { title: 'Set lens rows', get: (b) => b.setLenses ?? [], key: (d) => d.id, label: (d) => `${d.group} · ${d.name}`, fields: ['group', 'name', 'match'] },
   { title: 'Set prices', get: (b) => b.setPrices ?? [], key: (p) => `${p.setId}|${p.lensId}`, label: (p) => `${p.setId} ${p.lensId}`, fields: ['price', 'special'] },
-  { title: 'Campaign discounts', get: (b) => (b.discounts ?? []).map((d) => ({ ...d, pricesText: priceTableText(d.prices), framePicksText: (d.framePicks ?? []).map((x) => `${x}%`).join(', ') })), key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'pricesText', 'framePicksText', 'requires', 'validFrom', 'validTo'] },
+  { title: 'Campaign discounts', get: (b) => (b.discounts ?? []).map((d) => ({ ...d, pricesText: priceTableText(d.prices), framePicksText: (d.framePicks ?? []).map((x) => `${x}%`).join(', '), frameSkusText: skusLine(d.frameSkus) })), key: (d) => d.id, label: (d) => `${d.id} ${d.name}`, fields: ['name', 'percent', 'appliesTo', 'only', 'except', 'pricesText', 'framePicksText', 'frameSkusText', 'requires', 'validFrom', 'validTo'] },
   { title: 'Lifestyle presets', get: (b) => (b.presets ?? []).map((t) => ({ ...t, itemsText: itemsText(t.items), extrasText: (t.extras ?? []).join(', '), brandsText: (t.brands ?? []).join(', ') })), key: (t) => `${t.presetId}|${t.tier}`, label: (t) => `${t.preset} · ${t.tier}`, fields: ['preset', 'blurb', 'tierBlurb', 'sv', 'mf', 'cl', 'extrasText', 'itemsText', 'brandsText'] },
   { title: 'Store', get: (b) => STORE_FIELDS.filter((f) => b.store?.[f.key]).map((f) => ({ field: f.key, label: f.label, value: b.store[f.key] })), key: (x) => x.field, label: (x) => x.label, fields: ['value'] },
   { title: 'Alliances', get: (b) => (b.alliances ?? []).map((a) => ({ ...a, authorizeText: linesText(a.authorize), collectText: linesText(a.collect), signaturesText: linesText(a.signatures), sendText: linesText(a.send), atRegisterText: linesText(a.atRegister), rulesText: linesText(a.rules) })),
