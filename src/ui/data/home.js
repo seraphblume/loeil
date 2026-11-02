@@ -8,7 +8,7 @@ import { Bar, Screen, Section, Row, List, Panel, KV, Eyebrow, Secondary, Quiet, 
 import { Icon } from '../icons.js';
 import { APPLIES_TO, setStatus, frameSkusSummary } from '../../core/sets.js';
 import { workingCatalogue, review, edit, discardWorking } from '../../state/working.js';
-import { applyPieces } from '../../core/edits.js';
+import { applyPieces, frameSkusDelta } from '../../core/edits.js';
 import { readFiles, exportWorkbooks } from './io.js';
 import { toast } from '../../state/app.js';
 import { go } from '../router.js';
@@ -110,7 +110,10 @@ function ImportSheet({ result, onClose }) {
   // lists frames (or offers stickers) is the likely one; any discount that has not ended can take it.
   const targets = pieces.frameSkus ? (bundle?.discounts ?? []).filter((d) => !d.requires && setStatus(d) !== 'Ended') : [];
   const [target, setTarget] = useState(() => (targets.find((d) => d.frameSkus) ?? targets.find((d) => d.framePicks?.length) ?? targets[0])?.id ?? null);
-  const has = Object.keys(pieces).some((k) => k !== 'source' && k !== 'frameSkus') || Boolean(pieces.frameSkus && target);
+  const others = Object.keys(pieces).some((k) => k !== 'source' && k !== 'frameSkus'); // stock, workbook parts
+  const has = others || Boolean(pieces.frameSkus && target);
+  const chosen = targets.find((d) => d.id === target);
+  const delta = pieces.frameSkus && chosen ? frameSkusDelta(chosen.frameSkus, pieces.frameSkus) : null;
   const apply = () => {
     edit((b) => applyPieces(b, { ...pieces, frameSkusFor: target }));
     toast(tr('Imported into the working copy'));
@@ -126,12 +129,18 @@ function ImportSheet({ result, onClose }) {
           sub=${d.frameSkus ? tr('Lists {n} frames now ({split})', { n: Object.keys(d.frameSkus).length, split: frameSkusSummary(d.frameSkus) }) : null}
           end=${target === d.id ? html`<${Icon} name="check" />` : ''} onClick=${() => setTarget(d.id)} />`)}<//>`
           : html`<p class="para">${tr('No campaign discount is running to take these frames. Add one under Sets → Discounts first.')}</p>`}
-        <p class="note">${tr('The list replaces the promotion’s participating frames. A listed frame outside a set takes its percentage on its own.')}</p>
+        ${delta && html`<p class="para">${[
+          trn(delta.added, '1 frame to add', '{n} frames to add'),
+          delta.same && trn(delta.same, '1 already listed', '{n} already listed'),
+          delta.changed && trn(delta.changed, '1 listed at another percentage, which takes the report’s', '{n} listed at another percentage, which take the report’s'),
+        ].filter(Boolean).join(' · ')}</p>`}
+        <p class="note">${tr('The report adds to the promotion’s participating frames and never replaces them: frames it leaves out stay listed. A listed frame outside a set takes its percentage on its own.')}</p>
       </section>`}
       ${report.warnings.length > 0 && html`<p class="note">${trn(report.warnings.length, '1 warning — you will see it on the review screen.', '{n} warnings — you will see them on the review screen.')}</p>`}
       ${has ? html`
-        <p class="note">${tr('Each part replaces the same part of the working copy. Review the changes before you publish; nothing reaches a phone until then.')}</p>
-        <${Anchor} onClick=${apply}>${tr('Replace in the working copy')}<//>` : html`<p class="para">${tr('Nothing usable was found in those files.')}</p>`}
+        ${others ? html`<p class="note">${tr('Each part replaces the same part of the working copy. Review the changes before you publish; nothing reaches a phone until then.')}</p>`
+          : html`<p class="note">${tr('Review the changes before you publish; nothing reaches a phone until then.')}</p>`}
+        <${Anchor} onClick=${apply}>${others ? tr('Replace in the working copy') : tr('Add to the working copy')}<//>` : html`<p class="para">${tr('Nothing usable was found in those files.')}</p>`}
     </div>
   <//>`;
 }

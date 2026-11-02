@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1452 strings. English keys, ko values.
+// Generated from the translation sheets — 1460 strings. English keys, ko values.
 export const KO = {
   "1 change": "변경 1건",
   "1 client": "고객 1명",
@@ -1432,7 +1432,6 @@ export const KO = {
   "For the promotion": "적용할 프로모션",
   "Lists {n} frames now ({split})": "현재 안경테 {n}개 등록 ({split})",
   "No campaign discount is running to take these frames. Add one under Sets → Discounts first.": "이 안경테를 받을 캠페인 할인이 없습니다. 먼저 세트 → 할인에서 추가하세요.",
-  "The list replaces the promotion’s participating frames. A listed frame outside a set takes its percentage on its own.": "이 목록이 프로모션의 대상 안경테를 대체합니다. 목록에 있는 안경테는 세트 밖이면 자동으로 그 할인율이 적용됩니다.",
   "No participating frames were found in this report.": "이 보고서에서 대상 안경테를 찾지 못했습니다.",
   "Participating frames: {n} SKUs ({split}) from {file}": "대상 안경테: {file}에서 SKU {n}개 ({split})",
   "{n} rows had no 8-digit SKU or no percentage and were left out.": "{n}개 행은 8자리 SKU나 할인율이 없어 제외했습니다.",
@@ -1446,10 +1445,19 @@ export const KO = {
   "This frame’s tag price is not on the order, so outside the set the register prices it. To compare, add the frame again with the price read off its tag.": "이 안경테의 가격표 가격이 주문에 없어서 세트 밖에서는 계산대에서 가격이 정해집니다. 비교하려면 가격표의 가격을 넣고 안경테를 다시 추가하세요.",
   "What the whole order comes to either way: the set and {name} do not combine.": "각 경우의 주문 전체 합계입니다. 세트와 {name}은 함께 쓸 수 없습니다.",
   "Participating frame SKUs": "대상 안경테 SKU",
-  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) fills this in. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "한 줄에 안경테 하나: 8자리 SKU = 할인율. POS의 대상 안경테 보고서 그대로 적습니다. 그 보고서를 가져오면(카탈로그 데이터 → 보고서나 워크북 가져오기) 여기가 채워집니다. 목록의 안경테는 세트 밖이면 자동 적용되고, 세트 안이면 판매자가 세트에서 뺄 때만 적용됩니다. 목록에 없는 안경테는 적용되지 않습니다. 빈칸: 목록 없음.",
   "Sticker percentages": "스티커 할인율",
   "Only without a list of SKUs. Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.": "SKU 목록이 없을 때만. 안경테 스티커대로 쉼표로 구분합니다. 안경테에서 판매자가 스티커의 할인율을 고르면 안경테는 세트에서 빠집니다. 빈칸: 없음.",
   "{n} at {p}%": "{p}%: {n}개",
   "1 participating frame ({split})": "대상 안경테 1개 ({split})",
   "{n} participating frames ({split})": "대상 안경테 {n}개 ({split})",
+  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) adds to this list, never replacing it. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "한 줄에 안경테 하나: 8자리 SKU = 할인율. POS의 대상 안경테 보고서 그대로 적습니다. 그 보고서를 가져오면(카탈로그 데이터 → 보고서나 워크북 가져오기) 이 목록에 추가되며, 대체되지는 않습니다. 목록의 안경테는 세트 밖이면 자동 적용되고, 세트 안이면 판매자가 세트에서 뺄 때만 적용됩니다. 목록에 없는 안경테는 적용되지 않습니다. 빈칸: 목록 없음.",
+  "The report adds to the promotion’s participating frames and never replaces them: frames it leaves out stay listed. A listed frame outside a set takes its percentage on its own.": "보고서는 프로모션의 대상 안경테에 추가되며 대체하지 않습니다. 보고서에 없는 안경테도 목록에 남습니다. 목록에 있는 안경테는 세트 밖이면 자동으로 그 할인율이 적용됩니다.",
+  "1 frame to add": "추가할 안경테 1개",
+  "{n} frames to add": "추가할 안경테 {n}개",
+  "1 already listed": "1개는 이미 목록에 있음",
+  "{n} already listed": "{n}개는 이미 목록에 있음",
+  "1 listed at another percentage, which takes the report’s": "1개는 다른 할인율로 등록됨. 보고서의 할인율로 바뀝니다",
+  "{n} listed at another percentage, which take the report’s": "{n}개는 다른 할인율로 등록됨. 보고서의 할인율로 바뀝니다",
+  "Review the changes before you publish; nothing reaches a phone until then.": "게시하기 전에 변경 사항을 확인하세요. 그때까지 어떤 휴대폰에도 반영되지 않습니다.",
+  "Add to the working copy": "작업 사본에 추가",
 };

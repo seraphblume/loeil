@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1452 strings. English keys, es values.
+// Generated from the translation sheets — 1460 strings. English keys, es values.
 export const ES = {
   "1 change": "1 cambio",
   "1 client": "1 cliente",
@@ -1432,7 +1432,6 @@ export const ES = {
   "For the promotion": "Para la promoción",
   "Lists {n} frames now ({split})": "Ahora lista {n} armazones ({split})",
   "No campaign discount is running to take these frames. Add one under Sets → Discounts first.": "No hay un descuento de campaña vigente para estos armazones. Primero agrega uno en Sets → Descuentos.",
-  "The list replaces the promotion’s participating frames. A listed frame outside a set takes its percentage on its own.": "La lista reemplaza los armazones participantes de la promoción. Un armazón de la lista fuera de un set toma su porcentaje por sí solo.",
   "No participating frames were found in this report.": "No se encontraron armazones participantes en este reporte.",
   "Participating frames: {n} SKUs ({split}) from {file}": "Armazones participantes: {n} SKU ({split}) de {file}",
   "{n} rows had no 8-digit SKU or no percentage and were left out.": "{n} filas no tenían SKU de 8 dígitos o porcentaje y se omitieron.",
@@ -1446,10 +1445,19 @@ export const ES = {
   "This frame’s tag price is not on the order, so outside the set the register prices it. To compare, add the frame again with the price read off its tag.": "El precio de etiqueta de este armazón no está en la orden, así que fuera del set lo pone la caja. Para comparar, agrega el armazón otra vez con el precio de su etiqueta.",
   "What the whole order comes to either way: the set and {name} do not combine.": "Lo que suma toda la orden en cada caso: el set y {name} no se combinan.",
   "Participating frame SKUs": "SKU de armazones participantes",
-  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) fills this in. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "Un armazón por línea: su SKU de 8 dígitos = su porcentaje, como los da el reporte de armazones participantes del POS. Importar ese reporte (Datos del catálogo → Importar un reporte o un libro) lo llena. Un armazón de la lista fuera de un set lo toma por sí solo; uno en un set se queda en el set a menos que el vendedor lo saque para esto. Un armazón que no está en la lista no toma nada. En blanco: sin lista.",
   "Sticker percentages": "Porcentajes de etiqueta",
   "Only without a list of SKUs. Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.": "Solo sin lista de SKU. Porcentajes separados por comas, como dicen las etiquetas de los armazones. En un armazón, el vendedor elige el que muestra su etiqueta y el armazón sale de su set. En blanco: ninguno.",
   "{n} at {p}%": "{n} al {p}%",
   "1 participating frame ({split})": "1 armazón participante ({split})",
   "{n} participating frames ({split})": "{n} armazones participantes ({split})",
+  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) adds to this list, never replacing it. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "Un armazón por línea: su SKU de 8 dígitos = su porcentaje, como los da el reporte de armazones participantes del POS. Importar ese reporte (Datos del catálogo → Importar un reporte o un libro) agrega a esta lista, sin reemplazarla nunca. Un armazón de la lista fuera de un set lo toma por sí solo; uno en un set se queda en el set a menos que el vendedor lo saque para esto. Un armazón que no está en la lista no toma nada. En blanco: sin lista.",
+  "The report adds to the promotion’s participating frames and never replaces them: frames it leaves out stay listed. A listed frame outside a set takes its percentage on its own.": "El reporte agrega a los armazones participantes de la promoción y nunca los reemplaza: los que no trae siguen en la lista. Un armazón de la lista fuera de un set toma su porcentaje por sí solo.",
+  "1 frame to add": "1 armazón por agregar",
+  "{n} frames to add": "{n} armazones por agregar",
+  "1 already listed": "1 ya en la lista",
+  "{n} already listed": "{n} ya en la lista",
+  "1 listed at another percentage, which takes the report’s": "1 en la lista con otro porcentaje, que toma el del reporte",
+  "{n} listed at another percentage, which take the report’s": "{n} en la lista con otro porcentaje, que toman el del reporte",
+  "Review the changes before you publish; nothing reaches a phone until then.": "Revisa los cambios antes de publicar; nada llega a un teléfono hasta entonces.",
+  "Add to the working copy": "Agregar a la copia de trabajo",
 };

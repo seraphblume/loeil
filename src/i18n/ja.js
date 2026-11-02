@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1452 strings. English keys, ja values.
+// Generated from the translation sheets — 1460 strings. English keys, ja values.
 export const JA = {
   "1 change": "変更 1件",
   "1 client": "顧客 1人",
@@ -1432,7 +1432,6 @@ export const JA = {
   "For the promotion": "対象のプロモーション",
   "Lists {n} frames now ({split})": "現在 {n} 本のフレームを登録（{split}）",
   "No campaign discount is running to take these frames. Add one under Sets → Discounts first.": "これらのフレームを受けるキャンペーン割引がありません。先に セット → 割引 で追加してください。",
-  "The list replaces the promotion’s participating frames. A listed frame outside a set takes its percentage on its own.": "このリストがプロモーションの対象フレームを置き換えます。リストにあるフレームは、セット外なら自動でその割引率になります。",
   "No participating frames were found in this report.": "このレポートに対象フレームが見つかりませんでした。",
   "Participating frames: {n} SKUs ({split}) from {file}": "対象フレーム：{file} から {n} SKU（{split}）",
   "{n} rows had no 8-digit SKU or no percentage and were left out.": "{n} 行は 8 桁の SKU か割引率がなかったため除外しました。",
@@ -1446,10 +1445,19 @@ export const JA = {
   "This frame’s tag price is not on the order, so outside the set the register prices it. To compare, add the frame again with the price read off its tag.": "このフレームの値札価格が注文にないため、セット外ではレジで価格が付きます。比べるには、値札の価格を入れてフレームを追加し直してください。",
   "What the whole order comes to either way: the set and {name} do not combine.": "それぞれの場合の注文全体の合計です。セットと {name} は併用できません。",
   "Participating frame SKUs": "対象フレームの SKU",
-  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) fills this in. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "1 行に 1 本：8 桁の SKU = 割引率。POS の対象フレームのレポートどおりに書きます。そのレポートを取り込むと（カタログデータ → レポートかワークブックを取り込む）ここが埋まります。リストにあるフレームはセット外なら自動で適用、セット内なら販売員がセットから外したときだけ適用されます。リストにないフレームは対象外です。空欄：リストなし。",
   "Sticker percentages": "ステッカーの割引率",
   "Only without a list of SKUs. Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.": "SKU のリストがないときだけ。フレームのステッカーどおりにカンマ区切りで。フレームでは販売員がステッカーの割引率を選び、フレームはセットから外れます。空欄：なし。",
   "{n} at {p}%": "{p}%：{n}",
   "1 participating frame ({split})": "対象フレーム 1 本（{split}）",
   "{n} participating frames ({split})": "対象フレーム {n} 本（{split}）",
+  "One frame per line: its 8-digit SKU = its percentage, as the POS’s report of participating frames gives them. Importing that report (Catalogue data → Import a report or workbook) adds to this list, never replacing it. A listed frame outside a set takes it on its own; one in a set keeps the set unless the seller takes it out for this. A frame not on the list takes nothing. Blank: no list.": "1 行に 1 本：8 桁の SKU = 割引率。POS の対象フレームのレポートどおりに書きます。そのレポートを取り込むと（カタログデータ → レポートかワークブックを取り込む）このリストに追加されます。置き換えることはありません。リストにあるフレームはセット外なら自動で適用、セット内なら販売員がセットから外したときだけ適用されます。リストにないフレームは対象外です。空欄：リストなし。",
+  "The report adds to the promotion’s participating frames and never replaces them: frames it leaves out stay listed. A listed frame outside a set takes its percentage on its own.": "レポートはプロモーションの対象フレームに追加され、置き換えることはありません。レポートにないフレームもリストに残ります。リストにあるフレームは、セット外なら自動でその割引率になります。",
+  "1 frame to add": "追加するフレーム 1 本",
+  "{n} frames to add": "追加するフレーム {n} 本",
+  "1 already listed": "1 本はリスト済み",
+  "{n} already listed": "{n} 本はリスト済み",
+  "1 listed at another percentage, which takes the report’s": "1 本は別の割引率で登録済み。レポートの割引率になります",
+  "{n} listed at another percentage, which take the report’s": "{n} 本は別の割引率で登録済み。レポートの割引率になります",
+  "Review the changes before you publish; nothing reaches a phone until then.": "公開する前に変更を確認してください。それまでどの電話にも届きません。",
+  "Add to the working copy": "作業コピーに追加",
 };

@@ -90,7 +90,7 @@ copy* saved on that phone; nobody sees it until **Review and publish**.
 | Start a new campaign of sets | Sets → **New campaign dates**; then each set's price, brands and row prices |
 | Change which lenses a row of the sets' table covers | Sets → Lens rows |
 | Discounts that apply on their own (30% on contacts…) | Sets → Campaign discounts |
-| A promotion's participating frames (the POS report of SKUs) | **Import a report or workbook**, then pick the promotion |
+| A promotion's participating frames (the POS report of SKUs) | **Import a report or workbook**, then pick the promotion — it adds, never replaces |
 | Rotate promotions | Promotions → **New campaign dates**, or edit one; lens lines are built from pickers |
 | Add or switch off a seller | Staff |
 | Price an add-on as a share of the glasses (Plus Protection: 10) | Extras → Percent |
@@ -250,8 +250,12 @@ A line takes one discount, never two. In order:
 when its SKU participates. The POS's report of participating frames (`SKU_SAP`,
 `DESCUENTO_APLICADO` — an `.xls` that is really an HTML table) goes in through
 **Catalogue data → Import a report or workbook**, which asks which promotion it is
-for; the list then sits on the discount as **Participating frame SKUs**
-(`20105189 = 50`, one per line). With it:
+for. A report **adds to** the promotion's list and never replaces it, since the POS
+sends them in batches: a frame already listed takes the report's percentage, and
+frames a report leaves out stay listed (the sheet says how many are new, already
+listed, or at another percentage). The list sits on the discount as **Participating
+frame SKUs** (`20105189 = 50`, one per line), where a frame can be taken off by
+hand. With it:
 
 - **A listed frame outside a set** takes its percentage on its own, and the ticket
   carries 9009 — in sunglasses too, where it beats the 20% of 9261.

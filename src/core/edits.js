@@ -232,14 +232,32 @@ export const deleteSetLens = (b, id) => ({
 export const upsertDiscount = (b, d, originalId) => ({ ...b, discounts: upsertBy(L(b, 'discounts'), (x) => x.id, d, originalId) });
 export const deleteDiscount = (b, id) => ({ ...b, discounts: L(b, 'discounts').filter((d) => d.id !== id) });
 
-/** A discount's participating frames, replaced whole (the POS's report); its sticker percentages give way to the list. */
-export function setFrameSkus(b, id, frameSkus) {
+/**
+ * The POS's report of participating frames, added to a discount's list — never
+ * replacing it, since the reports come in batches. A frame already listed takes
+ * the report's percentage; frames the report leaves out stay listed. Its
+ * sticker percentages give way to the list.
+ */
+export function addFrameSkus(b, id, frameSkus) {
   return { ...b, discounts: L(b, 'discounts').map((d) => {
     if (d.id !== id) return d;
-    const n = { ...d, frameSkus };
+    const merged = Object.fromEntries(Object.entries({ ...(d.frameSkus ?? {}), ...frameSkus }).sort(([x], [y]) => x.localeCompare(y)));
+    const n = { ...d, frameSkus: merged };
     delete n.framePicks;
     return n;
   }) };
+}
+
+/** What adding a report to a list does: frames new to it, already on it, and listed at another percentage. */
+export function frameSkusDelta(current, incoming) {
+  const now = current ?? {};
+  const out = { added: 0, same: 0, changed: 0 };
+  for (const [sku, p] of Object.entries(incoming ?? {})) {
+    if (now[sku] == null) out.added++;
+    else if (now[sku] === p) out.same++;
+    else out.changed++;
+  }
+  return out;
 }
 
 /** A new campaign window for every set and discount at once. */
@@ -273,7 +291,7 @@ export function applyPieces(b, pieces) {
   if (pieces.lenses) n.lenses = pieces.lenses;
   if (pieces.stockReport) n.stockReport = pieces.stockReport;
   if (pieces.store) n.store = pieces.store;
-  if (pieces.frameSkus && pieces.frameSkusFor) return setFrameSkus(n, pieces.frameSkusFor, pieces.frameSkus);
+  if (pieces.frameSkus && pieces.frameSkusFor) return addFrameSkus(n, pieces.frameSkusFor, pieces.frameSkus);
   return n;
 }
 
