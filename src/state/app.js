@@ -251,9 +251,9 @@ export async function deleteOrder(id) {
 async function saveDraft() { await db.set('draft', { order: state.draft, rx: state.draftRx }); }
 
 export async function addLine(line) {
-  // The frame the client chose takes the place of the one quoted by brand or set.
-  const chosen = line.kind === 'frame' && !line.placeholder;
-  const lines = state.draft.lines.filter((l) => !(chosen && l.kind === 'frame' && l.placeholder));
+  // The frame the client chose takes the place of the one quoted by brand or set, or of their own.
+  const chosen = line.kind === 'frame' && !line.placeholder && !line.own;
+  const lines = state.draft.lines.filter((l) => !(chosen && l.kind === 'frame' && (l.placeholder || l.own)));
   setState({ draft: { ...state.draft, lines: [...lines, line] } });
   await saveDraft();
 }

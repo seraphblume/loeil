@@ -67,6 +67,7 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
   let from = false;
   for (const r of byKind('frame')) {
     const l = r.line;
+    if (l.own) { rows.push({ label: 'Frame', desc: 'CUSTOMER’S FRAME', own: true }); continue; }
     const isFrom = l.placeholder && !l.set && (l.priceSource === 'from' || (l.setExcluded && l.fromCents != null));
     if (isFrom) from = true;
     rows.push({ label: 'Frame', desc: upper(l.brand || l.description), qty: 1, price: r.list, from: isFrom });
@@ -168,7 +169,7 @@ export function quoteText(q) {
   if (q.client) out.push(q.client.name);
   for (const o of q.options) {
     out.push('', `Option ${o.n}`);
-    for (const r of o.rows) out.push(`  ${r.label}: ${r.desc}${r.qty ? ` ×${r.qty}` : ''}${r.included ? '  in the set' : r.price != null ? `  ${r.from ? 'from ' : ''}${pesos(r.price)}` : r.label === 'Treatments' ? '' : '  at the register'}`);
+    for (const r of o.rows) out.push(`  ${r.label}: ${r.desc}${r.qty ? ` ×${r.qty}` : ''}${r.included ? '  in the set' : r.price != null ? `  ${r.from ? 'from ' : ''}${pesos(r.price)}` : r.label === 'Treatments' || r.own ? '' : '  at the register'}`);
     if (o.save) out.push(`  Subtotal ${pesos(o.subtotal)} · you save ${pesos(o.save)}`);
     if (o.alliance) out.push(`  ${o.alliance.payer} covers ${pesos(o.alliance.covered)}${o.alliance.copay ? ` · copay ${pesos(o.alliance.copay)}` : ''}`);
     out.push(`  Total to pay ${o.from ? 'from ' : ''}${pesos(o.total)}`);

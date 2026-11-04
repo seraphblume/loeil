@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1500 strings. English keys, es values.
+// Generated from the translation sheets — 1505 strings. English keys, es values.
 export const ES = {
   "1 change": "1 cambio",
   "1 client": "1 cliente",
@@ -527,7 +527,6 @@ export const ES = {
   "Lens, Plus Protection and accessories in one tap": "Lente, Protección Plus y accesorios con un toque",
   "Lens, client, frame or barcode": "Lente, cliente, armazón o código",
   "Lenses": "Lentes",
-  "Lenses and extras only": "Solo lentes y extras",
   "Lenses in a set have no row of the set’s table yet. Choose it on the line to finish the price.": "Los lentes de un set aún no tienen renglón en la tabla del set. Elígelo en la línea para completar el precio.",
   "Lenses keep their code; they show the POS wording until it is named again.": "Los lentes conservan su código; muestran el texto del POS hasta que se le ponga nombre otra vez.",
   "Lenses on this order need the AOB of each eye.": "Los lentes de este pedido necesitan el AOB de cada ojo.",
@@ -629,7 +628,6 @@ export const ES = {
   "No frame": "Sin armazón",
   "No frame matches.": "Ningún armazón coincide.",
   "No frame or stock item has barcode {a}.": "Ningún armazón ni artículo tiene el código {a}.",
-  "No frame, so prices are for lenses in the client’s own frame.": "Sin armazón: los precios son de lentes en el armazón propio del cliente.",
   "No frames match": "Ningún armazón coincide",
   "No high-index version — standard material.": "Sin versión de alto índice: material estándar.",
   "No lens is named for this tier.": "Este nivel no indica ningún lente.",
@@ -1500,4 +1498,11 @@ export const ES = {
   "Change the lens family": "Cambiar la familia de lente",
   "Boxes per eye": "Cajas por ojo",
   "Option total": "Total de la opción",
+  "Customer’s frame": "Armazón de cliente",
+  "The client brings it: 30% off the lenses, or the campaign’s": "Lo trae el cliente: 30% en los lentes, o el de la campaña",
+  "Customer’s frame on the order": "Armazón de cliente en el pedido",
+  "Brought by the client — nothing to charge; the lenses take the own-frame discount": "Lo trae el cliente: no se cobra; los lentes llevan el descuento de armazón propio",
+  "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "Armazón de cliente: los lentes llevan 30%, o el descuento de la campaña mientras los cubra.",
+  "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "Sin armazón: los precios son solo de los lentes. Para el armazón propio del cliente, elige Armazón de cliente.",
+  "Contact lenses and extras only": "Solo lentes de contacto y extras",
 };

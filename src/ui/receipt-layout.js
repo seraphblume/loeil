@@ -119,7 +119,7 @@ export function quoteBlocks(q) {
     for (const r of o.rows) {
       B.push({
         t: 'qrow', label: r.label, desc: r.desc, qty: r.qty ? String(r.qty) : '',
-        price: r.label === 'Treatments' || r.label === 'Set' ? '' : r.pending ? '—' : r.included ? 'in the set' : r.register ? 'at register' : (r.from ? 'from ' : '') + amount(r.price),
+        price: r.label === 'Treatments' || r.label === 'Set' || r.own ? '' : r.pending ? '—' : r.included ? 'in the set' : r.register ? 'at register' : (r.from ? 'from ' : '') + amount(r.price),
       });
     }
     B.push({ t: 'gap' });

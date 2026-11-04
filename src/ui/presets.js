@@ -20,7 +20,7 @@ import { needsAddition, rxIsBlank, strongestSphere, CL_FITS, fitComplete } from 
 import { HIGH_RX_SPHERE } from '../config.js';
 import { applyPreset, setOrderFrame, clientById, toast } from '../state/app.js';
 import { FramePicker } from './framepick.js';
-import { isPair } from '../core/orders.js';
+import { isPair, ownFrameLine } from '../core/orders.js';
 import { brandKey, uid } from '../core/util.js';
 import { LensPicker, HandPickedLens } from './lenspick.js';
 import { FormSheet } from './data/form.js';
@@ -45,9 +45,10 @@ function basis(rx, anyMfOnly, frame) {
       ? (high ? tr('Progressive, from the ADD on the prescription; high-index where the tier has it.') : tr('Progressive, from the ADD on the prescription.'))
       : (high ? tr('Single vision, from the prescription; high-index where the tier has it.') : tr('Single vision, from the prescription.')));
   }
-  bits.push(frame
-    ? (frame.placeholder ? tr('Prices include the frame quoted, as the order will charge them — a set’s own lens prices too.') : tr('Prices include the frame on the order, as the order will charge them — a set’s own lens prices too.'))
-    : tr('No frame, so prices are for lenses in the client’s own frame.'));
+  bits.push(frame?.own ? tr('Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.')
+    : frame
+      ? (frame.placeholder ? tr('Prices include the frame quoted, as the order will charge them — a set’s own lens prices too.') : tr('Prices include the frame on the order, as the order will charge them — a set’s own lens prices too.'))
+      : tr('No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.'));
   return bits.join(' ');
 }
 
@@ -191,12 +192,12 @@ export function PresetSheet({ onClose, toQuote }) {
     if (brands.length && !theirs) { setWaiting(result); setStep('brand'); return; }
     finish(result);
   };
-  const frameText = (f) => (f ? `${f.brand || f.description}${f.placeholder ? ` · ${f.priceSource === 'from' ? tr('from {price}', { price: money(f.priceCents) }) : money(f.priceCents)}` : ''}` : tr('No frame'));
+  const frameText = (f) => (f?.own ? tr('Customer’s frame') : f ? `${f.brand || f.description}${f.placeholder ? ` · ${f.priceSource === 'from' ? tr('from {price}', { price: money(f.priceCents) }) : money(f.priceCents)}` : ''}` : tr('No frame'));
 
   const steps = toQuote ? [{ id: 'frame', label: 'Frame' }, { id: 'lens', label: 'Lenses' }] : [];
   const at = step === 'frame' ? 0 : 1;
   const title = step === 'brand' ? tr('Choose the brand') : step === 'walk' || step === 'picked' ? tr('Choose the lens') : toQuote ? tr('Add an option') : tr('Lifestyle presets');
-  const frameRow = html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? tr('Any frame of the set') : tr('Quoted by brand')) : chosen ? tr('The frame for this option') : tr('This option has no frame')}
+  const frameRow = html`<div class="list"><${Row} icon=${chosen?.own ? 'person' : 'glasses'} title=${frameText(chosen)} detail=${chosen?.own ? tr('The client brings it: 30% off the lenses, or the campaign’s') : chosen?.placeholder ? (chosen.setId ? tr('Any frame of the set') : tr('Quoted by brand')) : chosen ? tr('The frame for this option') : tr('This option has no frame')}
     end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>${tr('Change')}</button>`} /></div>`;
 
   // the open preset's tiers go right after the row its tile is on
@@ -212,8 +213,9 @@ export function PresetSheet({ onClose, toQuote }) {
 
       ${step === 'frame' && html`
         <div class="list">
-          ${draftFrame && html`<${Row} icon="glasses" title=${tr('Keep {frame}', { frame: frameText(draftFrame) })} detail=${tr('The frame on the order')} chev onClick=${() => { setFrame(null); setStep('lens'); }} />`}
-          <${Row} icon="x" title=${tr('No frame')} detail=${tr('Lenses and extras only')} chev onClick=${() => { setFrame(false); setStep('lens'); }} />
+          ${draftFrame && !draftFrame.own && html`<${Row} icon="glasses" title=${tr('Keep {frame}', { frame: frameText(draftFrame) })} detail=${tr('The frame on the order')} chev onClick=${() => { setFrame(null); setStep('lens'); }} />`}
+          <${Row} icon="person" title=${tr('Customer’s frame')} detail=${tr('The client brings it: 30% off the lenses, or the campaign’s')} chev onClick=${() => { setFrame(ownFrameLine()); setStep('lens'); }} />
+          <${Row} icon="x" title=${tr('No frame')} detail=${tr('Contact lenses and extras only')} chev onClick=${() => { setFrame(false); setStep('lens'); }} />
         </div>
         <${FramePicker} start="brand" onPick=${(line) => { setFrame(line); setStep('lens'); }} />`}
 

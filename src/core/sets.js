@@ -40,7 +40,7 @@ export const APPLIES_TO = {
   sunglasses: 'Sunglasses frames',
   frames: 'Every frame outside a set',
   lenses: 'Spectacle lenses outside a set',
-  ownframe: 'Spectacle lenses for the client’s own frame',
+  ownframe: 'Spectacle lenses for the client’s own frame', // only with Customer’s frame on the order, not with no frame
   sunlenses: 'Spectacle lenses in a sunglasses frame',
   all: 'Every line outside a set',
 };
@@ -242,6 +242,7 @@ export function priceTableText(rows) {
  */
 function discountHit(catalogue, d, line, ctx) {
   if (d.requires && !ctx.claimed?.has(d.id)) return null;
+  if (line.own) return null; // the client's own frame: nothing sold, nothing to discount
   if (line.kind === 'frame' && d.frameSkus) {
     // A participating frame, by its SKU: its own percentage, outside a set (in
     // one it is the seller's choice — frameDeal). `except` still names brands.
@@ -262,7 +263,7 @@ function discountHit(catalogue, d, line, ctx) {
     sunglasses: isFrame && sunFrame(line) && !line.set && !line.hasLenses,
     frames: isFrame && !line.set,
     lenses: isSpectacle && !line.setLens,
-    ownframe: isSpectacle && 'frame' in ctx && !ctx.frame,
+    ownframe: isSpectacle && Boolean(ctx.frame?.own),
     sunlenses: isSpectacle && sunFrame(ctx.frame) && !line.setLens,
     all: (isFrame && !line.set) || (isSpectacle && !line.setLens) || isContact || isItem || isShare,
   })[d.appliesTo];
@@ -301,7 +302,10 @@ export function hitText(hit, money) {
  * The discount that applies to a line, if any. Those that apply on their own
  * come first — a set, a campaign percentage, a fixed lens price — and a
  * discount the client claims (a membership card) covers only what they leave.
- * One per line, never stacked; among equals, the one that saves the client most.
+ * One per line, never stacked; the one that saves the client most, and when
+ * two save the same, the campaign's (one with dates) over a standing one — so
+ * lenses for the client's own frame take Pre Buen Fin's 30% (9009) while it
+ * runs, and the own-frame 30% (9027) the rest of the year.
  *
  * A sunglasses discount is for the frame sold as it is: with lenses on it, the
  * prescription-sun offer is the one that applies. `only` and `except` name
@@ -314,7 +318,8 @@ export function autoDiscountFor(catalogue, line, on = new Date(), ctx = {}) {
   const hits = live.map((d) => ({ d, hit: discountHit(catalogue, d, line, ctx) })).filter((x) => x.hit);
   if (!hits.length) return null;
   const list = listOf(line);
-  const best = (xs) => xs.sort((a, b) => savingOf(b.hit, list) - savingOf(a.hit, list))[0]?.hit ?? null;
+  const standing = (d) => (d.validFrom || d.validTo ? 0 : 1);
+  const best = (xs) => xs.sort((a, b) => savingOf(b.hit, list) - savingOf(a.hit, list) || standing(a.d) - standing(b.d))[0]?.hit ?? null;
   return best(hits.filter((x) => !x.d.requires)) ?? best(hits.filter((x) => x.d.requires));
 }
 
@@ -434,7 +439,7 @@ export function resolveOrder(order, catalogue, on = new Date()) {
   const pairs = lines.filter((l) => l.kind === 'lens' && l.lens.family !== 'CL');
   const voucher = cfePair(ally, lines); // a CFE voucher prices its lens itself, so that pair and its frame stay out of a set
   frames.forEach((f, i) => {
-    if (!promos) return;
+    if (!promos || f.own) return; // the client's own frame takes no set: its pair is priced on its own
     const named = f.setId ? catalogue.setsById?.get(f.setId) : null;
     const set = (named && isCurrent(named, on) ? named : null) ?? setForFrame(catalogue, frameFacts(catalogue, f), on);
     const lens = pairs[i];

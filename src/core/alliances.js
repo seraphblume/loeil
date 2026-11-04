@@ -158,7 +158,7 @@ export const cfePair = (ally, lines) => (ally?.lens ? lines.find(isPairLine) ?? 
 export function packagedLines(ally, lines) {
   if (!ally?.option) return [];
   if (ally.option.kind === 'contacts') return lines.filter(isContactLine);
-  const frame = lines.find((l) => l.kind === 'frame' && !isSunFrame(l));
+  const frame = lines.find((l) => l.kind === 'frame' && !isSunFrame(l) && !l.own);
   const pair = lines.find(isPairLine);
   return [frame, pair].filter(Boolean);
 }
@@ -168,7 +168,7 @@ export function packageMiss(ally, lines) {
   const o = ally?.option;
   if (!o) return null;
   if (o.kind === 'contacts') return lines.some(isContactLine) ? null : tr('The package is contact lenses — add them to the order.');
-  const frame = lines.find((l) => l.kind === 'frame' && !isSunFrame(l));
+  const frame = lines.find((l) => l.kind === 'frame' && !isSunFrame(l) && !l.own);
   if (!frame || !lines.some(isPairLine)) return tr('The package is a frame with its lenses — both need to be on the order.');
   if (o.frameUpTo && frame.priceCents > o.frameUpTo) return tr('The frame ({price}) is above the package’s {max}.', { price: money(frame.priceCents), max: money(o.frameUpTo) });
   return null;
@@ -209,7 +209,7 @@ export function applyAlliance(ally, lines) {
       l.ally = { voucher: true };
       continue;
     }
-    if (l.kind === 'history' || (l.kind === 'extra' && !isShareLine(l) && !(l.priceCents > 1))) continue; // a gift stays a gift
+    if (l.kind === 'history' || l.own || (l.kind === 'extra' && !isShareLine(l) && !(l.priceCents > 1))) continue; // a gift stays a gift; the client's own frame is nothing sold
     if (ally.combines && (l.auto || l.set || l.setLens)) continue;
     // A payer that covers the frame itself (a CFE voucher): the frame takes no outside-the-plan percentage.
     if (l.kind === 'frame' && !isSunFrame(l) && ally.outside?.appliesTo === 'lenses') { l.ally = { covered: true }; continue; }

@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1500 strings. English keys, ko values.
+// Generated from the translation sheets — 1505 strings. English keys, ko values.
 export const KO = {
   "1 change": "변경 1건",
   "1 client": "고객 1명",
@@ -527,7 +527,6 @@ export const KO = {
   "Lens, Plus Protection and accessories in one tap": "렌즈, Plus Protection, 액세서리를 한 번에",
   "Lens, client, frame or barcode": "렌즈, 고객, 안경테 또는 바코드",
   "Lenses": "렌즈",
-  "Lenses and extras only": "렌즈와 추가 항목만",
   "Lenses in a set have no row of the set’s table yet. Choose it on the line to finish the price.": "세트 안의 렌즈에 아직 세트 표의 줄이 없습니다. 줄에서 골라 가격을 마무리하세요.",
   "Lenses keep their code; they show the POS wording until it is named again.": "렌즈의 코드는 그대로입니다. 다시 이름을 붙일 때까지 POS 표기로 보입니다.",
   "Lenses on this order need the AOB of each eye.": "이 주문의 렌즈에는 양쪽 눈의 AOB가 필요합니다.",
@@ -629,7 +628,6 @@ export const KO = {
   "No frame": "안경테 없음",
   "No frame matches.": "맞는 안경테가 없습니다.",
   "No frame or stock item has barcode {a}.": "바코드 {a}인 안경테나 재고 품목이 없습니다.",
-  "No frame, so prices are for lenses in the client’s own frame.": "안경테가 없어서 고객 본인 안경테에 렌즈를 넣는 가격입니다.",
   "No frames match": "맞는 안경테 없음",
   "No high-index version — standard material.": "고굴절 버전 없음 — 표준 소재입니다.",
   "No lens is named for this tier.": "이 등급에는 지정된 렌즈가 없습니다.",
@@ -1500,4 +1498,11 @@ export const KO = {
   "Change the lens family": "렌즈 종류 변경",
   "Boxes per eye": "한쪽 눈당 상자 수",
   "Option total": "선택안 합계",
+  "Customer’s frame": "고객 안경테",
+  "The client brings it: 30% off the lenses, or the campaign’s": "고객이 가져옴: 렌즈 30% 할인, 또는 캠페인 할인",
+  "Customer’s frame on the order": "고객 안경테를 주문에 추가했습니다",
+  "Brought by the client — nothing to charge; the lenses take the own-frame discount": "고객이 가져옴. 청구 없음. 렌즈에 본인 안경테 할인이 적용됩니다",
+  "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "고객 안경테: 렌즈 30% 할인, 캠페인 할인이 적용되는 동안은 그 할인.",
+  "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "안경테 없음: 가격은 렌즈만입니다. 고객 본인의 안경테라면 고객 안경테를 고르세요.",
+  "Contact lenses and extras only": "콘택트렌즈와 부속품만",
 };

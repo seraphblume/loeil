@@ -14,7 +14,7 @@ import { PromotionsSection } from './cascade.js';
 import { money } from '../core/money.js';
 import {
   lineCode, lineText, lineQuantity, orderTotal, priceOrder, extraLine, lensesOf, STATUSES, ticketText,
-  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder, lineFit, clientPays,
+  isPair, isShare, isGlasses, discountable, needsAob, aobMissing, isPlaceholder, lineFit, clientPays, ownFrameLine,
 } from '../core/orders.js';
 import { OrderRxSheet, rxSummary, FitEye } from './rx.js';
 import { addOrderToQuote } from './quote.js';
@@ -47,13 +47,14 @@ export function CodesBlock({ order }) {
   const [copied, copy] = useCopy();
   if (!order.lines.length) return null;
   const promos = promoNumbers(order);
-  const all = [...order.lines.map((l) => `${lineCode(l)}  x${lineQuantity(l)}`), ...promos.map((x) => `${x.id}  ${x.name}`)].join('\n');
+  const coded = order.lines.filter((l) => !l.own); // the client's own frame has no code
+  const all = [...coded.map((l) => `${lineCode(l)}  x${lineQuantity(l)}`), ...promos.map((x) => `${x.id}  ${x.name}`)].join('\n');
   return html`<div class="gap-s">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <${Eyebrow}>${order.lines.length === 1 ? tr('Code') : tr('Codes')}<//>
       <button class="icon-btn" aria-label=${tr('Copy all codes')} onClick=${() => copy(all, 'all')}><${Icon} name=${copied === 'all' ? 'check' : 'copy'} /></button>
     </div>
-    ${order.lines.map((l) => html`<div class="code-line"><span class="code sel">${lineCode(l)}</span><span class="qty">×${lineQuantity(l)}</span></div>`)}
+    ${coded.map((l) => html`<div class="code-line"><span class="code sel">${lineCode(l)}</span><span class="qty">×${lineQuantity(l)}</span></div>`)}
     ${promos.length > 0 && html`<div class="gap-s" style="margin-top:6px">
       <${Eyebrow}>${promos.length === 1 ? tr('Promotion number') : tr('Promotion numbers')}<//>
       ${promos.map((x) => html`<div class="code-line"><span class="code sel">${x.id}</span><span class="qty" style="font-family:inherit">${x.name}</span></div>`)}
@@ -76,7 +77,8 @@ export function LinesPanel({ order, editable }) {
         const inSet = l.kind === 'frame' && (l.set || l.setAvailable);
         // A participating frame still in its set: its percentage is one tap away, outside the set.
         const deal = editable && l.kind === 'frame' && l.set && typeof l.discount !== 'number' ? frameDeal(catalogue, l) : null;
-        const via = l.ally?.packaged ? tr('In the plan’s package')
+        const via = l.own ? tr('Brought by the client — nothing to charge; the lenses take the own-frame discount')
+          : l.ally?.packaged ? tr('In the plan’s package')
           : l.setExcluded ? `${tr('{set} doesn’t include these lenses', { set: l.setExcluded.name })} · ${l.placeholder ? tr('from its lowest catalogue price') : tr('frame at its full price')}`
           : l.outsideSet ? tr('Not in {set}’s table · its own price', { set: l.outsideSet.setName })
           : l.placeholder && !l.set ? tr('Quoted by brand · from its lowest catalogue price')
@@ -112,7 +114,7 @@ export function LinesPanel({ order, editable }) {
           </div>
           <div class="money">
             ${r.off > 0 && html`<div class="was">${money(r.list)}</div>`}
-            <div class=${'now' + (r.net == null ? ' soft' : '')} key=${r.net}>${r.pending ? (l.setLens ? tr('Row?') : tr('To confirm')) : r.net == null ? tr('At register') : money(r.net)}</div>
+            <div class=${'now' + (r.net == null || l.own ? ' soft' : '')} key=${r.net}>${l.own ? '—' : r.pending ? (l.setLens ? tr('Row?') : tr('To confirm')) : r.net == null ? tr('At register') : money(r.net)}</div>
             ${steps
               ? html`<div class="steps">
                   <button class="icon-btn" aria-label=${tr('One fewer')} onClick=${() => (l.quantity > 1 ? updateLine(l.id, { quantity: l.quantity - 1 }) : removeLine(l.id))}>−</button>
@@ -368,6 +370,8 @@ export function OrderScreen() {
           <${Row} icon="barcode" title=${tr('Scan a frame or stock item')} chev onClick=${() => go('#/find/scan')} />
           <${Row} icon="glasses" title=${tr('Browse frames')} chev onClick=${() => go('#/find/frames')} />
           <${Row} icon="tag" title=${tr('Frame brand or set')} detail=${tr('For a quote, before the frame is chosen')} chev onClick=${() => setSheet('framepick')} />
+          <${Row} icon="person" title=${tr('Customer’s frame')} detail=${tr('The client brings it: 30% off the lenses, or the campaign’s')}
+            onClick=${async () => { await setOrderFrame(ownFrameLine()); toast(tr('Customer’s frame on the order')); }} />
           <${Row} icon="box" title=${tr('Case, solution or extra')} chev onClick=${() => setSheet('extra')} />
         <//>
 

@@ -266,18 +266,31 @@ A line takes one discount, never two. In order:
    are (9261), **30% off every pair of lenses outside a set** in Pre Buen Fin (9009,
    29 Oct – 12 Nov) and **30% or 50% off a participating frame outside a set** (below),
    **30% off the lenses
-   when the client brings their own frame** (9027: a pair with no frame on the order),
-   and **prescription Polarex in a sunglass frame bought here** (8922, *Polariza tu
+   when the client brings their own frame** (9027: a pair with **Customer's frame** on
+   the order — see below), and **prescription Polarex in a sunglass frame bought here** (8922, *Polariza tu
    Solar*). 8922 reprices the single vision polycarbonate Polarex lens itself, as the
    register does, and the frame keeps its own price: $2,099.02 with anti-scratch,
    $3,999 anti-reflective, $3,599 anti-reflective HD, $6,149 Crizal, $2,649 mirror. Any
    other Polarex lens (a progressive) shows “price to confirm” until its row has a
    price (choose No discount on the line to quote it at its own price).
+   When two save the client the same, the campaign's (one with dates) wins over a
+   standing one: lenses in the client's own frame take Pre Buen Fin's 30% (9009)
+   while it runs — or a Buen Fin discount, once published, when it covers them — and
+   9027's 30% the rest of the year.
 3. **Discounts the client claims**: **Sam's Club members** (461) show their card
    and the seller switches it on, under the client on the order. It takes 20% off
    every line nothing above covers — frames, lenses, contacts, accessories and
    Plus Protection (after it is worked out on the list prices) — but not a $0.01
    gift.
+
+**Customer's frame** (*armazón de cliente*) is the client's own frame, on the
+order's Add list and as a frame in the quote's **Add an option**. Nothing is sold —
+it has no SKU or price, takes no set or discount, stays off the register's lines
+(the register list says *nothing to scan*) and reads **CUSTOMER'S FRAME** on the
+quote — but the pair that goes in it takes the own-frame discount above. A frame
+scanned later takes its place. **No frame** is for contact lenses and extras: a pair
+with no frame takes only what covers every pair (Pre Buen Fin's 30% while it runs),
+never 9027.
 
 **Participating frames, by SKU.** Pre Buen Fin takes 30% or 50% off a frame only
 when its SKU participates. The POS's report of participating frames (`SKU_SAP`,
@@ -390,7 +403,8 @@ names, it takes the one the client pays least for: in a set frame, the set's row
 tier says so), in a sunglasses frame the prescription sun price, otherwise the
 price list. So Plus takes HD anti-reflective with a blue-light filter in a set,
 where the set includes it, and Everyday Plus takes Transitions where a set makes it
-cheaper than a photochromic. With no frame the prices are for the client's own frame.
+cheaper than a photochromic. With Customer's frame the prices are for the client's
+own frame, with its 30% (or the campaign's); with no frame, for the lenses alone.
 
 **Every order gets its own accessories.** An accessory lists its alternatives —
 the six Estuche Nube colours, both kids' cases and keychains — and each order takes
@@ -459,7 +473,8 @@ the prices hold (the end of the option's set or campaign); its foot is the store
 **Quote footer**.
 
 **Add an option** builds one in two steps. First the frame: keep the one on the
-order, no frame, or quote it as
+order, **Customer's frame** (the client's own, with the own-frame discount on the
+lenses), no frame (contact lenses and extras), or quote it as
 
 - **Frame** — one from the catalogue, at its price (or its set's);
 - **Brand** — before the client has chosen the model. A brand in a live set is

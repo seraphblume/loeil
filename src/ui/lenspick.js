@@ -109,7 +109,7 @@ export function HandPickedLens({ lens, frame, claimed, onAdd }) {
     : plus && html`<div class="group"><div class="cell"><span class="k">${plus.description}</span>
         <${Toggle} on=${withPlus} onChange=${setWithPlus} label=${plus.description} /></div></div>`}
     <${Panel}>
-      ${frame && html`<${KV} k=${tr('Frame')} v=${money(priced.frame)} />`}
+      ${frame && html`<${KV} k=${tr('Frame')} v=${frame.own ? tr('Customer’s frame') : money(priced.frame)} />`}
       <${KV} k=${contact ? tr('Contact lenses') : tr('Lenses')} v=${priced.pending ? tr('To confirm') : money(priced.lens)} />
       ${!contact && withPlus && html`<${KV} k=${plus.description} v=${money(priced.plus)} />`}
       <${KV} k=${tr('Option total')} v=${money(priced.total)} em />

@@ -70,6 +70,16 @@ export const placeholderFrame = ({ brand = '', description, priceCents, priceSou
 });
 export const isPlaceholder = (line) => line.kind === 'frame' && Boolean(line.placeholder);
 
+/**
+ * The client's own frame (armazón de cliente): nothing is sold, but the
+ * lenses that go in it take the own-frame discount — 30% (9027), or the
+ * campaign's when one covers them (core/sets.js). No SKU, no price, no set.
+ */
+export const ownFrameLine = () => ({
+  id: uid(), kind: 'frame', own: true, sku: '', product: '', description: 'Customer’s frame', brand: '', category: 'Ophthalmic', priceCents: 0, stock: null,
+});
+export const isOwnFrame = (line) => line?.kind === 'frame' && Boolean(line.own);
+
 export const frameLine = (frame, priceCents, priceSource) => ({
   id: uid(), kind: 'frame', sku: frame.sku, product: frame.product ?? frame.vendorSku ?? '',
   description: frame.description, brand: frame.brand ?? '', category: frame.category ?? '', priceCents, priceSource,
@@ -88,8 +98,8 @@ export const isPair = (line) => line.kind === 'lens' && line.lens.family !== 'CL
 export const isShare = (line) => line.kind === 'extra' && Number(line.percent) > 0;
 /** Lines a percentage add-on covers. */
 export const isGlasses = (line) => line.kind === 'frame' || isPair(line);
-/** Lines a seller can discount. */
-export const discountable = (line) => line.kind === 'frame' || line.kind === 'lens';
+/** Lines a seller can discount. The client's own frame has nothing to discount. */
+export const discountable = (line) => (line.kind === 'frame' && !line.own) || line.kind === 'lens';
 
 /** The code the register wants typed: the POS lens code, or the true SKU. */
 export function lineCode(line) {
@@ -99,6 +109,7 @@ export function lineCode(line) {
 }
 
 export function lineText(line) {
+  if (line.own) return tr('Customer’s frame');
   if (line.kind === 'lens') {
     return [isPair(line) || line.eye === 'OU' ? null : line.eye, line.power || null, line.lens.displayName].filter(Boolean).join(' · ');
   }

@@ -274,7 +274,7 @@ function resolveContact(catalogue, tier, rx, { seed, contactRx, on }) {
  * A tier read against the prescription and the frame: the lens it lands on (or
  * why none), the extras and the accessories it adds, and what it left out.
  * `seed` (the order's id) picks among an accessory's alternatives; `frame` (a
- * frame line, or null for the client's own) and `claimed` decide what the
+ * frame line — Customer's frame too — or null for none) and `claimed` decide what the
  * client pays, and so which lens is the cheapest.
  */
 export function resolvePreset(catalogue, tier, rx, { seed = null, frame = null, contactRx = null, claimed = [], on = new Date() } = {}) {

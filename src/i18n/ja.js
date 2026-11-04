@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1500 strings. English keys, ja values.
+// Generated from the translation sheets — 1505 strings. English keys, ja values.
 export const JA = {
   "1 change": "変更 1件",
   "1 client": "顧客 1人",
@@ -527,7 +527,6 @@ export const JA = {
   "Lens, Plus Protection and accessories in one tap": "レンズ・Plus Protection・アクセサリーをワンタップで",
   "Lens, client, frame or barcode": "レンズ・顧客・フレーム・バーコード",
   "Lenses": "レンズ",
-  "Lenses and extras only": "レンズと追加品のみ",
   "Lenses in a set have no row of the set’s table yet. Choose it on the line to finish the price.": "セット内のレンズにまだセット表の行がありません。行で選ぶと価格が確定します。",
   "Lenses keep their code; they show the POS wording until it is named again.": "レンズのコードはそのままです。再び名前を付けるまで POS の表記で表示されます。",
   "Lenses on this order need the AOB of each eye.": "この注文のレンズには両眼の AOB が必要です。",
@@ -629,7 +628,6 @@ export const JA = {
   "No frame": "フレームなし",
   "No frame matches.": "一致するフレームはありません。",
   "No frame or stock item has barcode {a}.": "バーコード {a} のフレームや在庫品はありません。",
-  "No frame, so prices are for lenses in the client’s own frame.": "フレームなしのため、お客様のフレームにレンズを入れる価格です。",
   "No frames match": "一致するフレームはありません",
   "No high-index version — standard material.": "高屈折版なし — 標準素材です。",
   "No lens is named for this tier.": "このランクにはレンズが指定されていません。",
@@ -1500,4 +1498,11 @@ export const JA = {
   "Change the lens family": "レンズの種類を変更",
   "Boxes per eye": "片眼ごとの箱数",
   "Option total": "案の合計",
+  "Customer’s frame": "お客様のフレーム",
+  "The client brings it: 30% off the lenses, or the campaign’s": "お客様の持ち込み：レンズ30%引き、またはキャンペーンの割引",
+  "Customer’s frame on the order": "お客様のフレームを注文に追加しました",
+  "Brought by the client — nothing to charge; the lenses take the own-frame discount": "お客様の持ち込み。請求なし。レンズには持ち込みフレームの割引が付きます",
+  "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "お客様のフレーム：レンズは30%引き、キャンペーンの割引が対象になる間はそちら。",
+  "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "フレームなし：価格はレンズのみです。お客様のフレームに入れる場合は「お客様のフレーム」を選んでください。",
+  "Contact lenses and extras only": "コンタクトレンズと付属品のみ",
 };

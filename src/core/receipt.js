@@ -108,7 +108,8 @@ function halves(cents) {
 
 export function ticketItems(rows, catalogue) {
   const out = [];
-  const order = [...rows.filter((r) => r.line.kind === 'lens'), ...rows.filter((r) => r.line.kind === 'frame'),
+  // The client's own frame is not sold, so the register's ticket has no line for it.
+  const order = [...rows.filter((r) => r.line.kind === 'lens'), ...rows.filter((r) => r.line.kind === 'frame' && !r.line.own),
     ...rows.filter((r) => r.line.kind !== 'lens' && r.line.kind !== 'frame')];
   for (const r of order) {
     const l = r.line;
@@ -164,7 +165,7 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
   const ally = order.ally ?? null;
 
   const groups = [
-    { n: 1, title: 'Frame SKU', items: frames.map((r) => ({
+    { n: 1, title: 'Frame SKU', items: frames.map((r) => (r.line.own ? { copy: null, text: 'Customer’s frame — nothing to scan' } : {
       copy: r.line.sku, qty: 1, text: r.line.description, price: net(r),
       note: r.line.set ? r.line.set.name : r.line.priceSource === 'tag' ? 'price from the tag' : '',
     })) },
@@ -201,7 +202,7 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
     },
     words: amountWords(p.total),
     validUntil: setEnds,
-    barcode: frames[0]?.line.sku ?? null,
+    barcode: frames.find((r) => !r.line.own)?.line.sku ?? null,
     groups,
     rx: fields,
     aobMissing: Boolean(catalogue && needsAob(order, catalogue) && !(order.aob?.od && order.aob?.os)),
