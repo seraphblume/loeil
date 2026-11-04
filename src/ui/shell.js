@@ -27,7 +27,7 @@ import { QuoteScreen } from './quote.js';
 import { PresetsAdminScreen } from './presets.js';
 import { ClientsScreen, ClientScreen } from './clients.js';
 import { OrdersScreen, SavedOrderScreen } from './orders.js';
-import { DeliveryScreen, FollowUpScreen } from './control.js';
+import { DeliveryScreen, FollowUpScreen, AftersaleScreen } from './control.js';
 import { MeScreen, PromotionsScreen } from './me.js';
 import { GiftsScreen } from './gifts.js';
 import { PublishScreen } from './publish.js';
@@ -108,6 +108,8 @@ export function useWide() {
   return wide;
 }
 
+const CONTROL_SCREENS = { delivery: DeliveryScreen, followup: FollowUpScreen, aftersale: AftersaleScreen };
+
 /** Clients and Orders as list + record on a wide screen; everything else in one pane. */
 function Panes({ route }) {
   const [tab, a, b] = route.parts;
@@ -116,12 +118,12 @@ function Panes({ route }) {
       <div class="pane detail-pane">${a ? html`<${ClientScreen} id=${a} embedded key=${a} />` : html`<${Placeholder} icon="people" text=${tr('Choose a client')} />`}</div>`;
   }
   if (tab === 'orders') {
-    // Delivery and Follow Up open their rows beside the list too: #/orders/delivery/<Sell ID>.
-    const control = a === 'delivery' || a === 'followup' ? a : null;
+    // Delivery, Follow Up and Aftersale open their rows beside the list too: #/orders/delivery/<Sell ID>.
+    const control = CONTROL_SCREENS[a] ? a : null;
     const view = control ?? route.query.get('view');
-    const empty = { delivery: tr('Choose a delivery'), followup: tr('Choose a follow-up') }[view] ?? tr('Choose an order');
+    const empty = { delivery: tr('Choose a delivery'), followup: tr('Choose a follow-up'), aftersale: tr('Choose a touch') }[view] ?? tr('Choose an order');
     const detail = control
-      ? (b ? (control === 'delivery' ? html`<${DeliveryScreen} saleId=${b} embedded key=${'d' + b} />` : html`<${FollowUpScreen} saleId=${b} embedded key=${'f' + b} />`)
+      ? (b ? html`<${CONTROL_SCREENS[control]} saleId=${b} embedded key=${control + b} />`
         : html`<${Placeholder} icon="doc" text=${empty} />`)
       : !a ? html`<${Placeholder} icon="doc" text=${empty} />`
         : b === 'receipt' ? html`<${SavedReceiptScreen} id=${a} key=${a + 'r'} />` : html`<${SavedOrderScreen} id=${a} embedded key=${a} />`;
@@ -167,6 +169,7 @@ function screenFor(route) {
   if (tab === 'orders') {
     if (a === 'delivery') return b ? html`<${DeliveryScreen} saleId=${b} />` : html`<${OrdersScreen} view="delivery" />`;
     if (a === 'followup') return b ? html`<${FollowUpScreen} saleId=${b} />` : html`<${OrdersScreen} view="followup" />`;
+    if (a === 'aftersale') return b ? html`<${AftersaleScreen} saleId=${b} />` : html`<${OrdersScreen} view="aftersale" />`;
     if (a && b === 'receipt') return html`<${SavedReceiptScreen} id=${a} />`;
     return a ? html`<${SavedOrderScreen} id=${a} />` : html`<${OrdersScreen} query=${route.query} />`;
   }

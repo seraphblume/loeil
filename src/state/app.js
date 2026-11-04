@@ -20,6 +20,7 @@ import {
   blankControl, readControl, readVendors, readMessages, readFollowUpMessages, assignSellers, rowsFor, editDelivery, mergeControl,
   normalizeControl,
 } from '../core/control.js';
+import { readAftersale } from '../core/aftersale.js';
 import { newQuote, QUOTE_OPTIONS } from '../core/quote.js';
 import { uid } from '../core/util.js';
 import { readStats } from '../core/stats.js';
@@ -410,7 +411,7 @@ export async function clearQuote() {
 // ---------------------------------------------------------------------------
 // Backups
 
-const hasControl = (c) => Boolean(c && (c.deliveries.length || c.followUps.length || c.messages));
+const hasControl = (c) => Boolean(c && (c.deliveries.length || c.followUps.length || c.aftersale?.length || c.messages));
 
 export function backupJSON() {
   return JSON.stringify(exportBackup({
@@ -433,12 +434,12 @@ export async function restoreBackup(parsed, mode) {
 }
 
 /**
- * The Alpha workbook (its sheets as rows: `crm`, `all`, `control`, `config`)
- * → what importing it would do, before it does anything.
+ * The Alpha workbook (its sheets as rows: `crm`, `all`, `control`, `aftersale`,
+ * `config`) → what importing it would do, before it does anything.
  *
  * The CRM is the admin's: its clients come in on the admin's phone only, each
- * with the tickets this phone's seller sold them on the All tab. Control comes
- * in on every phone, this seller's rows only.
+ * with the tickets this phone's seller sold them on the All tab. Control and
+ * Aftersale come in on every phone, this seller's rows only.
  */
 export function previewAlpha(book) {
   const b = Array.isArray(book) ? { crm: book } : book;
@@ -450,12 +451,16 @@ export function previewAlpha(book) {
   if (b.crm) alpha = isClientLayout(b.crm) ? attachTickets(readClients(b.crm), tickets, seller) : readAlpha(b.crm, staff);
   let control = null;
   const read = b.control ? readControl(b.control) : null;
+  // A workbook from before the Aftersale sheet brings none: the phone's stay as they are.
+  const after = b.aftersale ? readAftersale(b.aftersale) : null;
   if (read) {
-    const all = assignSellers(read, tickets, readVendors(b.config, staff));
+    const all = assignSellers({ ...read, aftersale: after?.rows ?? null }, tickets, readVendors(b.config, staff));
     control = {
       deliveries: rowsFor(all.deliveries, seller, admin), followUps: rowsFor(all.followUps, seller, admin),
-      messages: readMessages(b.config), followUpMessages: readFollowUpMessages(b.config), vendorFilter: read.vendorFilter,
-      here: { deliveries: state.control.deliveries.length, followUps: state.control.followUps.length },
+      aftersale: after ? rowsFor(all.aftersale, seller, admin) : null,
+      messages: readMessages(b.config), followUpMessages: readFollowUpMessages(b.config), aftersaleMessages: after?.messages ?? null,
+      vendorFilter: read.vendorFilter,
+      here: { deliveries: state.control.deliveries.length, followUps: state.control.followUps.length, aftersale: state.control.aftersale.length },
     };
   }
   // Alpha's own figures (History, Dashboard): this seller's month and pay, and the store against its goals.
@@ -468,7 +473,7 @@ export function previewAlpha(book) {
 
 /** Bring the workbook in: the CRM merged (admin's phone), this seller's Control replaced by the workbook's. */
 export async function importAlpha(parsed) {
-  const done = { clients: 0, orders: 0, updated: 0, deliveries: 0, followUps: 0 };
+  const done = { clients: 0, orders: 0, updated: 0, deliveries: 0, followUps: 0, aftersale: null };
   if (parsed.alpha) {
     const next = mergeAlpha({ clients: state.clients, orders: state.orders }, parsed.alpha);
     setState({ clients: sortClients(withShowcase(next.clients)), orders: sortOrders(next.orders) });
@@ -479,14 +484,17 @@ export async function importAlpha(parsed) {
     const c = parsed.control;
     setState({
       control: {
-        deliveries: c.deliveries, followUps: c.followUps, messages: c.messages ?? state.control.messages,
+        deliveries: c.deliveries, followUps: c.followUps, aftersale: c.aftersale ?? state.control.aftersale,
+        messages: c.messages ?? state.control.messages,
         followUpMessages: c.followUpMessages ?? state.control.followUpMessages,
+        aftersaleMessages: c.aftersaleMessages ?? state.control.aftersaleMessages,
         vendorFilter: c.vendorFilter, importedAt: new Date().toISOString(),
       },
     });
     await saveControl();
     done.deliveries = c.deliveries.length;
     done.followUps = c.followUps.length;
+    if (c.aftersale) done.aftersale = c.aftersale.length;
   }
   if (parsed.stats) {
     setState({ stats: parsed.stats });
@@ -497,8 +505,8 @@ export async function importAlpha(parsed) {
 }
 
 // ---------------------------------------------------------------------------
-// Control: Delivery and Follow Up. Changed on the phone; the next import
-// from Alpha puts the workbook's back.
+// Control: Delivery, Follow Up and Aftersale. Changed on the phone; the next
+// import from Alpha puts the workbook's back.
 
 async function saveControl() { await db.set('control', state.control); }
 
@@ -511,6 +519,13 @@ export async function updateDelivery(saleId, patch) {
 export async function updateFollowUp(saleId, patch) {
   const followUps = state.control.followUps.map((r) => (r.saleId === saleId ? { ...r, ...patch } : r));
   setState({ control: { ...state.control, followUps } });
+  await saveControl();
+}
+
+/** Done or Note on an Aftersale row. Alpha logs a touch only when it is ticked there. */
+export async function updateAftersale(saleId, patch) {
+  const aftersale = state.control.aftersale.map((r) => (r.saleId === saleId ? { ...r, ...patch } : r));
+  setState({ control: { ...state.control, aftersale } });
   await saveControl();
 }
 

@@ -1,6 +1,6 @@
 // Orders by status. An order marked Sold IS the purchase history — moving one
 // to Sold is what makes it count on the dashboard and resets the recall clock.
-// Beside them, Alpha's Control: Delivery and Follow Up (control.js).
+// Beside them, Alpha's Control and Aftersale: Delivery, Follow Up and Aftersale (control.js).
 
 import { html, useState } from './html.js';
 import { useApp } from './hooks.js';
@@ -10,10 +10,14 @@ import { money } from '../core/money.js';
 import { upsertOrder, deleteOrder, clientById, toast } from '../state/app.js';
 import { LinesPanel, TotalBlock, OrderPromotions } from './order.js';
 import { go } from './router.js';
-import { DeliveryView, FollowUpView } from './control.js';
+import { DeliveryView, FollowUpView, AftersaleView } from './control.js';
 import { tr } from '../i18n.js';
 
-const VIEWS = [{ value: 'orders', label: 'Orders' }, { value: 'delivery', label: 'Delivery' }, { value: 'followup', label: 'Follow Up' }];
+const VIEWS = [
+  { value: 'orders', label: 'Orders' }, { value: 'delivery', label: 'Delivery' }, { value: 'followup', label: 'Follow Up' },
+  { value: 'aftersale', label: 'view::Aftersale' }, // a shorter word where the four would not fit
+];
+const CONTROL_VIEWS = { delivery: DeliveryView, followup: FollowUpView, aftersale: AftersaleView };
 const views = () => VIEWS.map((v) => ({ ...v, label: tr(v.label) }));
 
 export function OrderRow({ order, byTitle, on }) {
@@ -24,7 +28,7 @@ export function OrderRow({ order, byTitle, on }) {
     end=${orderTotal(order) ? money(orderTotal(order)) : statusLabel(order.status)} />`;
 }
 
-/** `view` comes from the route when a delivery or follow-up is open beside the list. */
+/** `view` comes from the route when a delivery, follow-up or aftersale touch is open beside the list. */
 export function OrdersScreen({ selected, query, view: open }) {
   const orders = useApp((s) => s.orders);
   const asked = open ?? query?.get('view');
@@ -35,8 +39,8 @@ export function OrdersScreen({ selected, query, view: open }) {
     <${Screen}>
       <div class="stack">
         <${LargeTitle}>${tr('Orders')}<//>
-        <div class="pad"><${Seg} label=${tr('Show')} value=${view} options=${views()} onChange=${show} /></div>
-        ${view === 'delivery' ? html`<${DeliveryView} selected=${selected} />` : view === 'followup' ? html`<${FollowUpView} selected=${selected} />` : orders.length === 0
+        <div class="pad"><${Seg} dense label=${tr('Show')} value=${view} options=${views()} onChange=${show} /></div>
+        ${CONTROL_VIEWS[view] ? html`<${CONTROL_VIEWS[view]} selected=${selected} />` : orders.length === 0
           ? html`<div class="pad"><${Empty} title=${tr('No orders yet')}>${tr('Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.')}<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);

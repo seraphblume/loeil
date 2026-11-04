@@ -43,7 +43,7 @@ using the phone, and it is ready.
 |---|---|---|
 | Prices, lenses, frames, stock, promotions, staff, the branch on the ticket | `data/catalogue.enc.json`, encrypted (AES-256-GCM, key from the store passcode via PBKDF2) | Anyone with the passcode |
 | Unpublished edits | The admin’s phone (the working copy) | The admin |
-| Client records, orders, Delivery and Follow Up | That phone only (IndexedDB) | Nobody else — no sync, no account |
+| Client records, orders, Delivery, Follow Up and Aftersale | That phone only (IndexedDB) | Nobody else — no sync, no account |
 | GitHub token for publishing | The admin’s phone only | The admin |
 
 **L’Œil owns its data.** No spreadsheet and no Google service is needed to run it
@@ -51,8 +51,8 @@ or to change it. The published file is the source of truth, and every publish is
 a commit, so the full history is in this repository’s log. The repository and the
 site hold only code and the encrypted file; `.gitignore` refuses `*.xlsx`.
 
-Back up client records from **Me → Export backup** (Delivery and Follow Up go
-with them). **Me → Restore or import** takes a backup from this app or the earlier
+Back up client records from **Me → Export backup** (Delivery, Follow Up and
+Aftersale go with them). **Me → Restore or import** takes a backup from this app or the earlier
 iPhone and Android apps, or the **Alpha workbook**:
 
 - **Its CRM** comes in on the admin's phone only — it is his client list. Each
@@ -68,8 +68,8 @@ iPhone and Android apps, or the **Alpha workbook**:
   goes into their history, so nothing is lost — and keeps what Alpha has no column
   for (notes, favourite, orders). Clients Alpha does not list stay as they are,
   and importing the same workbook again adds only what is new.
-- **Its Control** comes in on every phone, that seller's rows only — see
-  [Delivery and Follow Up](#delivery-and-follow-up).
+- **Its Control and Aftersale** come in on every phone, that seller's rows only —
+  see [Delivery and Follow Up](#delivery-and-follow-up) and [Aftersale](#aftersale).
 
 The workbook is read in the browser and never leaves the phone.
 
@@ -175,6 +175,39 @@ computer, the way an order does (`#/orders/delivery/<Sell ID>`, `#/orders/follow
   chat. The preset and Customer ID can be changed here; an earlier workbook's Plan
   ID reads as the preset. Alpha rebuilds the list for the vendor on Control (or
   All): rebuild it for All before importing on the sellers' phones.
+
+## Aftersale
+
+Alpha's **Aftersale** sheet, on the phone: **Orders → Aftersale**. Every order
+Control marks Delivered is followed through its first year, one touch at a time:
+
+| Touch | When | What it is for |
+|---|---|---|
+| Handover | The day it goes out and the next | Comfort checked, adjustments made — a tick, no message (the review request stays on Delivery) |
+| 48 hours | Days 2–6 | Adaptation, support with any discomfort, the warranties |
+| 15 days | Days 15–29 | Catch difficulties before they become complaints |
+| 90 days | Days 90–119 | Keep the relationship |
+| 6 months | 30 days from the same day of the month | Preventive eye care |
+| 12 months | 30 days from the same day of the month | The yearly exam |
+
+**Aftersale.gs**, beside Alpha.gs in the workbook's Apps Script, keeps the sheet.
+It lists the touches due now — at 7 a.m., when an order turns Delivered, the
+first time the file opens each day, and from **Aftersale ▸ Rebuild now** — and
+writes every order's touches to the **Logs** sheet: the day each was ticked Done,
+**Missed** when its window closed unticked, or **Skipped** for orders delivered
+before 3 Nov 2026, which joined at their next touch. The messages, in Spanish,
+are typed in the panel beside the list (Touch, Message); `{name}` is the client's
+first name and `{customer}` the full name.
+
+On the phone the list comes in with each workbook import, this seller's rows
+only (the seller of each Sell ID on the All tab, else its Vendor column through
+Config's short names), grouped by touch, oldest first, and red from a week late,
+as on the sheet. A touch opens as its own screen (`#/orders/aftersale/<Sell ID>`)
+and sends its message on WhatsApp — it can be read before it goes; Handover just
+opens the chat. Done and Note can be changed there until the next import puts the
+workbook's back. **A touch counts once it is ticked on the sheet**: that is what
+Aftersale.gs logs. A workbook from before the Aftersale sheet leaves the phone's
+list as it is.
 
 ## Your figures from Alpha
 
@@ -555,6 +588,7 @@ src/core/             pure logic, shared with tools/publish.mjs
   alliances.js        insurers and employers: coverage, copay, packages, paperwork
   orders.js crm.js rxticket.js backup.js
   alpha.js control.js the Alpha workbook: its CRM, and Control (Delivery, Follow Up)
+  aftersale.js        the Alpha workbook's Aftersale sheet: the touches due, their messages
   stats.js            the Alpha workbook's History and Dashboard → the Me figures
 src/i18n.js, src/i18n/  the app's words in English, Spanish, Japanese and Korean
 src/state/            storage, sync, the working copy, updates

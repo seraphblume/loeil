@@ -164,7 +164,7 @@ export function MeScreen() {
           <${Secondary} icon="download" onClick=${exportFile}>${tr('Export backup')}<//>
           <${Secondary} icon="upload" onClick=${() => fileRef.current.click()}>${tr('Restore or import')}<//>
           <input ref=${fileRef} type="file" accept="application/json,.json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onChange=${pickBackup} />
-          <p class="note">${tr('A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales (on the admin’s phone), and your rows on its Control sheet fill Orders → Delivery and Follow Up.')}</p>
+          <p class="note">${tr('A backup from this app or the iPhone and Android apps, or the Alpha workbook — its CRM clients come in with their prescriptions and past sales (on the admin’s phone), and your rows on its Control and Aftersale sheets fill Orders → Delivery, Follow Up and Aftersale.')}</p>
         </div>
 
         ${!isStandalone() && html`<div class="pad"><${Flag} icon="download">
@@ -194,14 +194,14 @@ export function MeScreen() {
 
 /**
  * The Alpha workbook's sheets as rows of cells: its CRM (either shape), All
- * (the tickets), Control and Config — whichever it has.
+ * (the tickets), Control, Aftersale and Config — whichever it has.
  */
 async function workbookRows(file) {
   const XLSX = await loadXLSX();
   const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellFormula: true });
   const read = (n) => (n ? XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: null }) : null);
   const named = (want) => wb.SheetNames.find((n) => n.trim().toUpperCase() === want);
-  const crm = named('CRM') ?? wb.SheetNames.find((n) => !['ALL', 'CONTROL'].includes(n.trim().toUpperCase())
+  const crm = named('CRM') ?? wb.SheetNames.find((n) => !['ALL', 'CONTROL', 'AFTERSALE', 'LOGS'].includes(n.trim().toUpperCase())
     && read(n).slice(0, 12).some((r) => String(r?.[0] ?? '').trim().toLowerCase() === 'sell id'));
   const controlName = named('CONTROL');
   const control = read(controlName);
@@ -214,7 +214,10 @@ async function workbookRows(file) {
     }));
   }
   if (!crm && !control) throw new Error(tr('This workbook has no CRM or Control sheet.'));
-  return { crm: read(crm), all: read(named('ALL')), control, config: read(named('CONFIG')), history: read(named('HISTORY')), dashboard: read(named('DASHBOARD')) };
+  return {
+    crm: read(crm), all: read(named('ALL')), control, aftersale: read(named('AFTERSALE')), config: read(named('CONFIG')),
+    history: read(named('HISTORY')), dashboard: read(named('DASHBOARD')),
+  };
 }
 
 function AlphaSheet({ parsed, onClose }) {
@@ -226,6 +229,7 @@ function AlphaSheet({ parsed, onClose }) {
     const said = [];
     if (alpha) said.push(done.clients || done.orders ? tr('{clients} and {sales} added', { clients: trn(done.clients, '1 client', '{n} clients'), sales: trn(done.orders, '1 past sale', '{n} past sales') }) : tr('Clients up to date'));
     if (control) said.push(tr('{deliveries} and {followUps}', { deliveries: trn(done.deliveries, '1 delivery', '{n} deliveries'), followUps: trn(done.followUps, '1 follow-up', '{n} follow-ups') }));
+    if (done.aftersale != null) said.push(trn(done.aftersale, '1 aftersale touch', '{n} aftersale touches'));
     if (done.stats) said.push(tr('Figures updated'));
     toast(said.join(' · '));
     onClose();
@@ -253,6 +257,7 @@ function AlphaSheet({ parsed, onClose }) {
         <${Panel}>
           <${KV} k=${tr('Delivery')} v=${was(control.deliveries.length, control.here.deliveries)} />
           <${KV} k=${tr('Follow Up')} v=${was(control.followUps.length, control.here.followUps)} />
+          ${control.aftersale && html`<${KV} k=${tr('Aftersale')} v=${was(control.aftersale.length, control.here.aftersale)} />`}
           <${KV} k=${tr('WhatsApp messages')} v=${control.messages ? tr('From the workbook') : tr('As before')} />
         <//>
         <p class="note">${tr('Your rows only. The workbook’s replace this phone’s, so its Status, Promised, Delivered and Pending win over what was changed here.')}</p>

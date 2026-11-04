@@ -1,23 +1,26 @@
-// Control on the phone: Delivery — the orders on their way to the client — and
-// Follow Up — the visits that ended without a sale. Both come in from Alpha's
-// Control sheet (Me → Restore or import), this seller's rows only, and each
-// import puts the workbook's back. Status, Promised, Delivered and Pending (and
-// a follow-up's Customer ID and preset) can be changed here in between.
+// Control on the phone: Delivery — the orders on their way to the client —
+// Follow Up — the visits that ended without a sale — and Aftersale — the
+// touches due on the orders delivered this year. They come in from Alpha's
+// Control and Aftersale sheets (Me → Restore or import), this seller's rows
+// only, and each import puts the workbook's back. Status, Promised, Delivered
+// and Pending (a follow-up's Customer ID and preset, an aftersale touch's Done
+// and Note) can be changed here in between.
 //
 // A row opens as its own screen on a phone, and beside the list on an iPad or
 // a computer — the way an order does.
 
 import { html, useState } from './html.js';
 import { useApp } from './hooks.js';
-import { Bar, Screen, ScreenTitle, Section, Row, Empty, Panel, KV, Secondary, Quiet, fmtDate, fmtDayMonth, daysAgo } from './kit.js';
+import { Bar, Screen, ScreenTitle, Section, Row, Empty, Panel, KV, Secondary, Quiet, Toggle, fmtDate, fmtDayMonth, daysAgo } from './kit.js';
 import { go } from './router.js';
 import { money } from '../core/money.js';
 import {
   DELIVERY_STATUSES, DELIVERED, daysLeft, isOpen, deliveryWhatsApp, followUpWhatsApp, rowsFor,
 } from '../core/control.js';
+import { AFTERSALE_TOUCHES, daysLate, aftersaleWhatsApp } from '../core/aftersale.js';
 import { nameKey } from '../core/alpha.js';
 import { toCents, isoDay } from '../core/util.js';
-import { updateDelivery, updateFollowUp, isAdminPhone } from '../state/app.js';
+import { updateDelivery, updateFollowUp, updateAftersale, isAdminPhone } from '../state/app.js';
 import { tr } from '../i18n.js';
 
 /** The client on this phone by that name, when there is exactly one. */
@@ -37,7 +40,7 @@ function useRows(list) {
 
 function Nothing({ imported, what }) {
   return html`<div class="pad">${imported
-    ? html`<${Empty} title=${`No ${what} for you`}>${tr('The last import from Alpha had none of yours. Import the workbook again when there are.')}<//>`
+    ? html`<${Empty} title=${tr(`No ${what} for you`)}>${tr('The last import from Alpha had none of yours. Import the workbook again when there are.')}<//>`
     : html`<${Empty} title=${tr('Nothing from Alpha yet')}>${tr('Import the Alpha workbook from Me → Restore or import. Your rows on its Control sheet come in here, and each import brings the workbook’s back.')}<//>`}</div>`;
 }
 
@@ -57,6 +60,7 @@ const SHOWN = 8;
 
 const deliveryHref = (saleId) => '#/orders/delivery/' + encodeURIComponent(saleId);
 const followUpHref = (saleId) => '#/orders/followup/' + encodeURIComponent(saleId);
+const aftersaleHref = (saleId) => '#/orders/aftersale/' + encodeURIComponent(saleId);
 
 /** `2 d left`, `Today`, `3 d late` — and once delivered, how early or late it went out. */
 function when(row) {
@@ -248,5 +252,86 @@ export function FollowUpScreen({ saleId, embedded }) {
     <//>
     <${ClientLink} client=${client} />
     ${fu?.until && html`<p class="note">${tr('Promotions in the messages run until {a}, as Alpha’s Config has them.', { a: fmtDate(fu.until) })}</p>`}
+  <//>`;
+}
+
+// ---------------------------------------------------------------------------
+// Aftersale
+
+/** `Today`, `3 d late` — red from a week on, as on the sheet. */
+function lateness(row) {
+  const n = daysLate(row);
+  if (n == null) return null;
+  if (n <= 0) return n === 0 ? tr('Today') : fmtDayMonth(row.due);
+  const t = tr('{n} d late', { n });
+  return n >= 7 ? html`<span class="pill alert">${t}</span>` : t;
+}
+
+/** The touches due, by touch in the order they come, oldest first; what was ticked here last. */
+export function AftersaleView({ selected }) {
+  const rows = useRows('aftersale');
+  const imported = useApp((s) => Boolean(s.control.importedAt));
+  const known = useApp((s) => Boolean(s.control.aftersaleMessages) || s.control.aftersale.length > 0);
+  if (!rows.length) {
+    if (imported && !known) {
+      return html`<div class="pad"><${Empty} title=${tr('Nothing from Aftersale yet')}>${tr('Alpha’s Aftersale sheet comes in with the next import of the workbook — your touches due on the orders delivered this year.')}<//></div>`;
+    }
+    return html`<${Nothing} imported=${imported} what="aftersale touches" />`;
+  }
+  const byDue = (a, b) => (a.due ?? '').localeCompare(b.due ?? '') || a.customer.localeCompare(b.customer);
+  const todo = rows.filter((r) => !r.done);
+  const done = rows.filter((r) => r.done).sort(byDue);
+  const order = [...AFTERSALE_TOUCHES, ...new Set(todo.map((r) => r.touch).filter((t) => !AFTERSALE_TOUCHES.includes(t)))];
+  const row = (r) => html`<${Row} key=${r.saleId} to=${aftersaleHref(r.saleId)} on=${r.saleId === selected} title=${r.customer || r.saleId} one
+    detail=${[r.delivered && tr('Delivered {date}', { date: fmtDayMonth(r.delivered) }), r.note].filter(Boolean).join(' · ')}
+    end=${r.done ? tr('Done') : lateness(r)} />`;
+  return html`
+    ${order.map((t) => {
+      const list = todo.filter((r) => r.touch === t).sort(byDue);
+      return list.length > 0 && html`<${Section} title=${`${tr(t)} · ${list.length}`}>${list.map(row)}<//>`;
+    })}
+    ${done.length > 0 && html`<${Section} title=${`${tr('Done here')} · ${done.length}`}>${done.map(row)}<//>`}
+    <p class="note pad">${tr('Every order delivered is followed through its first year, one touch at a time. A touch counts once it is ticked Done on Alpha’s Aftersale sheet.')}</p>
+    <${Imported} />`;
+}
+
+export function AftersaleScreen({ saleId, embedded }) {
+  const row = useApp((s) => s.control.aftersale.find((r) => r.saleId === saleId));
+  const messages = useApp((s) => s.control.aftersaleMessages);
+  const clients = useApp((s) => s.clients);
+  const [draft, setDraft] = useState(null); // the note while it is being typed
+  const back = '#/orders?view=aftersale';
+  if (!row) return html`<${RowScreen} embedded=${embedded} back=${back} title=${tr('Aftersale')} missing=${tr('This touch is not on this phone — the last import from Alpha did not bring it.')} />`;
+  const client = clientNamed(clients, row.customer);
+  const phone = row.phone || client?.phone || '';
+  const tel = phone.replace(/\D/g, '');
+  const { message, link } = aftersaleWhatsApp(row, phone, messages);
+  const handover = row.touch === 'Handover';
+  const late = daysLate(row);
+  const commitNote = () => { if (draft !== null) { updateAftersale(row.saleId, { note: draft.trim() }); setDraft(null); } };
+  return html`<${RowScreen} embedded=${embedded} back=${back} title=${row.customer || row.saleId} eyebrow=${tr(row.touch || 'Aftersale')}>
+    <div class="group">
+      <div class="cell"><span class="k">${tr('Done')}</span>
+        <${Toggle} on=${row.done} onChange=${(on) => updateAftersale(row.saleId, { done: on })} label=${tr('Done')} />
+      </div>
+      <label class="cell"><span class="k">${tr('Note')}</span>
+        <input autocomplete="off" enterkeyhint="done" placeholder="—" value=${draft ?? row.note ?? ''}
+          onInput=${(e) => setDraft(e.currentTarget.value)} onBlur=${commitNote}
+          onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }} />
+      </label>
+    </div>
+    <${WhatsApp} link=${link} label=${message ? tr('Send the {touch} message', { touch: tr(row.touch) }) : tr('Open the chat')} />
+    ${message && html`<details class="msg-preview"><summary>${tr('The message')}</summary><p>${message}</p></details>`}
+    ${handover && html`<p class="note">${tr('Handover has no message: check the fit and the comfort as the glasses go out. The review request is on Delivery.')}</p>`}
+    ${!handover && !message && html`<p class="note">${tr('The Aftersale messages come with the next import from Alpha; until then WhatsApp just opens the chat.')}</p>`}
+    <${Panel}>
+      <${KV} k=${tr('Due')} v=${row.due ? [fmtDate(row.due), late > 0 ? tr('{n} d late', { n: late }) : late === 0 ? tr('Today') : null].filter(Boolean).join(' · ') : '—'} />
+      <${KV} k=${tr('Delivered')} v=${fmtDate(row.delivered)} />
+      <${KV} k=${tr('Sell ID')} v=${row.saleId} mono />
+      ${row.sellerName && html`<${KV} k=${tr('Sold by')} v=${row.sellerName} />`}
+      <${KV} k=${tr('Phone')} v=${tel ? html`<a href=${'tel:' + tel}>${phone}</a>` : '—'} />
+    <//>
+    <${ClientLink} client=${client} />
+    <p class="note">${tr('Tick it on Alpha’s Aftersale sheet too: that is what logs it. Done and Note stay on this phone until the next import, which brings the workbook’s.')}</p>
   <//>`;
 }

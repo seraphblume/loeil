@@ -1,5 +1,6 @@
 // Control: the orders on their way to the client (Delivery) and the visits
-// that ended without a sale (Follow Up) — Alpha's Control sheet, on the phone.
+// that ended without a sale (Follow Up) — Alpha's Control sheet, on the phone —
+// and, beside them, the touches its Aftersale sheet has due (aftersale.js).
 //
 // THE WORKBOOK IS THE SOURCE. Rows come in only by importing the Alpha workbook,
 // never from a checkout here, and an import puts this seller's rows back exactly
@@ -8,6 +9,7 @@
 
 import { sheetDay, toCents, digits, dayToDate, isoDay, cellText } from './util.js';
 import { parseVendor } from './alpha.js';
+import { normalizeAftersale, normalizeAftersaleMessages } from './aftersale.js';
 
 /** The statuses, in the order Alpha's dropdown lists them. */
 export const DELIVERY_STATUSES = ['In Production', 'Sent to Store', 'Ready for Pickup', 'Delivered', 'Delayed'];
@@ -21,7 +23,9 @@ export const DEFAULT_MESSAGES = {
   reviewLink: 'https://search.google.com/local/writereview?placeid=ChIJwXqatL3jLYQRhWxiAJMXW9M&source=g.page.m.ia._&laa=nmx-review-solicitation-ia2',
 };
 
-export const blankControl = () => ({ deliveries: [], followUps: [], messages: null, followUpMessages: null, importedAt: null, vendorFilter: null });
+export const blankControl = () => ({
+  deliveries: [], followUps: [], aftersale: [], messages: null, followUpMessages: null, aftersaleMessages: null, importedAt: null, vendorFilter: null,
+});
 
 // ---------------------------------------------------------------------------
 // The rules the sheet's script keeps, kept here the same way.
@@ -255,7 +259,7 @@ export function readFollowUpMessages(configRows) {
 
 /**
  * Who sold each row: the vendor on the All tab for its Sell ID, else (Follow
- * Up) its Vendor column through Config's short names.
+ * Up, Aftersale) its Vendor column through Config's short names.
  */
 export function assignSellers(control, tickets, vendors = new Map()) {
   const bySale = new Map(tickets.map((t) => [t.saleId, t.vendor]));
@@ -267,6 +271,7 @@ export function assignSellers(control, tickets, vendors = new Map()) {
     ...control,
     deliveries: control.deliveries.map((r) => who(r)),
     followUps: control.followUps.map((r) => who(r, r.vendor)),
+    ...(control.aftersale ? { aftersale: control.aftersale.map((r) => who(r, r.vendor)) } : {}),
   };
 }
 
@@ -278,8 +283,10 @@ export function mergeControl(here, incoming) {
     ...here,
     deliveries: add(here.deliveries, incoming.deliveries ?? []),
     followUps: add(here.followUps, incoming.followUps ?? []),
+    aftersale: add(here.aftersale ?? [], incoming.aftersale ?? []),
     messages: here.messages ?? incoming.messages ?? null,
     followUpMessages: here.followUpMessages ?? incoming.followUpMessages ?? null,
+    aftersaleMessages: here.aftersaleMessages ?? incoming.aftersaleMessages ?? null,
     importedAt: here.importedAt ?? incoming.importedAt ?? null,
   };
 }
@@ -305,6 +312,8 @@ export function normalizeControl(c) {
       promos: String(c.followUpMessages.promos ?? ''), until: s(c.followUpMessages.until),
       presets: c.followUpMessages.presets.filter((p) => p?.name).map((p) => ({ name: String(p.name), text: String(p.text ?? '') })),
     } : null,
+    aftersale: normalizeAftersale(c.aftersale),
+    aftersaleMessages: normalizeAftersaleMessages(c.aftersaleMessages),
     importedAt: s(c.importedAt),
     vendorFilter: s(c.vendorFilter),
   };

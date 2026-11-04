@@ -191,9 +191,10 @@ export const Quiet = ({ children, icon, onClick, danger }) =>
   html`<button type="button" class=${'btn quiet' + (danger ? ' danger' : '')} onClick=${onClick}>${icon && html`<${Icon} name=${icon} />`}${children}</button>`;
 
 /** The segmented control: a thumb that slides to the choice. */
-export function Seg({ options, value, onChange, label, small }) {
+/** `dense` fits four or more choices on a phone: smaller type, tighter sides. */
+export function Seg({ options, value, onChange, label, small, dense }) {
   const i = options.findIndex((o) => o.value === value);
-  return html`<div class=${'seg' + (small ? ' small' : '')} role="radiogroup" aria-label=${label} style=${{ '--n': options.length, '--i': Math.max(0, i) }}>
+  return html`<div class=${'seg' + (small ? ' small' : '') + (dense ? ' dense' : '')} role="radiogroup" aria-label=${label} style=${{ '--n': options.length, '--i': Math.max(0, i) }}>
     ${i >= 0 && html`<i class="thumb" aria-hidden="true"></i>`}
     ${options.map((o) => html`<button type="button" role="radio" aria-checked=${o.value === value} class=${o.value === value ? 'on' : ''} onClick=${() => onChange(o.value)}>${o.label}</button>`)}
   </div>`;
