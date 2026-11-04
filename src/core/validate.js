@@ -12,7 +12,7 @@ import { parseMatch, factsMatch, brandAlternatives, APPLIES_TO, frameSkusSummary
 
 const english = (s, v = {}) => s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? ''); // the gate speaks English
 import { isPolarexCrizal, POLAREX_CRIZAL } from './catalogue.js';
-import { clMatches } from './presets.js';
+import { clMatches, presetOptions } from './presets.js';
 import { validateAlliances } from './alliances.js';
 
 export const VOCAB_KINDS = [
@@ -236,8 +236,14 @@ function validatePresets(b, report, { facts, lookup }) {
     // No lens at all is a care preset (contact lenses): it must add something, then.
     if (!t.sv && !t.mf && !t.cl && !(t.items?.length || t.extras?.length)) report.error('Lifestyle presets', `${where} names no lens and no accessories.`);
     if (t.cl && (t.sv || t.mf)) report.warn('Lifestyle presets', `${where} names spectacle lenses and a contact lens — the contact lens is ignored.`);
-    for (const [label, spec] of [['single vision', t.sv], ['progressive', t.mf]]) {
-      if (!spec) continue;
+    const known = new Set(b.frames.map((f) => brandKey(f.brand)));
+    for (const [label, raw] of [['single vision', t.sv], ['progressive', t.mf]]) {
+      if (!raw) continue;
+      // A match kept for some brands (`… @Xikú`) is checked as a match; its brands must exist.
+      const opts = presetOptions(raw);
+      for (const o of opts) for (const brand of o.brands ?? []) if (!known.has(brandKey(brand))) report.warn('Lifestyle presets', `${where}: no ${brand} frames in the catalogue for the ${label} match kept for them.`);
+      for (const o of opts.filter((x) => x.brands)) if (!facts.some((f) => factsMatch(lookup, o.match, f))) report.warn('Lifestyle presets', `${where}: the ${label} lens kept for ${o.brands.join(', ')} matches nothing in the catalogue.`);
+      const spec = opts.map((o) => o.match).join(';');
       const hits = facts.filter((f) => factsMatch(lookup, spec, f));
       if (!hits.length) report.warn('Lifestyle presets', `${where}: the ${label} lens matches nothing in the catalogue.`);
       else if (hits.every((f) => f.held)) report.warn('Lifestyle presets', `${where}: the ${label} lens is Polarex with Crizal only. ${POLAREX_CRIZAL}, so the tier never lands on a lens.`);
@@ -245,7 +251,6 @@ function validatePresets(b, report, { facts, lookup }) {
     if (t.cl && !t.sv && !t.mf && !contacts.some((r) => clMatches(t.cl, r))) report.warn('Lifestyle presets', `${where}: the contact lens (${t.cl}) matches nothing in the catalogue.`);
     for (const id of t.extras ?? []) if (!extras.has(id)) report.warn('Lifestyle presets', `${where}: extra ${id} is not in the extras list.`);
     for (const i of t.items ?? []) if (!i.skus.some((s) => stock.has(s))) report.warn('Lifestyle presets', `${where}: no ${i.label.toLowerCase()} in the stock list (${i.skus.join(', ')}).`);
-    const known = new Set(b.frames.map((f) => brandKey(f.brand)));
     for (const brand of t.brands ?? []) if (!known.has(brandKey(brand))) report.warn('Lifestyle presets', `${where}: no ${brand} frames in the catalogue.`);
   }
 }

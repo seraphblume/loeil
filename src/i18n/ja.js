@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1506 strings. English keys, ja values.
+// Generated from the translation sheets — 1507 strings. English keys, ja values.
 export const JA = {
   "1 change": "変更 1件",
   "1 client": "顧客 1人",
@@ -37,7 +37,6 @@ export const JA = {
   "A new coating…": "新しいコーティング…",
   "A new version of L’Œil is ready. It switches over on the next launch, or now.": "L’Œil の新しいバージョンの準備ができました。次回起動時、または今すぐ切り替わります。",
   "A percentage is between 0 and 100.": "割合は 0〜100 です。",
-  "A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.": "プリセットはレンズを決め、Plus Protection とアクセサリーを加えます。別のプリセットを選ぶと入れ替わります。Lite と Essential は無料ギフトのみ。Crizal・Transitions・Polarex には洗浄液を付けず、Polarex に Crizal は付けません。",
   "ADD": "ADD",
   "ADD as written": "記載どおりの ADD",
   "AOB": "AOB",
@@ -334,7 +333,6 @@ export const JA = {
   "Each eye exam whose Sell ID never carried a sale. Pick the client’s preset and WhatsApp sends that preset’s message.": "Sell ID に販売がない視力検査の一覧です。お客様のプリセットを選ぶと、WhatsApp でそのプリセットのメッセージを送ります。",
   "Each option keeps the prices it was added at. A frame quoted by brand is priced from the set, or from the brand’s lowest catalogue price.": "各案は追加した時点の価格を保ちます。ブランドで見積もったフレームはセット価格、またはそのブランドのカタログ最安値です。",
   "Each part replaces the same part of the working copy. Review the changes before you publish; nothing reaches a phone until then.": "各部分は作業コピーの同じ部分を置き換えます。公開前に変更を確認してください。それまでどの端末にも届きません。",
-  "Each preset has five tiers, from the lowest price up: Lite and Essential add only the lens and free gifts (a $0.01 cloth, a kids’ strap); Plus, Pro and Ultra add Plus Protection and one or two paid accessories. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.": "各プリセットには価格の低い順に 5つのランクがあります。Lite と Essential はレンズと無料ギフト（$0.01 のクロス、子ども用ストラップ）のみ。Plus・Pro・Ultra は Plus Protection と有料アクセサリーを 1〜2点加えます。ランクごとに単焦点と累進のレンズ、追加品、アクセサリー、Luxury では合わせるフレームブランドを指定します。コンタクトのランクはコンタクトレンズを指定し、洗浄液とケースだけなら指定しません。",
   "Easygoing": "穏やか",
   "Edit": "編集",
   "Edit the prescription": "処方を編集",
@@ -1278,7 +1276,6 @@ export const JA = {
   "e.g. CRIZAL": "例：CRIZAL",
   "e.g. CZR": "例：CZR",
   "e.g. Sam’s Club membership card": "例：Sam’s Club の会員カード",
-  "family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens).": "family|material|design|filter|colour|coating（セットの行と同じ）：コードは複数ならカンマ区切り、*GROUP でプロモーショングループ、! で「それ以外」、* で何でも。複数の候補は ; で区切ります。候補のうち、注文のフレームと合わせてお客様の支払いが最も少ないもの（セットではセット表の行）を選び、強度処方では高屈折の候補があればそれを選びます。Polarex と Crizal の組み合わせは選びません。空欄で下に累進がある場合：処方に ADD があるときだけ累進を提示。両方空欄：コンタクトレンズのプリセット（コンタクトレンズを参照）。",
   "family|material|design|filter|colour|coating. SV or a lens type (PR, FT); codes from the vocabulary, several with commas; *GROUP for a promo group (*POLY, *TRANS, *CRIZAL); ! for “anything but”; * for anything. Several matches separate with ; — e.g. SV|*POLY,*CR39|!ES,EK,SL|*TRANS|*|CZN,CPU": "family|material|design|filter|colour|coating。SV またはレンズタイプ（PR、FT）。用語集のコードで複数ならカンマ区切り。*GROUP でプロモーショングループ（*POLY、*TRANS、*CRIZAL）。! で「それ以外」、* で何でも。複数の候補は ; で区切ります — 例：SV|*POLY,*CR39|!ES,EK,SL|*TRANS|*|CZN,CPU",
   "frame": "フレーム",
   "frame and single vision lenses": "フレームと単焦点レンズ",
@@ -1506,4 +1503,8 @@ export const JA = {
   "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "フレームなし：価格はレンズのみです。お客様のフレームに入れる場合は「お客様のフレーム」を選んでください。",
   "Contact lenses and extras only": "コンタクトレンズと付属品のみ",
   "POS description": "POSの表記",
+  "A preset sets the lenses and adds what its tier carries — Essential: Plus Protection and an accessory; Plus: Plus Protection; Pro: neither; Ultra: both, and more. Another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.": "プリセットはレンズを設定し、その段階の付属を加えます。Essential：Plus Protection と付属品1点、Plus：Plus Protection、Pro：なし、Ultra：両方とそれ以上。別のプリセットに切り替えると入れ替わります。洗浄液は Crizal・Transitions・Polarex には付けず、Polarex に Crizal は付きません。",
+  "Each preset has four tiers, the way the store sells — a complete ticket or a branded one: Essential is the set’s lens (blue light with HD anti-reflective in a Xikú frame) with Plus Protection and an accessory; Plus a branded lens with Plus Protection; Pro Essilor materials, mainly Transitions, without it; Ultra every upgrade with the accessories and Plus Protection. Progressive has its own ladder, with a Lite. Free gifts (a $0.01 cloth, a kids’ strap) go with every tier. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.": "各プリセットには、店の売り方どおり4つの段階があります——そろった一式か、ブランドの一式か。Essential はセットのレンズ（Xikú のフレームならブルーライトカットと HD 反射防止）に Plus Protection と付属品1点。Plus はブランドレンズに Plus Protection。Pro は Essilor の素材（主に Transitions）で Plus Protection なし。Ultra はすべてのアップグレードに付属品と Plus Protection。累進は独自の段階で、Lite があります。無料の贈り物（$0.01 のクロス、子ども用ストラップ）はどの段階にも付きます。段階は単焦点用と累進用のレンズ、追加項目、付属品を指定し、Luxury ではフレームのブランドも指定します。コンタクトレンズの段階はコンタクトレンズを指定するか、洗浄液とケースだけなら何も指定しません。",
+  "family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens). A match ending in @ and brands (…|BLU|SHC @Xikú) counts only with a frame of those brands, and then it replaces the others.": "family|material|design|filter|colour|coating（セットの行と同じ）：コードは複数ならカンマ区切り、*GROUP でプロモーショングループ、! で「それ以外」、* で何でも。複数の候補は ; で区切ります。候補のうち、注文のフレームと合わせてお客様の支払いが最も少ないもの（セットではセット表の行）を選び、強度処方では高屈折の候補があればそれを選びます。Polarex と Crizal の組み合わせは選びません。空欄で下に累進がある場合：処方に ADD があるときだけ累進を提示。両方空欄：コンタクトレンズのプリセット（コンタクトレンズを参照）。 @とブランドで終わる条件（…|BLU|SHC @Xikú）は、そのブランドのフレームのときだけ使われ、そのときは他の条件の代わりになります。",
+  "Lite — Progressive only: Extended Design with anti-reflective, no Plus Protection · Essential — The set’s lens (blue light with HD anti-reflective in a Xikú frame), Plus Protection and an accessory · Plus — A branded lens — Crizal, Eyezen, Varilux — with Plus Protection · Pro — Essilor materials, mainly Transitions, without Plus Protection · Ultra — Every upgrade, the accessories and Plus Protection. On the order the preset and the tier read as one name: Digital Pro.": "Lite — 累進のみ：Extended Design に反射防止、Plus Protection なし · Essential — セットのレンズ（Xikú のフレームならブルーライトカットと HD 反射防止）、Plus Protection と付属品1点 · Plus — ブランドレンズ（Crizal、Eyezen、Varilux）に Plus Protection · Pro — Essilor の素材（主に Transitions）、Plus Protection なし · Ultra — すべてのアップグレード、付属品と Plus Protection。注文ではプリセットとランクが一つの名前になります：Digital Pro。",
 };

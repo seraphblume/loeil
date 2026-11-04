@@ -4,7 +4,7 @@
 //
 // The presets are tiles, two to a row, each with the lowest price it comes to
 // for this prescription and this frame. Tapping one opens its tiers right
-// below it — Lite to Ultra — each priced the way the order will price it.
+// below it — Essential to Ultra — each priced the way the order will price it.
 
 import { html, useState, useMemo, useRef, useEffect } from './html.js';
 import { useApp } from './hooks.js';
@@ -234,7 +234,7 @@ export function PresetSheet({ onClose, toQuote }) {
                 applied=${applied.has(presetKey(r.tier))} onPick=${pick} />`)}</div>
             </div>`}`)}
         </div>`}
-        <p class="note pad">${tr('A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.')}</p>`}
+        <p class="note pad">${tr('A preset sets the lenses and adds what its tier carries — Essential: Plus Protection and an accessory; Plus: Plus Protection; Pro: neither; Ultra: both, and more. Another preset swaps them. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.')}</p>`}
 
       ${step === 'walk' && html`
         ${frameRow}
@@ -265,7 +265,7 @@ const FIELDS = [
     hint: TIERS.map((t) => `${t.name} — ${t.rule}`).join(' · ') + '. On the order the preset and the tier read as one name: Digital Pro.' },
   { key: 'tierBlurb', label: 'Tier line', placeholder: 'What it leads with', group: 'Tier' },
   { key: 'sv', label: 'Single vision', placeholder: 'SV|*POLY|ND|*BLANCO|BLC|ARC', caps: true, group: 'Lens',
-    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens).' },
+    hint: 'family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens). A match ending in @ and brands (…|BLU|SHC @Xikú) counts only with a frame of those brands, and then it replaces the others.' },
   { key: 'mf', label: 'Progressive', placeholder: 'PR|*POLY|VC,VM|*BLANCO|BLC|CPU', caps: true, group: 'Lens', hint: 'Used when the prescription has an ADD. Blank: single vision for everyone.' },
   { key: 'cl', label: 'Contact lens', placeholder: '5200|HM,MT|*', caps: true, group: 'Lens',
     hint: 'Only with both lenses above blank. material|product|colour codes, as in the contact lens list: the cheapest after the campaign’s discount goes on for both eyes, a box each, its fitting started from the prescription — a multifocal one needs an ADD. Blank: a care preset, which adds only its accessories and leaves the lenses on the order alone.' },
@@ -292,7 +292,7 @@ export function PresetsAdminScreen() {
     <${Bar} backTo="#/me/data" title=${tr('Lifestyle presets')} trail=${html`<button class="bar-btn round" aria-label=${tr('Add')} onClick=${() => setOpen({ t: blank })}><${Icon} name="plus" /></button>`} />
     <${Screen}>
       <div class="stack">
-        <p class="para pad">${tr('Each preset has five tiers, from the lowest price up: Lite and Essential add only the lens and free gifts (a $0.01 cloth, a kids’ strap); Plus, Pro and Ultra add Plus Protection and one or two paid accessories. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.')}</p>
+        <p class="para pad">${tr('Each preset has four tiers, the way the store sells — a complete ticket or a branded one: Essential is the set’s lens (blue light with HD anti-reflective in a Xikú frame) with Plus Protection and an accessory; Plus a branded lens with Plus Protection; Pro Essilor materials, mainly Transitions, without it; Ultra every upgrade with the accessories and Plus Protection. Progressive has its own ladder, with a Lite. Free gifts (a $0.01 cloth, a kids’ strap) go with every tier. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.')}</p>
         ${groups.map((g) => html`<section class="section">
           <div class="section-head"><div class="eyebrow">${g.name}</div></div>
           <div class="list">${g.tiers.map((t) => html`<${Row} title=${t.tier} detail=${t.sv || t.mf || t.cl || tr('Accessories only')} mono sub=${[t.items?.length ? t.items.map((i) => i.label + (i.solution ? '*' : '')).join(' · ') : null, t.brands?.length ? `${t.brands.length} frame brands` : null].filter(Boolean).join(' · ') || null}

@@ -22,7 +22,7 @@ import { PresetSheet } from './presets.js';
 import { go } from './router.js';
 import { tr, trn } from '../i18n.js';
 
-/** A preset's name says more than the lens's: `First Glasses Lite`. */
+/** A preset's name says more than the lens's: `First Glasses Essential`. */
 const optionTitle = (order) => order.lines.find((l) => l.presetName)?.presetName ?? orderTitle(order);
 
 const added = (r) => {

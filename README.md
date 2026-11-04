@@ -390,20 +390,34 @@ tile opens its tiers right below it (tapping it again closes it); the preset
 already on the order opens by itself, its tier marked *On the order*. A preset with
 nothing for this prescription (Progressive, for single vision) goes greyed to the end.
 
-Every preset has the same five tiers, from the lowest price up:
+Every preset has four tiers — the way the store sells: a complete ticket, or a
+branded one. Most clients take the complete ticket (Essential) or the full branded
+pair (Ultra); Plus and Pro sit between them.
 
-| Tier | Paid accessories | Plus Protection | Lens |
+| Tier | Lens | Plus Protection | Paid accessory |
 |---|---|---|---|
-| **Lite** | — (gifts only) | — | low-tier: CR-39, the plainest coating |
-| **Essential** | — (gifts only) | — | polycarbonate, the lens the sets price (anti-reflective is included in most) |
-| **Plus** | 1 | ✓ | mid-tier: HD anti-reflective, blue light, extended-design progressives |
-| **Pro** | 1 | ✓ | Essilor: Crizal, Eyezen, Varilux Comfort, Transitions |
-| **Ultra** | 1–2 | ✓ | Essilor's best: Crizal Prevencia or Natural Look, Varilux Physio or Xdesign, Stellest |
+| **Essential** | the set's lens: anti-reflective, or in a Xikú frame blue light with HD anti-reflective (Everyday: photochromic, Outdoor: Transitions, each with anti-reflective) | ✓ | 1 — a pouch (Kids: the case; Luxury: the Toalla Maravillosa) |
+| **Plus** | branded: Crizal, Eyezen, Varilux Comfort | ✓ | — |
+| **Pro** | Essilor, mainly Transitions with Crizal | — | — |
+| **Ultra** | Essilor's best: Crizal Prevencia or Natural Look, Varilux Physio or Xdesign, Stellest | ✓ | 1–2 |
 
-Every tier also takes the free gifts — a gift microfibre cloth ($0.01; Ultra and Luxury have the Toalla Maravillosa instead), and for Kids a strap — so Lite and Essential are never empty-handed.
+Where Plus is already Transitions (Everyday, Outdoor), Pro is the same lens without
+Plus Protection.
+
+**Progressive** has its own ladder, with a Lite below it:
+
+| Tier | Lens | Plus Protection |
+|---|---|---|
+| **Lite** | Extended Design with anti-reflective | — |
+| **Essential** | Varilux Comfort with Crizal | ✓ |
+| **Plus** | Varilux Comfort with Transitions and Crizal | — |
+| **Pro** | Varilux Physio Extensee with Transitions and Crizal | — |
+| **Ultra** | Varilux Xdesign with Crizal Prevencia, and the accessories | ✓ |
+
+Every tier also takes the free gifts — a gift microfibre cloth ($0.01; Ultra has the Toalla Maravillosa instead), and for Kids a strap — so no tier is empty-handed.
 
 On the order, the quote and the toast a tier reads as one name: **Digital Pro**,
-**Kids Lite**. Contacts has three: **Lite** (Devlyn Multiplus 120 ml and a lens
+**Kids Essential**. Contacts has three: **Lite** (Devlyn Multiplus 120 ml and a lens
 case), **Plus** (ReNu Advanced 355 ml and the case) and **Pro**, which puts
 **multifocal contact lenses** on the order — a box for each eye, the cheapest after
 the campaign's discount (HydraGlyde Multifocal while its 30% runs), its fitting (SE,
@@ -415,9 +429,8 @@ the frame, the lens, Plus Protection and the accessories. Of the lenses a tier
 names, it takes the one the client pays least for: in a set frame, the set's row
 (a lens the set's table does not name would take the frame out of its set — the
 tier says so), in a sunglasses frame the prescription sun price, otherwise the
-price list. So Plus takes HD anti-reflective with a blue-light filter in a set,
-where the set includes it, and Everyday Plus takes Transitions where a set makes it
-cheaper than a photochromic. With Customer's frame the prices are for the client's
+price list. So Essential takes the anti-reflective row of the set's table, and
+in a Xikú frame the blue light with HD anti-reflective that set includes. With Customer's frame the prices are for the client's
 own frame, with its 30% (or the campaign's); with no frame, for the lenses alone.
 
 **Every order gets its own accessories.** An accessory lists its alternatives —
@@ -445,7 +458,7 @@ never touch spectacle lenses and are not.
 Presets are catalogue data (**Catalogue data → Lifestyle presets**, or the
 `presets` tab of the workbook): a row per tier with its single vision and
 progressive lens written like a set row (`SV|*POLY|ES|*BLANCO|*|CPU`; several
-separated by `;`), or — with both blank — a contact lens (`contact_lens`,
+separated by `;`, the one the client pays least for taken), or — with both blank — a contact lens (`contact_lens`,
 `material|product|colour`: `5200|HM,MT|*`) or nothing at all for a care tier; the
 extra codes; and the accessories as `Pouch: 64000384/64000385/64000386; Cleaning solution*: 61004172`
 — the alternatives an order picks from (with none on hand, the first in the price list), a `*` marking a
@@ -453,6 +466,14 @@ cleaning solution. A tier can also name its **frame brands** (comma-separated):
 choosing it then asks for a frame of one of them, unless the option already has one.
 **Luxury** is built that way, with Versace, Carolina Herrera, Michael Kors, Emporio
 Armani, Tous, Prada, Gucci, Tom Ford and the rest of its list.
+
+A lens match can be kept for frames of some brands by ending it in `@` and the
+brands: `SV|*POLY|ND|*BLANCO|BLU|SHC @Xikú;SV|*POLY|!ES,EK,SL|*BLANCO|BLC|ARC`. With
+a frame of those brands — or a set of only those brands — only the kept matches
+count; with any other frame, or none, only the others. That is how Essential gives
+a Xikú frame blue light with HD anti-reflective and every other frame the plain
+anti-reflective. Validation warns when a kept brand has no frames, or a kept match
+lands on nothing.
 
 **Progressive** is listed first and has no single vision lens, so it is progressive
 only. With no prescription yet it is priced as a progressive; for a prescription

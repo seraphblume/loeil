@@ -2,15 +2,21 @@
 // progressive as the prescription says, high-index when it is strong — with
 // Plus Protection and the accessories that go with it.
 //
-// Each preset (Digital, First Glasses…) has five tiers, from the lowest price
-// up. On the order a tier reads as one name: Digital Pro, Kids Lite.
+// Each preset (Digital, First Glasses…) has four tiers — the way the store
+// sells: a complete ticket, or a branded one. On the order a tier reads as one
+// name: Digital Pro, Kids Essential.
 //
-//   Lite        no paid accessories, no Plus Protection, low-tier materials (CR-39)
-//   Essential   no paid accessories, no Plus Protection, polycarbonate at the sets’ price
+//   Essential   the set's lens — anti-reflective, or blue light with HD
+//               anti-reflective in a Xikú frame — with Plus Protection and an accessory
+//   Plus        a branded lens (Crizal, Eyezen, Varilux) with Plus Protection
+//   Pro         Essilor materials, mainly Transitions, without Plus Protection
+//   Ultra       every upgrade, the accessories and Plus Protection
 //               (free gifts — a cloth, a kids' strap — go with every tier)
-//   Plus        1 accessory and Plus Protection, mid-tier materials
-//   Pro         1 accessory and Plus Protection, Essilor
-//   Ultra       1–2 accessories and Plus Protection, Essilor's best
+//
+// Progressive has its own ladder, and a Lite below it: Extended Design with
+// anti-reflective (Lite), Varilux with Plus Protection (Essential), Varilux with
+// Transitions (Plus), Physio Extensee with Transitions (Pro), Xdesign with
+// Crizal Prevencia (Ultra).
 //
 // A tier names its lens the way a set row does —
 // family|material|design|filter|colour|coating — once for single vision and
@@ -19,6 +25,10 @@
 // a set, the set's row (a lens the set's table does not name would take the
 // frame out of its set), in a sunglasses frame the prescription sun price, and
 // otherwise the price list. Among equals, the lower list price.
+//
+// A match can be kept for frames of some brands — `SV|*POLY|ND|*BLANCO|BLU|SHC @Xikú`:
+// with a frame of those brands (or a set of only those brands) only such
+// matches count; with any other frame, or none, only the matches without one.
 //
 // POLAREX CANNOT TAKE CRIZAL. The catalogue holds those rows back (see
 // core/catalogue.js), so no tier can land on one, and an order that carries one
@@ -42,7 +52,8 @@
 // moves — chosen by the order, so the same order always shows the same one and
 // the next order likely another.
 
-import { factsMatch, lensFacts, resolveOrder, autoDiscountFor, savingOf } from './sets.js';
+import { factsMatch, lensFacts, resolveOrder, autoDiscountFor, savingOf, frameFacts } from './sets.js';
+import { brandKey } from './util.js';
 import { resolve } from './lens.js';
 import { isPair, pairLine, lensLine, extraLine, priceOrder, contactFit } from './orders.js';
 import { needsAddition, strongestSphere, rxIsBlank, contactIsBlank, startingFit, fitText } from './crm.js';
@@ -51,12 +62,41 @@ import { HIGH_RX_SPHERE } from '../config.js';
 
 /** The tiers in their order, with what each stands for — the editor's hints and the README say the same. */
 export const TIERS = [
-  { name: 'Lite', rule: 'Free gifts only, no Plus Protection, low-tier materials' },
-  { name: 'Essential', rule: 'Free gifts only, no Plus Protection, polycarbonate at the sets’ price' },
-  { name: 'Plus', rule: '1 accessory and Plus Protection, mid-tier materials' },
-  { name: 'Pro', rule: '1 accessory and Plus Protection, Essilor' },
-  { name: 'Ultra', rule: '1–2 accessories and Plus Protection, Essilor’s best' },
+  { name: 'Lite', rule: 'Progressive only: Extended Design with anti-reflective, no Plus Protection' },
+  { name: 'Essential', rule: 'The set’s lens (blue light with HD anti-reflective in a Xikú frame), Plus Protection and an accessory' },
+  { name: 'Plus', rule: 'A branded lens — Crizal, Eyezen, Varilux — with Plus Protection' },
+  { name: 'Pro', rule: 'Essilor materials, mainly Transitions, without Plus Protection' },
+  { name: 'Ultra', rule: 'Every upgrade, the accessories and Plus Protection' },
 ];
+
+/** A tier's lens spec as its options: `{ match, brands }`, brands null when it is for any frame. */
+export function presetOptions(spec) {
+  return String(spec ?? '').split(';').map((s) => s.trim()).filter(Boolean).map((s) => {
+    const at = s.indexOf('@');
+    if (at < 0) return { match: s, brands: null };
+    return { match: s.slice(0, at).trim(), brands: s.slice(at + 1).split(',').map((b) => b.trim()).filter(Boolean) };
+  });
+}
+
+/** The brands a frame line stands for: its own, or — quoted by its set — every brand of that set. */
+function frameBrandKeys(catalogue, frame) {
+  if (!frame || frame.own) return [];
+  const keys = [];
+  const own = frameFacts(catalogue, frame).brand;
+  if (own) keys.push(brandKey(own));
+  const set = frame.setId ? catalogue?.setsById?.get(frame.setId) : null;
+  for (const name of String(set?.brands ?? '').split(',')) { const k = brandKey(name.split('/')[0].trim()); if (k) keys.push(k); }
+  return keys;
+}
+
+/** The spec this frame reads: the options kept for its brand, else the options for any frame. */
+export function specForFrame(catalogue, spec, frame) {
+  const opts = presetOptions(spec);
+  if (!opts.some((o) => o.brands)) return spec;
+  const theirs = frameBrandKeys(catalogue, frame);
+  const kept = opts.filter((o) => o.brands && o.brands.some((b) => theirs.includes(brandKey(b))));
+  return (kept.length ? kept : opts.filter((o) => !o.brands)).map((o) => o.match).join(';');
+}
 
 /** `Digital Pro`: a tier as the order, the quote and the toast name it. */
 export const tierName = (t) => [t?.preset, t?.tier].filter(Boolean).join(' ');
@@ -293,7 +333,7 @@ export function resolvePreset(catalogue, tier, rx, { seed = null, frame = null, 
   let family = (wantsMf || mfOnly) && tier.mf ? 'MF' : 'SV';
   const notes = [];
   if (wantsMf && !tier.mf) notes.push('No progressive version — single vision.');
-  const spec = family === 'MF' ? tier.mf : tier.sv;
+  const spec = specForFrame(catalogue, family === 'MF' ? tier.mf : tier.sv, frame);
   if (!spec) return { tier, lens: null, why: 'No lens is named for this tier.', extras: [], items: [], skipped: [], notes };
 
   // Held rows (Polarex with Crizal) are not available, so they never match here.
