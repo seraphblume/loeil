@@ -331,6 +331,12 @@ export function tierLines(result) {
   return lines;
 }
 
+/** A tier's lines, each marked with the preset and tier it came from, so another preset can swap them. */
+export function presetLines(result) {
+  const mark = { preset: `${result.tier.presetId}|${result.tier.tier}`, presetName: tierName(result.tier), ...(result.care ? { presetKind: 'care' } : {}) };
+  return tierLines(result).map((l) => ({ ...l, ...mark }));
+}
+
 /**
  * What a tier comes to with the frame in hand, priced the way the order prices
  * it. `total` is the frame and everything the tier adds; `lens` the pair (or

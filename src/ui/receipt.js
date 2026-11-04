@@ -1,4 +1,5 @@
-// Checkout: the order prints as a receipt. The paper feeds out of the printer,
+// Checkout: the order prints as a receipt — when he taps Print, never by
+// itself, so the order can be finished first. The paper feeds out of the printer,
 // then everything the register asks for is laid out below it to copy one
 // value at a time — and the receipt itself goes out as a picture.
 //
@@ -132,18 +133,27 @@ function CopyList({ r }) {
 // The stage: status, printer, paper
 
 /**
- * The feed: prints whenever `key` changes, or on `reprint`. The paper steps
- * out of the printer, a buzz and a sound if he wants it, then a small settle.
+ * The feed: nothing prints until `print()` — a tap on Print or on FEED. The
+ * paper steps out of the printer, a buzz and a sound if he wants it, then a
+ * small settle. When `key` changes (an option added, the other copy), what was
+ * printed no longer matches: the paper goes and the printer waits for a tap.
  */
 export function usePrinter(key) {
   const [run, setRun] = useState(0);
-  const [phase, setPhase] = useState('printing');
+  const [phase, setPhase] = useState('idle'); // idle · printing · done
   const paperRef = useRef();
+  const shown = useRef(key);
+  const stopRef = useRef(null);
   useLayoutEffect(() => {
+    if (shown.current === key) return;
+    shown.current = key;
+    stopRef.current?.();
+    setPhase('idle');
+  }, [key]);
+  useLayoutEffect(() => {
+    if (!run) return undefined;
     const el = paperRef.current;
-    if (!el) return undefined;
-    if (reduced() || !el.animate) { setPhase('done'); return undefined; }
-    setPhase('printing');
+    if (!el || reduced() || !el.animate) { setPhase('done'); return undefined; }
     const duration = Math.max(1300, Math.min(2900, el.offsetHeight * 2.1));
     const anim = el.animate(feedFrames(STEPS), { duration, easing: 'linear', fill: 'backwards' });
     const stop = soundOn() ? playPrinter(duration, STEPS) : null;
@@ -156,35 +166,45 @@ export function usePrinter(key) {
       buzz(18);
       el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(5px)' }, { transform: 'translateY(0)' }], { duration: 260, easing: 'cubic-bezier(.23, 1, .32, 1)' });
     }).catch(() => {});
-    return () => { alive = false; anim.cancel(); stop?.(); };
-  }, [key, run]);
-  return { paperRef, done: phase === 'done', reprint: () => setRun((n) => n + 1) };
+    const cancel = () => { alive = false; anim.cancel(); stop?.(); };
+    stopRef.current = cancel;
+    return cancel;
+  }, [run]);
+  const print = () => { setPhase('printing'); setRun((n) => n + 1); };
+  return { paperRef, idle: phase === 'idle', printing: phase === 'printing', done: phase === 'done', print };
 }
 
-/** Status card, printer and paper. `status` is `{ printing, done, detail }`. */
+/** The dock's main button: Print, then Share image once the ticket is out. */
+export function PrintOrShare({ printer, sharing, onShare }) {
+  if (printer.done) return html`<${Anchor} icon="share" disabled=${sharing} onClick=${onShare}>${sharing ? tr('Making the image…') : tr('Share image')}<//>`;
+  return html`<${Anchor} icon="printer" disabled=${printer.printing} onClick=${printer.print}>${printer.printing ? tr('Printing…') : tr('Print')}<//>`;
+}
+
+/** Status card, printer and paper. `status` is `{ ready, printing, done, detail }`. */
 export function PrinterRig({ printer, blocks, label, status }) {
   const [sound, setSound] = useState(soundOn);
   const toggleSound = () => { const next = !sound; setSound(next); setSoundOn(next); if (next) toast(tr('Printer sound on')); };
-  const { done } = printer;
+  const { idle, done } = printer;
   return html`<div class="printer-rig">
-    <div class=${'status-card' + (done ? ' done' : '')}>
+    <div class=${'status-card' + (done ? ' done' : idle ? ' idle' : '')}>
       <span class="tick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" /><path d="m7.5 12.4 3 3 6-6.6" /></svg></span>
       <span class="words">
-        <span class="t">${done ? status.done : status.printing}</span>
-        <span class="s">${done ? status.detail : tr('Feeding paper…')}</span>
+        <span class="t">${done ? status.done : idle ? status.ready : status.printing}</span>
+        <span class="s">${idle || done ? status.detail : tr('Feeding paper…')}</span>
       </span>
-      <span class="state">${done ? tr('Printed') : tr('Printing')}</span>
+      <span class="state">${done ? tr('Printed') : idle ? tr('Not printed') : tr('Printing')}</span>
     </div>
-    <div class=${'printer' + (done ? '' : ' busy')}>
+    <div class=${'printer' + (printer.printing ? ' busy' : '')}>
       <div class="printer-top">
         <${Icon} name="printer" />
         <span class="label">${tr('L’ŒIL · {a}', { a: label })}</span>
-        <button type="button" class="feed" onClick=${printer.reprint} aria-label=${tr('Print again')}><i></i>${tr('FEED')}</button>
+        <button type="button" class="feed" disabled=${printer.printing} onClick=${printer.print} aria-label=${done ? tr('Print again') : tr('Print')}><i></i>${tr('FEED')}</button>
       </div>
       <div class="slot"></div>
     </div>
-    <${Paper} blocks=${blocks} paperRef=${printer.paperRef}
-      soundToggle=${html`<button type="button" class="sound-toggle" aria-label=${sound ? 'Printer sound off' : 'Printer sound on'} onClick=${toggleSound}><${Icon} name=${sound ? 'sound' : 'mute'} /></button>`} />
+    ${idle ? html`<p class="note printer-wait">${tr('Nothing prints until you tap Print — finish it first.')}</p>`
+      : html`<${Paper} blocks=${blocks} paperRef=${printer.paperRef}
+      soundToggle=${html`<button type="button" class="sound-toggle" aria-label=${sound ? 'Printer sound off' : 'Printer sound on'} onClick=${toggleSound}><${Icon} name=${sound ? 'sound' : 'mute'} /></button>`} />`}
   </div>`;
 }
 
@@ -221,16 +241,17 @@ function ReceiptStage({ order, client, rx }) {
         options=${[{ value: 'register', label: tr('Register copy') }, { value: 'customer', label: tr('Customer copy') }]} />
       <${PrinterRig} printer=${printer} blocks=${blocks} label=${register ? 'REGISTER' : 'CUSTOMER'}
         status=${{
+          ready: register ? tr('Register copy ready to print') : tr('Customer copy ready to print'),
           printing: register ? tr('Printing the register copy') : tr('Printing the customer copy'),
           done: register ? tr('Ready for the register') : tr('Customer copy ready'),
           detail: r.totals.alliance ? tr('Receipt #{number} · {amount} to pay', { number: r.number, amount: money(r.totals.alliance.clientPays) }) : tr('Receipt #{number} · {amount}', { number: r.number, amount: money(r.totals.total) }),
         }} />
       ${!r.store && html`<p class="note">${tr('The branch’s name, address and the ticket’s foot are not set yet — an admin adds them under Me → Catalogue data → Store.')}</p>`}
-      ${register && html`<div class=${'after' + (printer.done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
+      ${register && !printer.idle && html`<div class=${'after' + (printer.done ? ' in' : '')}><${CopyList} r=${r} /></div>`}
     </div>
     <${Dock}>
       <${Secondary} icon="copy" onClick=${copyAll}>${tr('Copy all')}<//>
-      <${Anchor} icon="share" disabled=${sharing || !printer.done} onClick=${share}>${sharing ? tr('Making the image…') : tr('Share image')}<//>
+      <${PrintOrShare} printer=${printer} sharing=${sharing} onShare=${share} />
     <//>`;
 }
 

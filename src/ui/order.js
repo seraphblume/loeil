@@ -360,7 +360,7 @@ export function OrderScreen() {
               ${!(draft.ally && !draft.ally.combines) && html`<${OrderPromotions} order=${draft} />`}
             </div>
             ${draft.alliance && html`<${AlliancePaperwork} order=${draft} editable />`}`
-          : html`<div class="pad"><${Empty} title=${tr('Nothing on this order yet')}>${tr('Scan a frame, walk a lens, or add a case. When it is ready, Checkout prints the receipt with every code the register needs.')}<//></div>`}
+          : html`<div class="pad"><${Empty} title=${tr('Nothing on this order yet')}>${tr('Scan a frame, walk a lens, or add a case. When it is ready, Checkout lays out the receipt with every code the register needs, and prints it when you tap Print.')}<//></div>`}
 
         <${Section} title=${tr('Add')}>
           <${Row} icon="spark" title=${tr('Lifestyle preset')} detail=${tr('Lens, Plus Protection and accessories in one tap')} chev onClick=${() => setSheet('preset')} />

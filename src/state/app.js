@@ -10,7 +10,7 @@ import { Catalogue } from '../core/catalogue.js';
 import { open, WrongPasscode } from '../core/crypto.js';
 import { APP_BUILD, DATA_PATH, FETCH_TIMEOUT_MS } from '../config.js';
 import { newOrder, isPair } from '../core/orders.js';
-import { tierLines, tierName } from '../core/presets.js';
+import { presetLines } from '../core/presets.js';
 import { resolveOrder } from '../core/sets.js';
 import { sortClients } from '../core/crm.js';
 import { withShowcase, isShowcase, SHOWCASE_ID } from '../core/showcase.js';
@@ -284,15 +284,13 @@ export async function setDraftClient(clientId) {
  * added; the spectacle lenses and their preset stay, and the other way round.
  */
 export async function applyPreset(result, frame = null) {
-  const tag = `${result.tier.presetId}|${result.tier.tier}`;
-  const mark = { preset: tag, presetName: tierName(result.tier), ...(result.care ? { presetKind: 'care' } : {}) };
   // frame: null keeps the order's frame, false leaves none, a line takes its place.
   const keep = state.draft.lines.filter((l) => !(frame !== null && l.kind === 'frame') && (result.care
     ? l.presetKind !== 'care'
     : (!l.preset || l.presetKind === 'care') && !isPair(l)));
   if (frame) keep.unshift(frame);
   const have = new Set(keep.filter((l) => l.kind === 'extra').map((l) => l.code));
-  const lines = [...keep, ...tierLines(result).filter((l) => l.kind !== 'extra' || !have.has(l.code)).map((l) => ({ ...l, ...mark }))];
+  const lines = [...keep, ...presetLines(result).filter((l) => l.kind !== 'extra' || !have.has(l.code))];
   setState({ draft: { ...state.draft, lines } });
   await saveDraft();
 }
@@ -366,28 +364,56 @@ export async function saveDraftTo(clientId, status = 'draft') {
 }
 
 // ---------------------------------------------------------------------------
-// The quote: up to three snapshots of the order in progress, for one client.
+// The quote: up to three options for one client. An option is built on its
+// own — a preset or a lens chosen by hand, in Add an option — or copied from
+// the order in progress; building one never changes that order.
 
 async function saveQuote() { await db.set('quote', state.quote); }
 
-/** Snapshots the order in progress as the next option. Returns why it could not, if it could not. */
+/**
+ * Who the next option is for: the quote's client, or before the first option
+ * the order's. The order's prescription and claimed discounts count only when
+ * the order is that client's too.
+ */
+export function quoteBase(s = state) {
+  const clientId = s.quote.clientId ?? s.draft.clientId ?? null;
+  const same = (s.draft.clientId ?? null) === clientId;
+  const client = clientById(clientId, s);
+  return { clientId, same, rx: (same ? s.draftRx : null) ?? client?.prescription ?? null, contactRx: client?.contactRx ?? null, claimed: same ? (s.draft.claimed ?? []) : [] };
+}
+
+async function pushQuoteOption(order, clientId) {
+  const q = state.quote;
+  const seller = staffMember();
+  const option = { ...order, id: uid(), status: 'presented', sellerEmployeeNumber: seller?.employeeNumber ?? null, sellerName: seller?.name ?? null };
+  const quote = { ...q, clientId: q.clientId ?? clientId ?? null, options: [...q.options, { id: uid(), order: option, addedOn: new Date().toISOString() }] };
+  setState({ quote });
+  await saveQuote();
+  return { n: quote.options.length };
+}
+
+const quoteFull = () => (state.quote.options.length >= QUOTE_OPTIONS ? { error: tr('The quote already has {n} options. Remove one first.', { n: QUOTE_OPTIONS }) } : null);
+
+/** Copies the order in progress as the next option. Returns why it could not, if it could not. */
 export async function addToQuote() {
   const q = state.quote;
   const draft = resolvedDraft();
   if (!draft.lines.length) return { error: tr('The order is empty — add a frame or a lens first.') };
-  if (q.options.length >= QUOTE_OPTIONS) return { error: tr('The quote already has {n} options. Remove one first.', { n: QUOTE_OPTIONS }) };
+  const full = quoteFull();
+  if (full) return full;
   if (q.clientId && draft.clientId && q.clientId !== draft.clientId) {
     return { error: tr('This quote is for {name}. Clear it to quote someone else.', { name: clientById(q.clientId)?.name ?? tr('another client') }) };
   }
-  const seller = staffMember();
-  const order = {
-    ...draft, id: uid(), status: 'presented',
-    sellerEmployeeNumber: seller?.employeeNumber ?? null, sellerName: seller?.name ?? null,
-  };
-  const quote = { ...q, clientId: q.clientId ?? draft.clientId ?? null, options: [...q.options, { id: uid(), order, addedOn: new Date().toISOString() }] };
-  setState({ quote });
-  await saveQuote();
-  return { n: quote.options.length };
+  return pushQuoteOption(draft, draft.clientId);
+}
+
+/** An option built on its own (`lines`, and the discounts claimed) as the next one. The order in progress is not touched. */
+export async function addOptionToQuote({ lines, claimed = [] }) {
+  if (!lines?.length) return { error: tr('The option is empty — choose a frame or a lens first.') };
+  const full = quoteFull();
+  if (full) return full;
+  const { clientId } = quoteBase();
+  return pushQuoteOption(resolveOrder({ ...newOrder(), clientId, lines, claimed }, state.catalogue), clientId);
 }
 
 export async function removeQuoteOption(id) {

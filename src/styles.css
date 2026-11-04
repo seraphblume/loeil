@@ -815,6 +815,9 @@ a.dash-card:active { transform: scale(.985); background: var(--cell-press); }
 .status-card .s { font-size: 13px; color: var(--label-2); font-variant-numeric: tabular-nums; }
 .status-card .state { font-family: var(--mono); font-size: 12px; color: var(--label-3); }
 .status-card:not(.done) .state { animation: blink 1s steps(2) infinite; }
+.status-card.idle .tick circle { stroke: var(--label-3); stroke-dasharray: none; animation: none; }
+.status-card.idle .state { animation: none; }
+.printer-wait { margin: 14px 4px 0; text-align: center; }
 
 .printer {
   position: relative; z-index: 2; border-radius: 26px; padding: 14px 16px 15px;

@@ -14,14 +14,15 @@ import { Icon } from './icons.js';
 import { money } from '../core/money.js';
 import {
   presetGroups, resolvePreset, presetKey, itemsText, parseItems, isProgressiveOnly,
-  tierPrice, tierName, offers, TIERS,
+  tierPrice, tierName, offers, TIERS, presetLines,
 } from '../core/presets.js';
 import { needsAddition, rxIsBlank, strongestSphere, CL_FITS, fitComplete } from '../core/crm.js';
 import { HIGH_RX_SPHERE } from '../config.js';
 import { applyPreset, setOrderFrame, clientById, toast } from '../state/app.js';
 import { FramePicker } from './framepick.js';
 import { isPair } from '../core/orders.js';
-import { brandKey } from '../core/util.js';
+import { brandKey, uid } from '../core/util.js';
+import { LensPicker, HandPickedLens } from './lenspick.js';
 import { FormSheet } from './data/form.js';
 import { useWorking } from './data/home.js';
 import { edit } from '../state/working.js';
@@ -107,23 +108,33 @@ function PresetTile({ g, open, applied, onToggle }) {
   </button>`;
 }
 
+const NONE = [];
+
 /**
  * Presets on the order, one tap each. With `toQuote` it is the quote's option
  * builder: first the frame — the one on the order, one from the catalogue, a
- * brand or a set — then the lenses, and the order goes onto the quote as the
- * next option. A tier that names its brands (Luxury) asks for one of them
- * when the frame is not already theirs.
+ * brand or a set — then the lenses, a preset or one chosen by hand, and
+ * `toQuote({ lines, claimed })` puts the option on the quote. The order in
+ * progress is never changed by it. A tier that names its brands (Luxury) asks
+ * for one of them when the frame is not already theirs.
  */
 export function PresetSheet({ onClose, toQuote }) {
   const catalogue = useApp((s) => s.catalogue);
-  const rx = useApp((s) => s.draftRx ?? clientById(s.draft.clientId, s)?.prescription ?? null);
-  const contactRx = useApp((s) => clientById(s.draft.clientId, s)?.contactRx ?? null);
+  // On the quote: the quote's client, with the order's Rx and claims only when the order is theirs too.
+  const forId = useApp((s) => (toQuote ? s.quote.clientId ?? s.draft.clientId ?? null : s.draft.clientId));
+  const same = useApp((s) => (s.draft.clientId ?? null) === (forId ?? null));
+  const rx = useApp((s) => (same ? s.draftRx : null) ?? clientById(forId, s)?.prescription ?? null);
+  const contactRx = useApp((s) => clientById(forId, s)?.contactRx ?? null);
   const draftFrame = useApp((s) => s.draft.lines.find((l) => l.kind === 'frame') ?? null);
+  const draftLines = useApp((s) => s.draft.lines);
   const hasPair = useApp((s) => s.draft.lines.some((l) => isPair(l)));
-  const claimed = useApp((s) => s.draft.claimed);
-  const appliedKey = useApp((s) => s.draft.lines.filter((l) => l.preset).map((l) => l.preset).join(';'));
-  const orderId = useApp((s) => s.draft.id); // picks the accessories' colours, the same each time for this order
+  const claimed = useApp((s) => (same ? s.draft.claimed ?? NONE : NONE));
+  const appliedKey = useApp((s) => (toQuote ? '' : s.draft.lines.filter((l) => l.preset).map((l) => l.preset).join(';')));
+  const draftId = useApp((s) => s.draft.id);
+  const [optionId] = useState(uid);
+  const orderId = toQuote ? optionId : draftId; // picks the accessories' colours, the same each time for this order
   const [step, setStep] = useState(toQuote ? 'frame' : 'lens');
+  const [picked, setPicked] = useState(null); // a lens chosen by hand, on the quote
   const [frame, setFrame] = useState(null); // null: keep the order's · false: none · a line: this one
   const [waiting, setWaiting] = useState(null); // a tier waiting for its brand
   const chosen = frame === null ? draftFrame : frame || null;
@@ -156,7 +167,17 @@ export function PresetSheet({ onClose, toQuote }) {
     grid.current?.querySelector('.preset-tile.open')?.scrollIntoView?.({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
   }, [openId]);
 
+  // The option's frame and these lines go onto the quote; the order in progress stays as it is.
+  const toQuoteWith = async (rest, f = frame) => {
+    const take = f === null ? draftFrame : f || null;
+    onClose();
+    await toQuote({ lines: [...(take ? [{ ...take, id: uid() }] : []), ...rest], claimed: claimed ?? [] });
+  };
   const finish = async (result, f = frame) => {
+    if (toQuote) {
+      await toQuoteWith(result ? presetLines(result) : draftLines.filter((l) => l.kind !== 'frame').map((l) => ({ ...l, id: uid() })), f);
+      return;
+    }
     if (result) await applyPreset(result, f);
     else if (f !== null) await setOrderFrame(f);
     onClose();
@@ -174,7 +195,9 @@ export function PresetSheet({ onClose, toQuote }) {
 
   const steps = toQuote ? [{ id: 'frame', label: 'Frame' }, { id: 'lens', label: 'Lenses' }] : [];
   const at = step === 'frame' ? 0 : 1;
-  const title = step === 'brand' ? tr('Choose the brand') : toQuote ? tr('Add an option') : tr('Lifestyle presets');
+  const title = step === 'brand' ? tr('Choose the brand') : step === 'walk' || step === 'picked' ? tr('Choose the lens') : toQuote ? tr('Add an option') : tr('Lifestyle presets');
+  const frameRow = html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? tr('Any frame of the set') : tr('Quoted by brand')) : chosen ? tr('The frame for this option') : tr('This option has no frame')}
+    end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>${tr('Change')}</button>`} /></div>`;
 
   // the open preset's tiers go right after the row its tile is on
   const openAt = groups.findIndex((g) => g.id === openId);
@@ -195,10 +218,10 @@ export function PresetSheet({ onClose, toQuote }) {
         <${FramePicker} start="brand" onPick=${(line) => { setFrame(line); setStep('lens'); }} />`}
 
       ${step === 'lens' && html`
-        ${toQuote && html`<div class="list"><${Row} icon="glasses" title=${frameText(chosen)} detail=${chosen?.placeholder ? (chosen.setId ? tr('Any frame of the set') : tr('Quoted by brand')) : chosen ? tr('The frame for this option') : tr('This option has no frame')}
-          end=${html`<button type="button" class="textbtn" onClick=${() => setStep('frame')}>${tr('Change')}</button>`} /></div>`}
+        ${toQuote && frameRow}
+        ${toQuote && html`<div class="list"><${Row} icon="lens" title=${tr('Choose the lens myself')} detail=${tr('Step by step, as Find does it — no preset')} chev onClick=${() => setStep('walk')} /></div>`}
         <p class="para pad">${basis(rx, anyMfOnly, chosen)}</p>
-        ${toQuote && hasPair && html`<div class="list"><${Row} icon="lens" title=${tr('Keep the lenses on the order')} detail=${tr('Add this frame with what the order has')} chev onClick=${() => finish(null)} /></div>`}
+        ${toQuote && hasPair && same && html`<div class="list"><${Row} icon="lens" title=${tr('Keep the lenses on the order')} detail=${tr('Add this frame with what the order has')} chev onClick=${() => finish(null)} /></div>`}
         ${groups.length === 0 && html`<div class="pad"><${Flag}>${tr('No presets in the catalogue yet. An admin adds them under Me → Catalogue data → Lifestyle presets.')}<//></div>`}
         ${groups.length > 0 && html`<div class="preset-grid pad" ref=${grid}>
           ${groups.map((g, i) => html`
@@ -210,6 +233,16 @@ export function PresetSheet({ onClose, toQuote }) {
             </div>`}`)}
         </div>`}
         <p class="note pad">${tr('A preset sets the lenses and adds Plus Protection and accessories; another preset swaps them. Lite and Essential add only free gifts. No cleaning solution goes with Crizal, Transitions or Polarex, and Polarex never takes Crizal.')}</p>`}
+
+      ${step === 'walk' && html`
+        ${frameRow}
+        <${LensPicker} rx=${rx} onPick=${(lens) => { setPicked(lens); setStep('picked'); }} />
+        <div class="pad"><button type="button" class="btn quiet" onClick=${() => setStep('lens')}>${tr('Back to the presets')}</button></div>`}
+
+      ${step === 'picked' && picked && html`
+        ${frameRow}
+        <${HandPickedLens} key=${picked.id ?? picked.displayName} lens=${picked} frame=${chosen} claimed=${claimed ?? []} onAdd=${(rest) => toQuoteWith(rest)} />
+        <div class="pad"><button type="button" class="btn quiet" onClick=${() => setStep('walk')}>${tr('Choose another lens')}</button></div>`}
 
       ${step === 'brand' && waiting && html`
         <p class="para pad">${tr('{a} goes with a renowned frame. Choose the brand — in a set it takes the set’s price, outside one its lowest catalogue price.', { a: tierName(waiting.tier) })}</p>

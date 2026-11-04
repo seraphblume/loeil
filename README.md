@@ -354,7 +354,7 @@ Devlyn circulares, kept privately beside the backend files, never in this reposi
 order in one tap — single vision, or progressive when the prescription has an ADD;
 high-index when the sphere is strong and the tier has one — with Plus Protection
 and the accessories that go with it. The quote's **Add an option** opens the same
-presets after the frame.
+presets after the frame — beside **Choose the lens myself**, for a quote without one.
 
 The presets are **tiles**, two to a row: First Glasses, Digital, Everyday, Kids,
 Driver, Outdoor, Luxury, Clarity, Contacts and Progressive, each with its line and
@@ -446,9 +446,13 @@ typeset. The logo lives in `src/ui/logos.js`; another maker's logo goes there to
 ## The quote
 
 The **Quote** tab is the register's presupuesto: up to three options side by side
-for one client, sent as a picture. Build the order and tap **Add to quote**; change
-the lens (a preset is the quick way) or the frame and add it again. Each option is
-a snapshot that keeps its prices. The ticket greets the client, gives the branch,
+for one client, sent as a picture. Build each option in **Add an option** — a
+preset, or a lens chosen by hand — or build the order and tap **Add to quote** (or
+**Add the order as it is** on the Quote tab). Building an option in Add an option
+never changes the order in progress. Each option is a snapshot that keeps its
+prices. Nothing prints until **Print**: finish the quote, tap Print, then **Share
+image**; adding or removing an option after that clears the ticket and asks for
+Print again. The ticket greets the client, gives the branch,
 the employee and the quote number, then for each option the frame (by brand), the
 lenses, the treatments, the extras, the subtotal, the saving, the total and how long
 the prices hold (the end of the option's set or campaign); its foot is the store's
@@ -464,10 +468,22 @@ order, no frame, or quote it as
 - **Set** — any frame of the set, at the set's price; the ticket adds a Set row with
   its name (the ID Maestro stays on the order screen, off the tickets).
 
-Then the lenses: a lifestyle preset, or the lenses already on the order. A frame
-quoted by brand or set is a placeholder — the order flags it, and the real frame is
-scanned before checkout. **Frame brand or set** on the order's Add list does the same
-outside the quote.
+Then the lenses, one of three ways:
+
+- **A lifestyle preset** — its lens, Plus Protection and accessories in one tap;
+- **Choose the lens myself** — no preset: the family (single vision, multifocal,
+  contact lenses), then the same steps as Find, one decision at a time, each with
+  how many lenses it leaves; only what the catalogue sells can be reached. The lens
+  is priced with the option's frame the way the order prices it (a set's own lens
+  price too), Plus Protection is a switch, and contact lenses take the eyes and the
+  boxes per eye. **Add to quote** puts it on;
+- **Keep the lenses on the order** — this frame with the order's lenses, when the
+  order is the same client's.
+
+The option is for the quote's client, with their prescription (the order's, when
+the order is theirs). A frame quoted by brand or set is a placeholder — the order
+flags it, and the real frame is scanned before checkout. **Frame brand or set** on
+the order's Add list does the same outside the quote.
 
 ## Prescriptions
 
@@ -505,8 +521,11 @@ flags a fitted lens without them.
 
 ## Checkout and the receipt
 
-**Checkout** on the order prints it: the paper feeds out of the printer (with a
-printer sound, if he turns it on — off by default). Both copies — register and
+**Checkout** on the order lays out the receipt, and **Print** prints it: the paper
+feeds out of the printer (with a printer sound, if he turns it on — off by
+default). Nothing prints by itself — not on opening Checkout, not on switching
+copies — so the order can be finished first; **FEED** on the printer prints again.
+Both copies — register and
 customer — print as the register's own ticket: the branch at the top (name,
 address, phone — **Me → Catalogue data → Store**, encrypted with the catalogue),
 employee, client and discount numbers; the material lines with quantity, price,
@@ -515,13 +534,13 @@ line of two, included); the time, the amount and the amount in words; the
 prescription (SPH CYL AXIS, ADD and AOB when the job has them, PD per eye — the
 monocular figure, or half the binocular one, marked); and the store's foot.
 
-Below the register copy, what the POS asks for in its order, every value a tap to
-copy: 1 frame SKU, 2 lens and coating codes (a coating sold under a newer code
+Below the printed register copy, what the POS asks for in its order, every value a
+tap to copy: 1 frame SKU, 2 lens and coating codes (a coating sold under a newer code
 prints as that code — `printAs` in the names list), 3 set or
 discount numbers, 4 extras, 5 the prescription.
 
-**Share image** sends the receipt as a picture (the phone's share sheet, or a
-download); **Copy all** puts everything on the clipboard as text. A saved order
+**Share image**, once it has printed, sends the receipt as a picture (the phone's
+share sheet, or a download); **Copy all** puts everything on the clipboard as text. A saved order
 keeps its prices and the prescription it was made for, and reprints from
 Orders → the order → Print the receipt.
 
