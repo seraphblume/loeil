@@ -31,6 +31,7 @@ import { tr, trn } from '../i18n.js';
 import { lensCodeText } from './lens.js';
 import { promoNumbers } from './sets.js';
 import { allianceTotals } from './alliances.js';
+import { frameName } from './framename.js';
 
 export const STATUSES = [
   { id: 'draft', label: 'Draft' },
@@ -110,6 +111,7 @@ export function lineCode(line) {
 
 export function lineText(line) {
   if (line.own) return tr('Customer’s frame');
+  if (line.kind === 'frame') return frameName(line); // `Calvin Klein CK22102 002`
   if (line.kind === 'lens') {
     return [isPair(line) || line.eye === 'OU' ? null : line.eye, line.power || null, line.lens.displayName].filter(Boolean).join(' · ');
   }

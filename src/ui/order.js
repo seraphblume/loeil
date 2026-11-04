@@ -397,7 +397,7 @@ export function OrderScreen() {
     ${sheet === 'preset' && html`<${PresetSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'alliance' && html`<${AllianceSheet} onClose=${() => setSheet(null)} />`}
     ${sheet === 'framepick' && html`<${FramePickSheet} title=${tr('Frame brand or set')} start="brand" onClose=${() => setSheet(null)}
-      onPick=${async (line) => { await setOrderFrame(line); toast(tr('{item} on the order', { item: line.brand || line.description })); }} />`}`;
+      onPick=${async (line) => { await setOrderFrame(line); toast(tr('{item} on the order', { item: line.placeholder ? line.brand || line.description : lineText(line) })); }} />`}`;
 }
 
 const pairCount = (order) => order.lines.filter((l) => isPair(l)).length;

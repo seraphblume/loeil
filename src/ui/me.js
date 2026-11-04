@@ -101,7 +101,7 @@ export function MeScreen() {
     <${Bar} title=${me?.name ?? tr('Me')} large />
     <${Screen}>
       <div class="stack loose">
-        <${LargeTitle} detail=${me ? `${me.employeeNumber} · ${tr(me.role ?? 'seller')}` : null}>${me?.name?.split(' ')[0] ?? tr('Me')}<//>
+        <${LargeTitle} detail=${me ? `${me.employeeNumber} · ${tr(me.role === 'admin' ? 'Admin' : 'Seller')}` : null}>${me?.name?.split(' ')[0] ?? tr('Me')}<//>
         ${s.update && html`<div class="pad gap-s"><${Flag} icon="arrowUp">${tr('A new version of L’Œil is ready. It switches over on the next launch, or now.')}<//>
           <${Secondary} icon="refresh" onClick=${applyUpdate}>${tr('Update now')}<//></div>`}
         <div class="pad"><${Figure} value=${String(soldWeek)} caption=${tr('sold this week')} size=${48} /></div>
@@ -316,9 +316,9 @@ export function PromotionsScreen() {
             <span class="main">
               <span class="t">${p.name}</span>
               ${p.description && html`<span class="d">${p.description}</span>`}
-              ${conditionsOf(p).map((c) => html`<span class="d mono">${c}</span>`)}
+              ${conditionsOf(p).map((c) => html`<span class="d">${c}</span>`)}
               ${p.notes && html`<span class="d">${p.notes}</span>`}
-              <span class="d">${p.validFrom ? fmtDate(p.validFrom) : ''} – ${p.validTo ? fmtDate(p.validTo) : ''}</span>
+              ${(p.validFrom || p.validTo) && html`<span class="d">${[p.validFrom, p.validTo].map((d) => (d ? fmtDate(d) : '')).join(' – ').trim()}</span>`}
             </span>
             <span class="end mono sel" style="font-size:15px;color:var(--platinum)">${p.id}</span>
           </div>`)}

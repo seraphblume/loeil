@@ -145,7 +145,7 @@ export function ClientScreen({ id, embedded }) {
           ${client.customerId && html`<div class="cell"><span class="k">${tr('Customer ID')}</span><span class="v num sel">${client.customerId}</span></div>`}
           ${client.birthdate && html`<div class="cell"><span class="k">${tr('Birthdate')}</span><span class="v">${fmtDate(client.birthdate)}${age != null ? ` · ${age}` : ''}</span></div>`}
           ${client.quality && html`<div class="cell"><span class="k">${tr('Quality')}</span><span class="v">${tr(client.quality)}</span></div>`}
-          ${client.notes && html`<div class="cell"><span class="k">${tr('Notes')}</span><span class="v">${client.notes}</span></div>`}
+          ${client.notes && html`<div class="cell block"><span class="k">${tr('Notes')}</span><span class="v">${client.notes}</span></div>`}
         </div>
         <${RxCard} rx=${client.prescription} onEdit=${() => setSheet('rx')} />
         ${g.reasons.length > 0 && html`<div class="gap-s">${g.reasons.map((r) => html`<div class="silver small">${r}</div>`)}</div>`}

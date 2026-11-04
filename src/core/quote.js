@@ -8,6 +8,7 @@
 import { priceOrder, isPair, isShare, lineQuantity, placeholderFrame } from './orders.js';
 import { fold, uid, brandKey } from './util.js';
 import { liveSets, setForFrame } from './sets.js';
+import { frameName } from './framename.js';
 
 export const QUOTE_OPTIONS = 3;
 
@@ -70,7 +71,7 @@ export function quoteOption(order, catalogue, n, on = new Date()) {
     if (l.own) { rows.push({ label: 'Frame', desc: 'CUSTOMER’S FRAME', own: true }); continue; }
     const isFrom = l.placeholder && !l.set && (l.priceSource === 'from' || (l.setExcluded && l.fromCents != null));
     if (isFrom) from = true;
-    rows.push({ label: 'Frame', desc: upper(l.brand || l.description), qty: 1, price: r.list, from: isFrom });
+    rows.push({ label: 'Frame', desc: upper(l.placeholder ? l.brand || l.description : frameName(l)), qty: 1, price: r.list, from: isFrom });
     if (l.set) rows.push({ label: 'Set', desc: upper(l.set.name) }); // the set by name; its ID Maestro stays off the ticket
   }
   for (const r of byKind('lens')) {

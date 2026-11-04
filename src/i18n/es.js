@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1505 strings. English keys, es values.
+// Generated from the translation sheets — 1506 strings. English keys, es values.
 export const ES = {
   "1 change": "1 cambio",
   "1 client": "1 cliente",
@@ -1505,4 +1505,5 @@ export const ES = {
   "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "Armazón de cliente: los lentes llevan 30%, o el descuento de la campaña mientras los cubra.",
   "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "Sin armazón: los precios son solo de los lentes. Para el armazón propio del cliente, elige Armazón de cliente.",
   "Contact lenses and extras only": "Solo lentes de contacto y extras",
+  "POS description": "Descripción en caja",
 };

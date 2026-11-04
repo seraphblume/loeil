@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1505 strings. English keys, ko values.
+// Generated from the translation sheets — 1506 strings. English keys, ko values.
 export const KO = {
   "1 change": "변경 1건",
   "1 client": "고객 1명",
@@ -1505,4 +1505,5 @@ export const KO = {
   "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "고객 안경테: 렌즈 30% 할인, 캠페인 할인이 적용되는 동안은 그 할인.",
   "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "안경테 없음: 가격은 렌즈만입니다. 고객 본인의 안경테라면 고객 안경테를 고르세요.",
   "Contact lenses and extras only": "콘택트렌즈와 부속품만",
+  "POS description": "POS 표기",
 };

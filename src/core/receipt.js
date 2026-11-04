@@ -13,6 +13,7 @@
 // register takes today: a coating whose vocabulary row says `printAs` prints
 // as that code.
 
+import { frameName } from './framename.js';
 import { priceOrder, lineQuantity, isPair, isShare, needsAob } from './orders.js';
 import { lensCodeText } from './lens.js';
 import { promoNumbers } from './sets.js';
@@ -134,7 +135,7 @@ export function ticketItems(rows, catalogue) {
     if (l.kind === 'lens') {
       out.push({ code: lensCodeText(l.lens), desc: upper([l.eye, l.power, l.lens.displayName].filter(Boolean).join(' ')), qty, price: unit(r.list), net: unit(r.net), total: r.net, pending });
     } else if (l.kind === 'frame') {
-      out.push({ code: l.sku, desc: upper(l.description), qty: 1, price: r.list, net: r.net, total: r.net, note: l.set ? l.set.name : null }); // the set by name; its ID Maestro stays off the ticket
+      out.push({ code: l.sku, desc: upper(frameName(l)), qty: 1, price: r.list, net: r.net, total: r.net, note: l.set ? l.set.name : null }); // the set by name; its ID Maestro stays off the ticket
     } else {
       out.push({ code: l.code, desc: upper(l.description), qty, price: unit(r.list), net: unit(r.net), total: r.net, register: r.net == null, note: isShare(l) ? `${l.percent}% of ${money(r.base)}` : null });
     }
@@ -166,7 +167,7 @@ export function buildReceipt({ order, catalogue, kind = 'register', client = nul
 
   const groups = [
     { n: 1, title: 'Frame SKU', items: frames.map((r) => (r.line.own ? { copy: null, text: 'Customer’s frame — nothing to scan' } : {
-      copy: r.line.sku, qty: 1, text: r.line.description, price: net(r),
+      copy: r.line.sku, qty: 1, text: frameName(r.line), price: net(r),
       note: r.line.set ? r.line.set.name : r.line.priceSource === 'tag' ? 'price from the tag' : '',
     })) },
     { n: 2, title: 'Treatments', items: lenses.flatMap((r) => registerCodes(r.line, catalogue).map((c, i) => ({

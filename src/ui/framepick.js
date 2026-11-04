@@ -8,6 +8,7 @@ import { Sheet, Seg, SearchField, Row } from './kit.js';
 import { money } from '../core/money.js';
 import { brandOptions, brandFrame, setFrame } from '../core/quote.js';
 import { frameLine } from '../core/orders.js';
+import { frameName } from '../core/framename.js';
 import { liveSets } from '../core/sets.js';
 import { fold, brandKey } from '../core/util.js';
 import { GiftBadge } from './gifts.js';
@@ -40,7 +41,7 @@ export function FramePicker({ onPick, start = 'brand', only = null, modes = MODE
     ${mode === 'frame' && html`<div class="list">
       ${!t.trim() ? html`<div class="row"><span class="main"><span class="d">${tr('Search the catalogue by brand, model or the barcode on the tag.')}</span></span></div>`
         : frames.length === 0 ? html`<div class="row"><span class="main"><span class="d">${tr('No frame matches.')}</span></span></div>`
-          : frames.map((fr) => html`<${Row} key=${fr.sku} title=${fr.description} badge=${html`<${GiftBadge} brand=${fr.brand} />`} detail=${[fr.sku, fr.category, fr.size ? `${fr.size} mm` : null].filter(Boolean).join(' · ')} one
+          : frames.map((fr) => html`<${Row} key=${fr.sku} title=${frameName(fr)} badge=${html`<${GiftBadge} brand=${fr.brand} />`} detail=${[fr.sku, fr.category, fr.size ? `${fr.size} mm` : null].filter(Boolean).join(' · ')} one
               end=${money(fr.price)} onClick=${() => onPick(frameLine(fr, fr.price, 'catalogue'))} />`)}
     </div>`}
     ${mode === 'brand' && html`<div class="list">

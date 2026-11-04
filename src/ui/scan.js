@@ -8,6 +8,7 @@ import { Bar, Screen, Eyebrow, Empty, Anchor, Row, List, SearchField } from './k
 import { BarcodeCamera } from './camera.js';
 import { go } from './router.js';
 import { stockLabel, showsStock, STOCK_KIND_LABEL } from '../core/catalogue.js';
+import { frameName } from '../core/framename.js';
 import { tr } from '../i18n.js';
 
 export function ScanScreen() {
@@ -30,7 +31,7 @@ export function ScanScreen() {
 
   const digits = typed.replace(/\D/g, '');
   const matches = digits.length >= 4
-    ? [...catalogue.frames.filter((f) => f.sku.includes(digits)).slice(0, 6).map((f) => ({ sku: f.sku, title: f.description, detail: f.sku + ' · ' + tr('frame'), to: '#/find/frame/' + f.sku })),
+    ? [...catalogue.frames.filter((f) => f.sku.includes(digits)).slice(0, 6).map((f) => ({ sku: f.sku, title: frameName(f), detail: f.sku + ' · ' + tr('frame'), to: '#/find/frame/' + f.sku })),
        ...catalogue.inventory.filter((i) => !i.inCatalogue && i.sku.includes(digits)).slice(0, 6).map((i) => ({ sku: i.sku, title: i.description, detail: `${i.sku} · ${showsStock(i.kind) ? stockLabel(i.stock) : tr(STOCK_KIND_LABEL[i.kind] ?? 'stock item').toLowerCase()}`, to: '#/find/stock/' + i.sku }))]
     : [];
 

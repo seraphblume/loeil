@@ -22,7 +22,21 @@ app opens, and roll on to the new amount after a sale (still, with reduced motio
 It is drawn in six colours — ink #111111, graphite #333333, stone #777777, sand
 #BEB8AD, linen #E6E1D7, paper #F6F4EE — as paper by day and ink by night,
 following the device's appearance. The icon is the eye in ink on paper with a
-sand iris (the browser tab's icon turns to paper on ink at night).
+sand iris (the browser tab's icon turns to paper on ink at night). It follows the
+device's accessibility settings too: **Reduce Transparency** turns the glass of
+the bars and sheets solid, **Increase Contrast** darkens the secondary text and
+draws an edge on every grouped surface, and **Reduce Motion** swaps movement for
+fades. Small controls (a line's chips, its ×) keep their size on screen but take
+a full 44-point touch. A sheet pulled down follows the finger and lifts the
+dimming behind it; let go fast and it is thrown away, let go slowly and it
+returns.
+
+Frames read by their model, the way it is written on the temple: the POS's
+`CALVIN KLEIN CK22102 002 NEGRO-GRIS` is **Calvin Klein CK22102 002** on the
+order, in lists, on the quote and on the register's ticket — the brand in its
+own spelling, the model and its colour code as listed, the colour names and the
+size left off. The frame's screen shows the model large under the brand, with
+the colour and the POS's whole description in its details.
 
 **Valeria Luxe** is the showcase client: made up, on every phone and for every
 seller, with single vision glasses (−1.75/−2.25 with the PD per eye), Biofinity

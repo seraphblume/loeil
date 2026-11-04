@@ -41,7 +41,8 @@ export function OrdersScreen({ selected, query, view: open }) {
         <${LargeTitle}>${tr('Orders')}<//>
         <div class="pad"><${Seg} dense label=${tr('Show')} value=${view} options=${views()} onChange=${show} /></div>
         ${CONTROL_VIEWS[view] ? html`<${CONTROL_VIEWS[view]} selected=${selected} />` : orders.length === 0
-          ? html`<div class="pad"><${Empty} title=${tr('No orders yet')}>${tr('Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.')}<//></div>`
+          ? html`<div class="pad stack tight"><${Empty} title=${tr('No orders yet')}>${tr('Scan a frame or walk a lens, add the lines, then save the order to a client. What you mark Sold becomes their history.')}<//>
+              <${Secondary} icon="glasses" onClick=${() => go('#/find/order')}>${tr('Start an order')}<//></div>`
           : STATUSES.map((s) => {
             const group = orders.filter((o) => o.status === s.id);
             return group.length > 0 && html`<${Section} title=${`${tr(s.label)} · ${group.length}`}>${group.map((o) => html`<${OrderRow} order=${o} on=${o.id === selected} />`)}<//>`;

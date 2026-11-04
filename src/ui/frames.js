@@ -14,6 +14,7 @@ import { Icon } from './icons.js';
 import { money } from '../core/money.js';
 import { stockLabel, STOCK_KIND_LABEL, showsStock } from '../core/catalogue.js';
 import { frameLine, extraLine } from '../core/orders.js';
+import { frameName, frameModel, frameParts } from '../core/framename.js';
 import { addLine, toast } from '../state/app.js';
 import { livePromotions } from '../core/promotions.js';
 import { GiftBadge, GiftPanel } from './gifts.js';
@@ -101,7 +102,7 @@ export function FramesScreen({ query }) {
         </div>
         ${result.total === 0 ? html`<div class="pad"><${Empty} title=${tr('No frames match')}>${tr('Loosen a filter, or search by the eight barcode digits.')}<//></div>` : html`
         <${List}>
-          ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${f.description} one badge=${html`<${GiftBadge} brand=${f.brand} />`}
+          ${result.items.slice(0, limit).map((f) => html`<${Row} to=${'#/find/frame/' + f.sku} title=${frameName(f)} one badge=${html`<${GiftBadge} brand=${f.brand} />`}
             detail=${[dealText(frameDeal(catalogue, { kind: 'frame', sku: f.sku })), f.sku, f.category, f.size ? `${f.size} mm` : null].filter(Boolean).join(' · ')}
             end=${money(f.price)} />`)}
         <//>
@@ -137,7 +138,7 @@ export function FrameScreen({ sku }) {
     <${Bar} backTo="#/find/frames" title=${tr('Frame')} />
     <${Screen} class="has-dock">
       <div class="stack pad">
-        <${ScreenTitle} eyebrow=${frame.brand} title=${frame.description} />
+        <${ScreenTitle} eyebrow=${frame.brand} title=${frameModel(frame)} />
         <${Figure} value=${money(frame.price)} caption=${tr('Tag price')} size=${38} />
         <${GiftPanel} brand=${frame.brand} />
         <${CampaignPanel} frame=${frame} set=${set} sun=${sun} deal=${deal} />
@@ -145,6 +146,8 @@ export function FrameScreen({ sku }) {
           <${KV} k=${tr('Barcode')} v=${frame.sku} mono />
           ${frame.product && html`<${KV} k=${tr('Product code')} v=${frame.product} mono />`}
           <${KV} k=${tr('Brand')} v=${frame.brand} />
+          ${frameParts(frame).colour && html`<${KV} k=${tr('Colour')} v=${frameParts(frame).colour} />`}
+          <${KV} k=${tr('POS description')} v=${frame.description} />
           ${frame.tier && html`<${KV} k=${tr('Tier')} v=${frame.tier.label} />`}
           ${frame.category && html`<${KV} k=${tr('Category')} v=${frame.category} />`}
           ${frame.frameType && html`<${KV} k=${tr('Frame type')} v=${frame.frameType} />`}

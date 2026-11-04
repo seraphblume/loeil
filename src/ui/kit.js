@@ -259,28 +259,44 @@ export function Sheet({ title, onClose, left, right, children, full }) {
   }, []);
   useLayoutEffect(() => () => leaveGracefully(ref.current), []);
 
-  // Pull to dismiss: follows the finger, with friction upward; a flick is enough.
+  // Pull to dismiss: follows the finger, with friction upward, and the dimming
+  // behind it lifts as it goes. Where it lands is projected from the finger's
+  // speed at release — the last few moves, not the whole drag — so a flick
+  // after a slow pull still throws it away, and a pull that stops comes back.
   const down = (e) => {
     if (drag.current || e.button > 0) return;
     if (e.target.closest('button, a, input, select, textarea')) return;
-    drag.current = { y: e.clientY, t: performance.now(), dy: 0, id: e.pointerId };
+    const t = performance.now();
+    drag.current = { y: e.clientY, dy: 0, id: e.pointerId, trail: [{ y: e.clientY, t }] };
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    ref.current?.classList.add('dragging'); // the dimming tracks the finger 1:1, no easing behind it
   };
   const move = (e) => {
     const d = drag.current;
     if (!d || e.pointerId !== d.id) return;
     const raw = e.clientY - d.y;
     d.dy = raw < 0 ? -Math.sqrt(-raw) * 2 : raw;
+    d.trail.push({ y: e.clientY, t: performance.now() });
+    if (d.trail.length > 6) d.trail.shift();
     const sheet = ref.current?.firstElementChild;
-    if (sheet) { sheet.style.transition = 'none'; sheet.style.transform = `translateY(${d.dy}px)`; }
+    if (sheet) {
+      sheet.style.transition = 'none';
+      sheet.style.transform = `translateY(${d.dy}px)`;
+      ref.current.style.setProperty('--dim', String(Math.max(0.25, 1 - Math.max(0, d.dy) / (sheet.offsetHeight || 600))));
+    }
   };
   const up = (e) => {
     const d = drag.current;
     if (!d || e.pointerId !== d.id) return;
     drag.current = null;
+    ref.current?.classList.remove('dragging');
     const sheet = ref.current?.firstElementChild;
-    const velocity = d.dy / Math.max(1, performance.now() - d.t);
-    if (d.dy > 110 || (d.dy > 12 && velocity > 0.45)) { onClose?.(); return; }
+    const a = d.trail[0];
+    const b = d.trail[d.trail.length - 1];
+    const v = b.t - a.t > 0 ? (b.y - a.y) / (b.t - a.t) : 0; // px per ms, at release
+    const landing = d.dy + v * 499; // the system's deceleration (0.998), projected
+    if (d.dy > 12 && (d.dy > 110 || landing > Math.min(320, (sheet?.offsetHeight || 600) * 0.45))) { onClose?.(); return; }
+    ref.current?.style.removeProperty('--dim');
     if (sheet) { sheet.style.transition = 'transform .32s cubic-bezier(.32, .72, 0, 1)'; sheet.style.transform = ''; }
   };
 

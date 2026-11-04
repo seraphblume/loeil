@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1505 strings. English keys, ja values.
+// Generated from the translation sheets — 1506 strings. English keys, ja values.
 export const JA = {
   "1 change": "変更 1件",
   "1 client": "顧客 1人",
@@ -1505,4 +1505,5 @@ export const JA = {
   "Customer’s frame: the lenses take 30% off, or the campaign’s discount while one covers them.": "お客様のフレーム：レンズは30%引き、キャンペーンの割引が対象になる間はそちら。",
   "No frame, so prices are for the lenses alone. For the client’s own frame, choose Customer’s frame.": "フレームなし：価格はレンズのみです。お客様のフレームに入れる場合は「お客様のフレーム」を選んでください。",
   "Contact lenses and extras only": "コンタクトレンズと付属品のみ",
+  "POS description": "POSの表記",
 };
