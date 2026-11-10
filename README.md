@@ -605,8 +605,9 @@ Scan the frame and the order does the rest: the frame's brand picks the set, the
 lens walked in the cascade finds its row of the table on its own (or he picks
 it), and the order shows the ID Maestro for the register (the quote and the
 receipt name the set only). A catalogue frame is matched on its
-brand exactly; a frame known only from stock on the brand its description
-starts with. Each row's match (`family|material|design|filter|colour|coating`)
+brand exactly, unless a set names a line of that brand its description starts
+with (Xikú Xikitos frames are brand Xikú, but go to Set $1,299); a frame known
+only from stock on the brand its description starts with. Each row's match (`family|material|design|filter|colour|coating`)
 lives in the data, as does every price, so a new campaign is a data edit.
 
 **A lens the set's table doesn't name takes the frame out of the set**: no plan at

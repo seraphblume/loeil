@@ -123,9 +123,12 @@ export function liveSets(catalogue, on = new Date()) {
 
 /**
  * The set a frame belongs to, or null. A catalogue frame is matched on its
- * brand exactly (so Ray-Ban Meta does not fall into the Ray-Ban set); a frame
- * known only from stock is matched on the longest brand its description
- * starts with (LINK FLEXKIDS before LINK). Sets are for ophthalmic frames.
+ * brand exactly (so Ray-Ban Meta does not fall into the Ray-Ban set), unless a
+ * set names a line of that brand its description starts with: Xikú Xikitos
+ * frames are brand Xikú in the catalogue, but go to Set $1,299, not Xikú's
+ * Set $1,999. A frame known only from stock is matched on the longest brand
+ * its description starts with (LINK FLEXKIDS before LINK). Sets are for
+ * ophthalmic frames.
  */
 export function setForFrame(catalogue, frame, on = new Date()) {
   if (!frame || frame.category === 'Sunglasses') return null;
@@ -133,7 +136,18 @@ export function setForFrame(catalogue, frame, on = new Date()) {
   if (!sets.length) return null;
   if (frame.brand) {
     const k = brandKey(frame.brand);
-    return sets.find((s) => brandAlternatives(s).some((alts) => alts.includes(k))) ?? null;
+    const d = brandKey(frame.description ?? '');
+    let best = null;
+    let bestLength = 0;
+    for (const s of sets) {
+      for (const alts of brandAlternatives(s)) {
+        for (const a of alts) {
+          const hit = a === k || (a.startsWith(k) && d.startsWith(a));
+          if (hit && a.length > bestLength) { best = s; bestLength = a.length; }
+        }
+      }
+    }
+    return best;
   }
   const d = brandKey(frame.description);
   let best = null;
