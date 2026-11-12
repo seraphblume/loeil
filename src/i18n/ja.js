@@ -1,4 +1,4 @@
-// Generated from the translation sheets — 1507 strings. English keys, ja values.
+// Generated from the translation sheets — 1520 strings. English keys, ja values.
 export const JA = {
   "1 change": "変更 1件",
   "1 client": "顧客 1人",
@@ -1507,4 +1507,17 @@ export const JA = {
   "Each preset has four tiers, the way the store sells — a complete ticket or a branded one: Essential is the set’s lens (blue light with HD anti-reflective in a Xikú frame) with Plus Protection and an accessory; Plus a branded lens with Plus Protection; Pro Essilor materials, mainly Transitions, without it; Ultra every upgrade with the accessories and Plus Protection. Progressive has its own ladder, with a Lite. Free gifts (a $0.01 cloth, a kids’ strap) go with every tier. A tier names its lens for single vision and for progressives, the extras and the accessories — and, for Luxury, the frame brands it goes with. A contact lens tier names a contact lens, or none at all for solution and case only.": "各プリセットには、店の売り方どおり4つの段階があります——そろった一式か、ブランドの一式か。Essential はセットのレンズ（Xikú のフレームならブルーライトカットと HD 反射防止）に Plus Protection と付属品1点。Plus はブランドレンズに Plus Protection。Pro は Essilor の素材（主に Transitions）で Plus Protection なし。Ultra はすべてのアップグレードに付属品と Plus Protection。累進は独自の段階で、Lite があります。無料の贈り物（$0.01 のクロス、子ども用ストラップ）はどの段階にも付きます。段階は単焦点用と累進用のレンズ、追加項目、付属品を指定し、Luxury ではフレームのブランドも指定します。コンタクトレンズの段階はコンタクトレンズを指定するか、洗浄液とケースだけなら何も指定しません。",
   "family|material|design|filter|colour|coating, as in the set rows: codes, several with commas, *GROUP for a promo group, ! for anything but, * for anything; several matches separated by ;. Of the matches, the one the client pays least for with the frame on the order is taken — in a set, its row of the set’s table — and a strong prescription takes a high-index match when there is one. Polarex with Crizal is never taken. Blank with a progressive below: progressive only, offered when the prescription has an ADD. Both blank: a contact lens preset (see Contact lens). A match ending in @ and brands (…|BLU|SHC @Xikú) counts only with a frame of those brands, and then it replaces the others.": "family|material|design|filter|colour|coating（セットの行と同じ）：コードは複数ならカンマ区切り、*GROUP でプロモーショングループ、! で「それ以外」、* で何でも。複数の候補は ; で区切ります。候補のうち、注文のフレームと合わせてお客様の支払いが最も少ないもの（セットではセット表の行）を選び、強度処方では高屈折の候補があればそれを選びます。Polarex と Crizal の組み合わせは選びません。空欄で下に累進がある場合：処方に ADD があるときだけ累進を提示。両方空欄：コンタクトレンズのプリセット（コンタクトレンズを参照）。 @とブランドで終わる条件（…|BLU|SHC @Xikú）は、そのブランドのフレームのときだけ使われ、そのときは他の条件の代わりになります。",
   "Lite — Progressive only: Extended Design with anti-reflective, no Plus Protection · Essential — The set’s lens (blue light with HD anti-reflective in a Xikú frame), Plus Protection and an accessory · Plus — A branded lens — Crizal, Eyezen, Varilux — with Plus Protection · Pro — Essilor materials, mainly Transitions, without Plus Protection · Ultra — Every upgrade, the accessories and Plus Protection. On the order the preset and the tier read as one name: Digital Pro.": "Lite — 累進のみ：Extended Design に反射防止、Plus Protection なし · Essential — セットのレンズ（Xikú のフレームならブルーライトカットと HD 反射防止）、Plus Protection と付属品1点 · Plus — ブランドレンズ（Crizal、Eyezen、Varilux）に Plus Protection · Pro — Essilor の素材（主に Transitions）、Plus Protection なし · Ultra — すべてのアップグレード、付属品と Plus Protection。注文ではプリセットとランクが一つの名前になります：Digital Pro。",
+  "Lenses by {a}": "{a} のレンズ",
+  "Lenses not by {a}": "{a} 以外のレンズ",
+  "Frame on {id}’s list": "{id} の対象フレーム",
+  "Frame not on {id}’s list": "{id} の対象外フレーム",
+  "From {n} boxes": "{n}箱から",
+  "Number on the ticket": "チケットの番号",
+  "Blank: the promotion no. For a second rule of one promotion (other dates or products), give it its own promotion no. — 9882 b — and the shared number here.": "空欄：プロモーション番号。同じプロモーションの2つ目のルール（別の期間や商品）には、独自のプロモーション番号（9882 b）を付け、ここに共通の番号を入れます。",
+  "Lens maker": "レンズのメーカー",
+  "A maker: only lenses with a part from it (a Varilux design, a Crizal coating, Transitions). ! before it: only lenses with none. Blank: any.": "メーカー：そのメーカーの要素（Varilux の設計、Crizal コート、Transitions）を含むレンズだけ。前に !：含まないレンズだけ。空欄：すべて。",
+  "Frame on the list of": "対象フレームのリスト",
+  "A promotion no. with participating frames: these lenses take it only when their frame is on that list, sold and outside a set, and the frame then shows this number. ! before it: only when the frame is not (another frame, the client’s own, or none). Blank: any frame.": "対象フレームを持つプロモーション番号：フレームがそのリストにあり、販売され、セット外のときだけこのレンズに適用され、フレームにもこの番号が表示されます。前に !：フレームがリストにないとき（別のフレーム、お客様のフレーム、またはなし）だけ。空欄：どのフレームでも。",
+  "Boxes needed": "必要な箱数",
+  "Contact lenses: the order needs at least this many boxes of the products under Only. Separate groups with ; to count them apart (Biofinity…; MyDay…). Blank: from one.": "コンタクトレンズ：注文に「対象のみ」の商品がこの箱数以上必要です。; で区切ると別々に数えます（Biofinity…; MyDay…）。空欄：1箱から。",
 };

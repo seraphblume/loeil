@@ -296,7 +296,7 @@ function contactFitCell(r) {
   return isYes(r.gas_permeable) ? 'gp' : null;
 }
 
-/** The optional discount columns: its lens price table, what the client shows, sticker percentages, and the participating frames by SKU. */
+/** The optional discount columns: its lens price table, what the client shows, sticker percentages, the participating frames by SKU, the number it shares, and what narrows it (lens maker, a frame list it pairs with, boxes). */
 function discountExtras(r) {
   const out = {};
   const prices = parsePriceTable(cellText(r.prices));
@@ -307,6 +307,14 @@ function discountExtras(r) {
   if (picks.length) out.framePicks = picks;
   const skus = parseFrameSkusText(cellText(r.frame_skus));
   if (Object.keys(skus).length) out.frameSkus = skus;
+  const number = cellText(r.number).trim();
+  if (number) out.number = number;
+  const maker = cellText(r.lens_maker).trim();
+  if (maker) out.lensMaker = maker;
+  const paired = cellText(r.paired_with).trim();
+  if (paired) out.pairedWith = paired;
+  const boxes = Number(cellText(r.min_boxes).trim());
+  if (boxes > 0) out.minBoxes = boxes;
   return out;
 }
 

@@ -17,7 +17,7 @@ import {
   upsertSet, deleteSet, setSetPrice, upsertSetLens, deleteSetLens, upsertDiscount, deleteDiscount, setCampaignDates,
 } from '../../core/edits.js';
 import {
-  SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount, parsePriceTable, priceTableText, frameSkusText, parseFrameSkusText, frameSkusSummary,
+  SET_GROUPS, APPLIES_TO, setStatus, rowPriceText, matchCount, parsePriceTable, priceTableText, frameSkusText, parseFrameSkusText, frameSkusSummary, numberOf,
 } from '../../core/sets.js';
 import { tr, trn } from '../../i18n.js';
 
@@ -176,10 +176,13 @@ export function DiscountsScreen() {
     <${Screen}>
       <div class="stack">
         <p class="para pad">${tr('Applied by the order on its own while their dates run — a percentage, or a table of lens prices. One that names what the client shows (a membership card) waits for the seller to switch it on. A line takes one discount, never two, and the seller can still change it on the line.')}</p>
-        ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${d.id} · ${tr(APPLIES_TO[d.appliesTo] ?? d.appliesTo)} · ${when(d)}`}
+        ${list.length ? html`<${List}>${list.map((d) => html`<${Row} title=${d.name} detail=${`${numberOf(d)} · ${tr(APPLIES_TO[d.appliesTo] ?? d.appliesTo)} · ${when(d)}`}
           sub=${[d.requires && tr('Shows: {what}', { what: d.requires }), d.prices?.length && (d.prices.some((r) => r.price == null) ? tr('{n} lens prices, some to confirm', { n: d.prices.length }) : tr('{n} lens prices', { n: d.prices.length })),
             d.frameSkus ? trn(Object.keys(d.frameSkus).length, '1 participating frame ({split})', '{n} participating frames ({split})', { split: frameSkusSummary(d.frameSkus) })
               : d.framePicks?.length && tr('Participating frames: {list}', { list: d.framePicks.map((x) => `${x}%`).join(' / ') }),
+            d.lensMaker && (String(d.lensMaker).startsWith('!') ? tr('Lenses not by {a}', { a: String(d.lensMaker).slice(1) }) : tr('Lenses by {a}', { a: d.lensMaker })),
+            d.pairedWith && (String(d.pairedWith).startsWith('!') ? tr('Frame not on {id}’s list', { id: String(d.pairedWith).slice(1) }) : tr('Frame on {id}’s list', { id: d.pairedWith })),
+            Number(d.minBoxes) > 0 && tr('From {n} boxes', { n: d.minBoxes }),
             d.only && tr('Only {a}', { a: d.only }), d.except && tr('Not {a}', { a: d.except })].filter(Boolean).join(' · ') || null}
           end=${amount(d)} off=${setStatus(d) === 'Ended'} onClick=${() => setOpen({ d, id: d.id })} />`)}<//>` : html`<div class="pad"><${Empty} title=${tr('None')}>${tr('Add one with +.')}<//></div>`}
       </div>
@@ -189,6 +192,8 @@ export function DiscountsScreen() {
         { key: 'id', label: 'Promotion no.', required: true, inputmode: 'numeric', group: 'Discount' },
         { key: 'name', label: 'Name', required: true, placeholder: '30% off contact lenses', group: 'Discount' },
         { key: 'appliesTo', label: 'Applies to', type: 'select', options: Object.entries(APPLIES_TO).map(([value, label]) => ({ value, label })), group: 'Discount' },
+        { key: 'number', label: 'Number on the ticket', inputmode: 'numeric', group: 'Discount',
+          hint: 'Blank: the promotion no. For a second rule of one promotion (other dates or products), give it its own promotion no. — 9882 b — and the shared number here.' },
         { key: 'percent', label: 'Percent', type: 'number', group: 'How much', hint: 'Or lens prices below instead.' },
         { key: 'pricesText', label: 'Lens prices', type: 'textarea', group: 'How much', placeholder: 'SV|*POLY|*|*POLAR|PLG,PLV,PLC|ARC = 3999',
           hint: 'One lens per line: family|material|design|filter|colour|coating, as in the set rows, then = the pair’s price. “= ?” for a lens the offer covers at a price not known yet. The first line that matches wins, and the price replaces the lens’s own, as the register prints it.' },
@@ -197,6 +202,12 @@ export function DiscountsScreen() {
         { key: 'framePicksText', label: 'Sticker percentages', placeholder: '30, 50', group: 'How much',
           hint: 'Only without a list of SKUs. Percentages separated by commas, as the stickers on the frames say. On a frame, the seller picks the one its sticker shows, and the frame leaves its set. Blank: none.' },
         { key: 'requires', label: 'The client shows', placeholder: 'e.g. Sam’s Club membership card', group: 'Who', hint: 'Set: the seller switches it on for the order. Blank: it applies on its own.' },
+        { key: 'lensMaker', label: 'Lens maker', placeholder: 'Essilor or !Essilor', group: 'Who',
+          hint: 'A maker: only lenses with a part from it (a Varilux design, a Crizal coating, Transitions). ! before it: only lenses with none. Blank: any.' },
+        { key: 'pairedWith', label: 'Frame on the list of', placeholder: '9010 or !9010', inputmode: 'numeric', group: 'Who',
+          hint: 'A promotion no. with participating frames: these lenses take it only when their frame is on that list, sold and outside a set, and the frame then shows this number. ! before it: only when the frame is not (another frame, the client’s own, or none). Blank: any frame.' },
+        { key: 'minBoxes', label: 'Boxes needed', type: 'number', group: 'Who',
+          hint: 'Contact lenses: the order needs at least this many boxes of the products under Only. Separate groups with ; to count them apart (Biofinity…; MyDay…). Blank: from one.' },
         { key: 'only', label: 'Only', type: 'textarea', group: 'Who', hint: 'Leave blank for all. Otherwise the brands (frames) or products (contact lenses) it is limited to, separated by commas.' },
         { key: 'except', label: 'Except', type: 'textarea', group: 'Who', hint: 'Brands or products it never applies to, separated by commas.' },
         { key: 'validFrom', label: 'From', type: 'date', group: 'When', hint: 'Both blank: standing, and a new campaign’s dates leave it alone.' },
@@ -206,6 +217,10 @@ export function DiscountsScreen() {
         if (x.id !== open.id && list.some((d) => d.id === x.id)) return tr('Promotion {id} is already listed.', { id: x.id });
         const d = { id: String(x.id).trim(), name: String(x.name).trim(), percent: x.percent ?? 0, appliesTo: x.appliesTo,
           only: String(x.only ?? '').trim(), except: String(x.except ?? '').trim(), validFrom: x.validFrom || '', validTo: x.validTo || '' };
+        if (String(x.number ?? '').trim() && String(x.number).trim() !== d.id) d.number = String(x.number).trim();
+        if (String(x.lensMaker ?? '').trim()) d.lensMaker = String(x.lensMaker).trim();
+        if (String(x.pairedWith ?? '').trim()) d.pairedWith = String(x.pairedWith).replace(/\s+/g, '');
+        if (Number(x.minBoxes) > 0) d.minBoxes = Math.round(Number(x.minBoxes));
         const prices = parsePriceTable(x.pricesText);
         if (prices.length) d.prices = prices;
         const picks = String(x.framePicksText ?? '').split(/[,\s/]+/).map((v) => Number(v.replace('%', ''))).filter((v) => v > 0 && v <= 100);

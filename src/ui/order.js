@@ -182,7 +182,7 @@ function DiscountSheet({ row, order, onClose }) {
       <//>
       <p class="note pad">${untagged ? tr('This frame’s tag price is not on the order, so outside the set the register prices it. To compare, add the frame again with the price read off its tag.') : tr('What the whole order comes to either way: the set and {name} do not combine.', { name: deal.name })}</p>`}
       <${List}>
-        ${auto && !(deal && auto.id === deal.id) && html`<${Row} title=${auto.name} detail=${`${tr('Promotion {id}', { id: auto.id })} · ${hitText(auto, money)}`}
+        ${auto && !(deal && (auto.key ?? auto.id) === (deal.key ?? deal.id)) && html`<${Row} title=${auto.name} detail=${`${tr('Promotion {id}', { id: auto.id })} · ${hitText(auto, money)}`}
           end=${html`${autoEnd}${!manual ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(undefined)} />`}
         ${[0, ...LINE_DISCOUNTS].map((pct) => html`<${Row} title=${pct ? tr('{n}% off', { n: pct }) : tr('No discount')}
           end=${html`${at(pct)}${manual && !l.promo && l.discount === pct ? html` <${Icon} name="check" />` : !auto && !manual && pct === 0 ? html` <${Icon} name="check" />` : ''}`} onClick=${() => pick(pct)} />`)}

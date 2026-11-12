@@ -361,6 +361,22 @@ function validateSets(b, report) {
     }
     if (picks.some((x) => !(x > 0 && x <= 100))) report.error('Campaign discounts', `${where}: every frame percentage must be more than 0 and at most 100.`);
     if (picks.length && d.requires) report.warn('Campaign discounts', `${where}: frame percentages are picked by the seller, so they are not offered on a discount the client has to show something for.`);
+    if (d.number && !/^\d+$/.test(String(d.number))) report.error('Campaign discounts', `${where}: the number on the ticket must be digits.`);
+    if (d.lensMaker) {
+      const want = String(d.lensMaker).replace(/^!/, '').trim();
+      if (!(b.vocabulary ?? []).some((v) => v.maker && brandKey(v.maker) === brandKey(want))) report.warn('Campaign discounts', `${where}: no lens part in the vocabulary is made by “${want}”.`);
+    }
+    if (d.pairedWith) {
+      const pid = String(d.pairedWith).replace(/^!/, '').trim();
+      const partner = discounts.find((x) => x.id === pid);
+      if (!partner) report.error('Campaign discounts', `${where}: it pairs with promotion ${pid}, which is not listed.`);
+      else if (!partner.frameSkus) report.warn('Campaign discounts', `${where}: promotion ${pid} has no list of participating frames to pair with.`);
+      if (!['lenses', 'ownframe', 'sunlenses', 'all'].includes(d.appliesTo)) report.warn('Campaign discounts', `${where}: pairing with a frame list only narrows spectacle lenses.`);
+    }
+    if (d.minBoxes) {
+      if (!(Number.isInteger(Number(d.minBoxes)) && Number(d.minBoxes) > 0)) report.error('Campaign discounts', `${where}: the boxes needed must be a whole number above zero.`);
+      if (d.appliesTo !== 'contacts') report.warn('Campaign discounts', `${where}: boxes are counted for contact lenses only.`);
+    }
     if (!APPLIES_TO[d.appliesTo]) report.error('Campaign discounts', `${where}: “${d.appliesTo}” is not something a discount can apply to (${Object.keys(APPLIES_TO).join(', ')}).`);
     if (d.validFrom && d.validTo && d.validTo < d.validFrom) report.error('Campaign discounts', `${where} ends before it starts.`);
     for (const [i, row] of (d.prices ?? []).entries()) {

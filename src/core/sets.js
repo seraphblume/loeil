@@ -23,6 +23,16 @@
 //               (sets and these discounts do not combine). Without a list, a
 //               discount can name sticker percentages (framePicks: [30, 50])
 //               for the seller to pick on the frame.
+//               A discount can also be narrowed: to lenses by their maker
+//               (lensMaker: 'Essilor', or '!Essilor' for every other one); to
+//               lenses whose frame is — or is not — on another discount's
+//               list (pairedWith: '9010', or '!9010'), the frame then
+//               carrying the lens's promotion number on the ticket; and to
+//               contact lenses bought by the box (minBoxes: 4, counted across
+//               the order's lines of the products it names; `;` splits those
+//               into groups counted apart). One promotion number can take
+//               several rules — other dates, other products — each its own
+//               entry with its own id and the shared `number` for the ticket.
 //
 // A MATCH reads `family|material|design|filter|colour|coating`. Each part is
 // `*` (anything), a list of codes, or `*GROUP` for every code whose vocabulary
@@ -30,6 +40,7 @@
 // Several matches separate with `;`. A row with no match is chosen by hand.
 
 import { brandKey, dayToDate, startOfDay } from './util.js';
+import { makersOf } from './lens.js';
 import { resolveAlliance, applyAlliance, cfePair } from './alliances.js';
 import { tr } from '../i18n.js';
 
@@ -190,6 +201,9 @@ export function liveDiscounts(catalogue, on = new Date()) {
   return catalogue.discounts.filter((d) => isCurrent(d, on));
 }
 
+/** The promotion number a discount prints: its own id, or the number it shares with another rule (`9882`). */
+export const numberOf = (d) => String(d?.number || d?.id || '');
+
 /** The frame facts a set or a discount needs, from an order line or a frame. */
 export function frameFacts(catalogue, line) {
   const known = catalogue.framesBySku.get(line.sku);
@@ -201,7 +215,7 @@ export function frameFacts(catalogue, line) {
 }
 
 /** `Maui Jim, Ray-Ban Meta / RB Meta` → [['mauijim'], ['raybanmeta', 'rbmeta']]. */
-const nameList = (text) => String(text ?? '').split(',').map((x) => x.split('/').map(brandKey).filter(Boolean)).filter((a) => a.length);
+const nameList = (text) => String(text ?? '').split(/[,;]/).map((x) => x.split('/').map(brandKey).filter(Boolean)).filter((a) => a.length);
 
 /** The names a line answers to in a discount's only/except lists: a frame's brand, a contact lens's product. */
 function namesOf(catalogue, line) {
@@ -257,6 +271,7 @@ export function priceTableText(rows) {
 function discountHit(catalogue, d, line, ctx) {
   if (d.requires && !ctx.claimed?.has(d.id)) return null;
   if (line.own) return null; // the client's own frame: nothing sold, nothing to discount
+  const base = { id: numberOf(d), key: d.id, name: d.name };
   if (line.kind === 'frame' && d.frameSkus) {
     // A participating frame, by its SKU: its own percentage, outside a set (in
     // one it is the seller's choice — frameDeal). `except` still names brands.
@@ -264,7 +279,7 @@ function discountHit(catalogue, d, line, ctx) {
     if (percent == null || line.set) return null;
     const names = namesOf(catalogue, line);
     if (nameList(d.except).some((alts) => alts.some((k) => names.includes(k)))) return null;
-    return { id: d.id, name: d.name, percent };
+    return { ...base, percent };
   }
   const isContact = line.kind === 'lens' && line.lens?.family === 'CL';
   const isSpectacle = line.kind === 'lens' && !isContact;
@@ -286,7 +301,9 @@ function discountHit(catalogue, d, line, ctx) {
   const listed = (text) => nameList(text).some((alts) => alts.some((k) => names.includes(k)));
   if (String(d.only ?? '').trim() && !listed(d.only)) return null;
   if (listed(d.except)) return null;
-  const base = { id: d.id, name: d.name };
+  if (!makerFits(d.lensMaker, line)) return null;
+  if (d.pairedWith && !(isSpectacle && pairFits(catalogue, d.pairedWith, ctx))) return null;
+  if (Number(d.minBoxes) > 0 && !(isContact && boxesFor(catalogue, d, line, ctx) >= Number(d.minBoxes))) return null;
   if (d.prices?.length) {
     // An offer priced lens by lens: the register reprices the lens line itself.
     const facts = isSpectacle ? lensFacts(line.lens) : null;
@@ -295,6 +312,41 @@ function discountHit(catalogue, d, line, ctx) {
     return row.price != null ? { ...base, price: row.price } : { ...base, pending: true };
   }
   return { ...base, percent: d.percent };
+}
+
+/** `lensMaker: 'Essilor'` — a lens with any part from Essilor; `'!Essilor'` — one with none. Blank: any line. */
+function makerFits(lensMaker, line) {
+  const want = String(lensMaker ?? '').trim();
+  if (!want) return true;
+  if (line.kind !== 'lens') return false;
+  const not = want.startsWith('!');
+  const k = brandKey(not ? want.slice(1) : want);
+  const has = makersOf(line.lens).some((m) => brandKey(m) === k);
+  return not ? !has : has;
+}
+
+/**
+ * `pairedWith: '9010'` — the pair's frame is on that discount's list of
+ * participating frames, live, sold and outside a set; `'!9010'` — it is not
+ * (another frame, the client's own, or none).
+ */
+function pairFits(catalogue, pairedWith, ctx) {
+  const not = String(pairedWith).startsWith('!');
+  const partner = catalogue.discounts.find((x) => x.id === String(pairedWith).replace(/^!/, '').trim());
+  const f = ctx.frame;
+  const names = f ? namesOf(catalogue, f) : [];
+  const onList = Boolean(f && !f.own && !f.set && partner && isCurrent(partner, ctx.on ?? new Date()) && frameSkuPercent(partner, f) != null
+    && !nameList(partner.except).some((alts) => alts.some((k) => names.includes(k))));
+  return not ? !onList : onList;
+}
+
+/** Boxes on the order of the contact lenses a discount names (of the line's group, when `;` splits them): every box line counts. */
+function boxesFor(catalogue, d, line, ctx) {
+  const groups = String(d.only ?? '').split(';').map(nameList).filter((g) => g.length);
+  const inGroup = (g, l) => { const n = namesOf(catalogue, l); return g.some((alts) => alts.some((k) => n.includes(k))); };
+  const group = groups.find((g) => inGroup(g, line));
+  return (ctx.lines ?? [line]).filter((l) => l.kind === 'lens' && l.lens?.family === 'CL' && (!group || inGroup(group, l)))
+    .reduce((n, l) => n + Math.max(1, Number(l.quantity) || 1), 0);
 }
 
 /** What a discount takes off a list price; a price still to confirm saves nothing yet. */
@@ -351,7 +403,7 @@ export function framePicks(catalogue, line, on = new Date()) {
   return liveDiscounts(catalogue, on)
     .filter((d) => d.framePicks?.length && !d.frameSkus && !d.requires)
     .filter((d) => !listed(d.except))
-    .flatMap((d) => d.framePicks.map((percent) => ({ id: d.id, name: d.name, percent })));
+    .flatMap((d) => d.framePicks.map((percent) => ({ id: numberOf(d), key: d.id, name: d.name, percent })));
 }
 
 /**
@@ -366,7 +418,7 @@ export function frameDeal(catalogue, line, on = new Date()) {
   const deals = liveDiscounts(catalogue, on)
     .filter((d) => d.frameSkus && !d.requires)
     .filter((d) => !nameList(d.except).some((alts) => alts.some((k) => names.includes(k))))
-    .map((d) => ({ id: d.id, name: d.name, percent: frameSkuPercent(d, line) }))
+    .map((d) => ({ id: numberOf(d), key: d.id, name: d.name, percent: frameSkuPercent(d, line) }))
     .filter((x) => x.percent != null)
     .sort((a, b) => b.percent - a.percent);
   return deals[0] ?? null;
@@ -477,12 +529,23 @@ export function resolveOrder(order, catalogue, on = new Date()) {
   const claimed = new Set(order.claimed ?? []);
   for (const l of promos ? lines : []) {
     const pair = pairs.indexOf(l);
-    const ctx = { claimed, ...(pair >= 0 ? { frame: frames[pair] ?? null } : {}) };
+    const ctx = { claimed, on, lines, ...(pair >= 0 ? { frame: frames[pair] ?? null } : {}) };
     const d = autoDiscountFor(catalogue, l, on, ctx);
     if (!d) continue;
     l.offer = d; // what applies without the seller — shown even when he chose otherwise
     if (typeof l.discount !== 'number') l.auto = d;
   }
+  // A frame whose lenses took a rule paired with the frame's own list (Buen Fin:
+  // the frame's percentage + 40% on these lenses, 9008) carries that rule's
+  // number, so the register keys one promotion for the two.
+  frames.forEach((f, i) => {
+    const lens = pairs[i];
+    if (!f.offer || !lens?.auto) return;
+    const rule = catalogue.discounts.find((x) => x.id === (lens.auto.key ?? lens.auto.id));
+    if (!rule?.pairedWith || rule.pairedWith !== f.offer.key || lens.auto.id === f.offer.id) return;
+    f.offer = { ...f.offer, id: lens.auto.id, name: lens.auto.name };
+    if (f.auto) f.auto = f.offer;
+  });
   applyAlliance(ally, lines);
   const out = { ...order, lines };
   if (ally) out.ally = ally; else delete out.ally;

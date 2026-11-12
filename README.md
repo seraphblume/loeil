@@ -331,6 +331,29 @@ hand. With it:
 A discount with no list can still name sticker percentages (**Sticker
 percentages**, `30, 50`) for the seller to pick on the frame; a list replaces them.
 
+**Narrowing a discount.** Buen Fin splits one offer into several promotion numbers,
+so a discount can be narrowed:
+
+- **Lens maker** — `Essilor` takes only lenses with an Essilor part (a Varilux
+  design, a Crizal coating, Transitions, Eyezen, Stellest, Polarex); `!Essilor` only
+  lenses with none. The parts' makers are the vocabulary's.
+- **Frame on the list of** — `9010`: the lenses take it only when their frame is on
+  9010's participating list, sold and outside a set; the frame then carries the same
+  number, so the register keys one promotion for the two (a 50% frame with Poly AR
+  lenses: both on 9008). `!9010`: only when the frame is not on it — another frame,
+  the client's own, or none.
+- **Boxes needed** — contact lenses only, counted across the order's lines of the
+  products under Only (`;` splits them into groups counted apart: Biofinity…;
+  MyDay…). Steps are separate discounts (4 boxes 20%, 6 boxes 30%…); the largest
+  the order reaches wins.
+- **Number on the ticket** — one promotion with two rules (9880 before Buen Fin and
+  again after it) is two entries: their own promotion no. (`9880`, `9880-post`) and
+  the shared number the ticket prints.
+
+In Buen Fin (13–22 Nov 2026) that reads: a participating frame with lenses that
+are not Essilor's, 9008 (40% off them); with Essilor lenses, or alone, 9010 (30%);
+lenses with any other frame or the client's own, 9014 (40%) or 9027 (30%).
+
 The seller's own 40% or 50% on a line replaces all of these. Every discount is data
 (Catalogue data → Sets → Discounts): a percentage, or a table of lens prices (one
 `match = price` per line, `= ?` for a price not known yet; the first match wins),
